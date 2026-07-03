@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All your money, finally in one place</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- HERO -->
+  <header class="hero">
+    <nav class="nav">
+      <span class="wordmark">Confluence</span>
+    </nav>
+
+    <div class="hero-content">
+      <h1>All your money,<br>finally in one place.</h1>
+      <p class="subhead">Connect every bank and brokerage account, see your full picture update in real time, and let smart transfers handle the busywork.</p>
+
+      <!-- SIGNATURE VISUAL: separate streams converging into one -->
+      <svg class="flow" viewBox="0 0 600 160" aria-hidden="true">
+        <path class="stream s1" d="M20,30 C 150,30 250,80 300,80" />
+        <path class="stream s2" d="M20,80 C 150,80 250,80 300,80" />
+        <path class="stream s3" d="M20,130 C 150,130 250,80 300,80" />
+        <path class="stream main" d="M300,80 L 580,80" />
+        <circle class="node" cx="20" cy="30" r="5" />
+        <circle class="node" cx="20" cy="80" r="5" />
+        <circle class="node" cx="20" cy="130" r="5" />
+        <circle class="node main-node" cx="580" cy="80" r="6" />
+      </svg>
+
+      <form class="waitlist-form" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+        <input type="email" name="email" placeholder="you@email.com" required />
+        <button type="submit">Join the waitlist</button>
+      </form>
+      <p class="microcopy">No spam. One email when we launch.</p>
+    </div>
+  </header>
+
+  <!-- BENEFITS -->
+  <section class="benefits">
+    <div class="benefit">
+      <h3>See everything at once</h3>
+      <p>Every account, every bank, one place, updated in real time. No more bouncing between places just to check..</p>
+    </div>
+    <div class="benefit">
+      <h3>Get smart nudges</h3>
+      <p>Know the moment idle cash should move to where it earns more, before you have to think to check.</p>
+    </div>
+    <div class="benefit">
+      <h3>Bank-level security</h3>
+      <p>Read-only by default. Your credentials are never stored. Every connection is encrypted end to end.</p>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how">
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li>
+        <span class="step-num">01</span>
+        <h4>Connect your accounts</h4>
+        <p>Securely link banks and brokerages in a couple of minutes, through the same technology major banking apps use.</p>
+      </li>
+      <li>
+        <span class="step-num">02</span>
+        <h4>See the full picture</h4>
+        <p>Balances, transactions, and net worth, unified and updated automatically.</p>
+      </li>
+      <li>
+        <span class="step-num">03</span>
+        <h4>Let it flow</h4>
+        <p>Turn on smart transfers so your money moves to where it works hardest, without you lifting a finger.</p>
+      </li>
+    </ol>
+  </section>
+
+  <footer class="footer">
+    <p>&copy; 2026 Confluence. Built by someone tired of six banking apps.</p>
+  </footer>
+
+</body>
+</html>

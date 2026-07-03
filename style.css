@@ -1,0 +1,240 @@
+:root {
+  --ink: #0F1B2D;
+  --ink-soft: #1B2C44;
+  --paper: #FAF9F6;
+  --moss: #3C7A68;
+  --moss-light: #5C9782;
+  --gold: #C9A959;
+  --slate: #5B6472;
+  --line: #E3E1DB;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Public Sans', -apple-system, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- HERO ---------- */
+.hero {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 32px 24px 72px;
+}
+
+.nav {
+  max-width: 960px;
+  margin: 0 auto 64px;
+}
+
+.wordmark {
+  font-family: 'Fraunces', serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.hero-content {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  line-height: 1.1;
+  margin-bottom: 20px;
+}
+
+.subhead {
+  font-size: 1.1rem;
+  color: #C7CEDB;
+  max-width: 480px;
+  margin: 0 auto 40px;
+}
+
+/* Signature flow visual */
+.flow {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  margin: 0 auto 44px;
+  display: block;
+}
+
+.stream {
+  fill: none;
+  stroke: var(--moss-light);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+.stream.main {
+  stroke: var(--gold);
+  stroke-width: 3;
+  opacity: 1;
+}
+
+.node {
+  fill: var(--moss-light);
+}
+
+.main-node {
+  fill: var(--gold);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stream {
+    stroke-dasharray: 8 6;
+    animation: drift 6s linear infinite;
+  }
+  .stream.main {
+    stroke-dasharray: 10 6;
+    animation: drift 4s linear infinite;
+  }
+}
+
+@keyframes drift {
+  to { stroke-dashoffset: -140; }
+}
+
+.waitlist-form {
+  display: flex;
+  gap: 10px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.waitlist-form input {
+  flex: 1;
+  padding: 14px 16px;
+  border-radius: 6px;
+  border: 1px solid #33415A;
+  background: var(--ink-soft);
+  color: var(--paper);
+  font-size: 0.95rem;
+}
+
+.waitlist-form input::placeholder {
+  color: #8590A3;
+}
+
+.waitlist-form input:focus,
+button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.waitlist-form button {
+  padding: 14px 22px;
+  border: none;
+  border-radius: 6px;
+  background: var(--gold);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.waitlist-form button:hover {
+  background: #DAB96C;
+}
+
+.microcopy {
+  font-size: 0.8rem;
+  color: #7C8698;
+  margin-top: 12px;
+}
+
+/* ---------- BENEFITS ---------- */
+.benefits {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 72px 24px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+}
+
+.benefit h3 {
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  color: var(--moss);
+}
+
+.benefit p {
+  color: var(--slate);
+  font-size: 0.95rem;
+}
+
+/* ---------- HOW IT WORKS ---------- */
+.how {
+  background: #F1EFE9;
+  padding: 72px 24px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.how h2 {
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 48px;
+}
+
+.steps {
+  max-width: 900px;
+  margin: 0 auto;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.step-num {
+  display: block;
+  font-family: 'Fraunces', serif;
+  font-size: 0.85rem;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.steps h4 {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+
+.steps p {
+  color: var(--slate);
+  font-size: 0.92rem;
+}
+
+/* ---------- FOOTER ---------- */
+.footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--slate);
+  font-size: 0.85rem;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 720px) {
+  .benefits,
+  .steps {
+    grid-template-columns: 1fr;
+  }
+  .waitlist-form {
+    flex-direction: column;
+  }
+}
