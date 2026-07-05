@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign up · Arko</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="signup.css" />
+</head>
+<body>
+
+  <header class="hero">
+    <nav class="nav">
+      <span class="wordmark"><span class="wordmark-brand">Arko</span> | Pre-Alpha</span>
+      <div class="nav-auth">
+        <button type="button" class="btn-login" onclick="window.location.href='login.html'">Log in</button>
+      </div>
+    </nav>
+
+    <div class="auth-content">
+      <h1>Create your account</h1>
+      <p class="auth-subhead">Join the waitlist and get set up in seconds.</p>
+
+      <form class="auth-form" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="you@email.com" required />
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required minlength="8" />
+
+        <button type="submit">Sign up</button>
+      </form>
+
+      <p class="auth-switch">Already have an account? <a href="login.html">Log in</a></p>
+      <p class="microcopy">No spam. One email when we launch.</p>
+    </div>
+  </header>
+
+</body>
+</html>
