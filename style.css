@@ -6,13 +6,13 @@
   --silver-hover: #C7CACD;
   --tan: #E8E1D3;
   --tan-hover: #F0EBE0;
-  --brown: #1B2330;
+  --brown: #4A3428;
   --paper: #DCDDDE;
   --paper-light: #E6E7E8;
   --ink: #20262B;
   --slate: #5B6268;
   --line: #C9CBCC;
-  --DarkGrey: #313032;
+  --grey: #313032;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,13 +47,13 @@ h1, h2, h3, h4 {
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--DarkGrey);
+  color: var(--brown);
 }
 
 .wordmark-brand {
   font-family: 'Jura', 'Fraunces', serif;
   letter-spacing: 0.08em;
-  color: var(--DarkGrey);
+  color: var(--tan);
 }
 
 .hero-content {
@@ -66,7 +66,7 @@ h1, h2, h3, h4 {
   font-size: clamp(2.2rem, 5vw, 3.4rem);
   line-height: 1.1;
   margin-bottom: 20px;
-  color: var(--DarkGrey);
+  color: var(--brown);
 }
 
 .subhead {
@@ -146,7 +146,7 @@ h1, h2, h3, h4 {
 
 .waitlist-form input:focus,
 button:focus-visible {
-  outline: 2px solid var(--DarkGrey);
+  outline: 2px solid var(--grey);
   outline-offset: 2px;
 }
 
@@ -155,7 +155,7 @@ button:focus-visible {
   border: none;
   border-radius: 6px;
   background: var(--tan);
-  color: var(--DarkGrey);
+  color: var(--grey);
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
@@ -163,7 +163,7 @@ button:focus-visible {
 }
 
 .waitlist-form button:hover {
-  background: var(--DarkGrey);
+  background: var(--grey);
 }
 
 .microcopy {
@@ -180,13 +180,13 @@ button:focus-visible {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 40px;
-  background: var(--paper-light);
+  background: var(--dark-grey);
 }
 
 .benefit h3 {
   font-size: 1.2rem;
   margin-bottom: 10px;
-  color: var(--blue-deep);
+  color: var(--tan);
 }
 
 .benefit p {
@@ -242,9 +242,9 @@ button:focus-visible {
 .footer {
   text-align: center;
   padding: 32px 24px;
-  color: var(--slate);
+  color: var(--brown);
   font-size: 0.85rem;
-  background: var(--paper-light);
+  background: var(--grey);
 }
 
 /* ---------- RESPONSIVE ---------- */
