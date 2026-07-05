@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard · Arko</title>
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="dashboard.css" />
-    <link rel="icon" href="favicon.ico" sizes="any" />
-<link rel="icon" type="image/png" href="favicon.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
-<link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
-<link rel="apple-touch-icon" href="apple-touch-icon.png" />
 </head>
 <body>
 
@@ -293,11 +293,14 @@
     });
 
     document.getElementById('clear-log-btn').addEventListener('click', async () => {
-      if (!confirm('Delete every entry in your log? This cannot be undone.')) return;
-      const { error } = await supabaseClient.from('finance_log').delete().eq('user_id', currentUserId);
-      if (error) console.error(error);
+      if (!confirm('This will clear your entire log and reset all category totals to $0.00 \u2014 just like a fresh account. This cannot be undone.')) return;
+      const { error: logError } = await supabaseClient.from('finance_log').delete().eq('user_id', currentUserId);
+      if (logError) console.error(logError);
+      totals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+      await saveTotals();
+      renderTotals();
       gearDropdown.classList.remove('open');
-      alert('Log cleared.');
+      alert('Your account has been reset to a fresh state.');
     });
 
     // ================= CHIP TOGGLE STYLING =================
