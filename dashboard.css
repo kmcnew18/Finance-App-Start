@@ -1,16 +1,19 @@
 :root {
+  --blue: #2E5472;
   --blue-deep: #1B2330;
+  --blue-light: #6E8FA3;
   --tan: #E8E1D3;
   --brown: #6b4a38;
   --brown-hover: #7d5745;
   --grey: #313032;
   --error: #E08B7D;
-  --add-color: #2e7d32;
-  --add-bg: #1c2b1d;
-  --subtract-color: #c0392b;
-  --subtract-bg: #2b1c1c;
-  --transfer-color: #b8860b;
-  --transfer-bg: #2b271c;
+
+  --add-accent: #4C7A8C;
+  --add-bg: #16232A;
+  --subtract-accent: #9C5A3C;
+  --subtract-bg: #241A15;
+  --transfer-accent: #8C6B3C;
+  --transfer-bg: #241D12;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -42,7 +45,8 @@ h1, h2, h3 {
   gap: 16px;
 }
 
-.wordmark { font-family: 'Fraunces', serif; font-size: 1.25rem; font-weight: 600; color: var(--brown); }
+.wordmark { font-family: 'Fraunces', serif; font-size: 1.25rem; font-weight: 600; color: var(--brown); display: flex; align-items: center; gap: 8px; }
+.wordmark img { height: 28px; width: auto; }
 .wordmark-brand { font-family: 'Jura', 'Fraunces', serif; letter-spacing: 0.08em; color: var(--tan); }
 
 .nav-auth { display: flex; align-items: center; gap: 12px; }
@@ -59,6 +63,53 @@ h1, h2, h3 {
   cursor: pointer;
 }
 .btn-logout:hover, .btn-ghost:hover { background: rgba(107,74,56,0.2); }
+
+/* ---------- SETTINGS GEAR ---------- */
+.settings-wrap { position: relative; }
+
+.btn-icon {
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--brown);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.15s ease;
+}
+.btn-icon:hover { background: rgba(107,74,56,0.2); }
+.btn-icon.spin svg { transform: rotate(45deg); }
+.btn-icon svg { width: 18px; height: 18px; stroke: var(--tan); transition: transform 0.2s ease; }
+
+.settings-dropdown {
+  position: absolute;
+  top: 46px;
+  right: 0;
+  background: #12181F;
+  border: 1px solid #0F1620;
+  border-radius: 8px;
+  min-width: 220px;
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.settings-dropdown.open { display: flex; }
+
+.dropdown-item {
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tan);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dropdown-item:hover { background: rgba(255,255,255,0.06); }
+.dropdown-item.danger { color: var(--error); }
 
 .dash-main { max-width: 960px; margin: 0 auto; padding: 32px 24px 96px; }
 
@@ -93,9 +144,9 @@ h1, h2, h3 {
   margin-bottom: 20px;
 }
 
-.panel-add { border-left: 4px solid var(--add-color); }
-.panel-subtract { border-left: 4px solid var(--subtract-color); }
-.panel-transfer { border-left: 4px solid var(--transfer-color); }
+.panel-add { border-left: 4px solid var(--add-accent); }
+.panel-subtract { border-left: 4px solid var(--subtract-accent); }
+.panel-transfer { border-left: 4px solid var(--transfer-accent); }
 
 .panel-head {
   display: flex;
@@ -149,6 +200,7 @@ input[type="number"], input[type="text"], textarea {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  border-top: 3px solid var(--add-accent);
 }
 .category-box h3 { font-size: 0.95rem; }
 .category-box label {
@@ -156,6 +208,11 @@ input[type="number"], input[type="text"], textarea {
   font-size: 0.8rem; color: #A8A29A;
 }
 .category-box input { padding: 8px 10px; font-size: 0.85rem; }
+
+.notes-label {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 0.8rem; font-weight: 600; margin-bottom: 16px;
+}
 
 .amount-label {
   display: flex; flex-direction: column; gap: 6px;
@@ -165,13 +222,55 @@ input[type="number"], input[type="text"], textarea {
 
 .checkbox-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
 
+/* ---------- STYLED TOGGLE CHIPS ---------- */
 .chip {
-  display: flex; align-items: center; gap: 6px;
-  background: #1B2330; border: 1px solid #0F1620;
-  border-radius: 20px; padding: 8px 14px;
-  font-size: 0.85rem; cursor: pointer;
+  position: relative;
+  display: flex; align-items: center; gap: 8px;
+  background: #1B2330;
+  border: 1.5px solid #333c47;
+  border-radius: 24px;
+  padding: 9px 16px 9px 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
 }
-.chip input { width: auto; }
+.chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+.chip .chip-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2px solid #4a5563;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.chip .chip-dot::after {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.panel-subtract .chip.chip-active {
+  background: var(--subtract-bg);
+  border-color: var(--subtract-accent);
+  color: var(--tan);
+}
+.panel-subtract .chip.chip-active .chip-dot { border-color: var(--subtract-accent); }
+.panel-subtract .chip.chip-active .chip-dot::after { background: var(--subtract-accent); }
+
+.panel-transfer .chip.chip-active {
+  background: var(--transfer-bg);
+  border-color: var(--transfer-accent);
+  color: var(--tan);
+}
+.panel-transfer .chip.chip-active .chip-dot { border-color: var(--transfer-accent); }
+.panel-transfer .chip.chip-active .chip-dot::after { background: var(--transfer-accent); }
+
+.chip:hover { border-color: #5a6573; }
 
 .transfer-groups {
   display: grid;
@@ -180,11 +279,6 @@ input[type="number"], input[type="text"], textarea {
   margin-bottom: 16px;
 }
 .group-label { font-size: 0.8rem; font-weight: 600; color: #A8A29A; margin-bottom: 8px; }
-
-.notes-label {
-  display: flex; flex-direction: column; gap: 6px;
-  font-size: 0.8rem; font-weight: 600; margin-bottom: 16px;
-}
 
 .panel-actions { display: flex; gap: 10px; }
 
@@ -196,12 +290,29 @@ input[type="number"], input[type="text"], textarea {
 .btn-primary:hover { background: var(--brown-hover); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.btn-danger {
+  padding: 10px 18px; border: 1px solid var(--error); border-radius: 6px;
+  background: transparent; color: var(--error);
+  font-weight: 600; font-size: 0.85rem; cursor: pointer;
+}
+.btn-danger:hover { background: rgba(224,139,125,0.15); }
+
 .panel-message { font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; }
 .panel-message-error { color: var(--error); }
 .panel-message-success { color: var(--tan); }
 
-/* Log page */
+/* ---------- LOG PAGE ---------- */
 .log-title { margin-bottom: 20px; font-size: 1.6rem; }
+
+.log-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .log-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #0F1620; }
 .log-table { width: 100%; border-collapse: collapse; background: #12181F; }
 .log-table th, .log-table td {
@@ -209,6 +320,7 @@ input[type="number"], input[type="text"], textarea {
   border-bottom: 1px solid #1B2330; white-space: nowrap;
 }
 .log-table th { background: #1B2330; color: #A8A29A; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.04em; }
+.log-table td:first-child, .log-table th:first-child { width: 36px; }
 
 .log-row-add { background: var(--add-bg); }
 .log-row-subtract { background: var(--subtract-bg); }

@@ -7,6 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="dashboard.css" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
 </head>
 <body>
 
@@ -16,6 +21,20 @@
       <div class="nav-auth">
         <span id="user-email" class="user-email"></span>
         <button type="button" id="view-log-button" class="btn-ghost">View Log</button>
+
+        <div class="settings-wrap">
+          <button type="button" id="settings-gear" class="btn-icon" aria-label="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+          <div class="settings-dropdown" id="settings-dropdown">
+            <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
+            <button type="button" id="clear-log-btn" class="dropdown-item danger">Clear entire log</button>
+          </div>
+        </div>
+
         <button type="button" id="logout-button" class="btn-logout">Log out</button>
       </div>
     </nav>
@@ -71,6 +90,10 @@
         </div>
       </div>
 
+      <label class="notes-label">Notes (optional)
+        <textarea id="add-notes" rows="2"></textarea>
+      </label>
+
       <div class="panel-actions">
         <button type="button" id="add-button" class="btn-primary" disabled>Add</button>
         <button type="button" id="add-reset" class="btn-ghost">Reset</button>
@@ -90,10 +113,10 @@
       </label>
 
       <div class="checkbox-row">
-        <label class="chip"><input type="checkbox" class="sub-cat" value="savings" /> Savings</label>
-        <label class="chip"><input type="checkbox" class="sub-cat" value="investment" /> Investment</label>
-        <label class="chip"><input type="checkbox" class="sub-cat" value="expenses" /> Expenses</label>
-        <label class="chip"><input type="checkbox" class="sub-cat" value="checking" /> Checking</label>
+        <label class="chip"><input type="checkbox" class="sub-cat" value="savings" /><span class="chip-dot"></span> Savings</label>
+        <label class="chip"><input type="checkbox" class="sub-cat" value="investment" /><span class="chip-dot"></span> Investment</label>
+        <label class="chip"><input type="checkbox" class="sub-cat" value="expenses" /><span class="chip-dot"></span> Expenses</label>
+        <label class="chip"><input type="checkbox" class="sub-cat" value="checking" /><span class="chip-dot"></span> Checking</label>
       </div>
 
       <label class="notes-label">Notes (optional)
@@ -122,19 +145,19 @@
         <div>
           <p class="group-label">From</p>
           <div class="checkbox-row">
-            <label class="chip"><input type="checkbox" class="from-cat" value="savings" /> Savings</label>
-            <label class="chip"><input type="checkbox" class="from-cat" value="investment" /> Investment</label>
-            <label class="chip"><input type="checkbox" class="from-cat" value="expenses" /> Expenses</label>
-            <label class="chip"><input type="checkbox" class="from-cat" value="checking" /> Checking</label>
+            <label class="chip"><input type="checkbox" class="from-cat" value="savings" /><span class="chip-dot"></span> Savings</label>
+            <label class="chip"><input type="checkbox" class="from-cat" value="investment" /><span class="chip-dot"></span> Investment</label>
+            <label class="chip"><input type="checkbox" class="from-cat" value="expenses" /><span class="chip-dot"></span> Expenses</label>
+            <label class="chip"><input type="checkbox" class="from-cat" value="checking" /><span class="chip-dot"></span> Checking</label>
           </div>
         </div>
         <div>
           <p class="group-label">To</p>
           <div class="checkbox-row">
-            <label class="chip"><input type="checkbox" class="to-cat" value="savings" /> Savings</label>
-            <label class="chip"><input type="checkbox" class="to-cat" value="investment" /> Investment</label>
-            <label class="chip"><input type="checkbox" class="to-cat" value="expenses" /> Expenses</label>
-            <label class="chip"><input type="checkbox" class="to-cat" value="checking" /> Checking</label>
+            <label class="chip"><input type="checkbox" class="to-cat" value="savings" /><span class="chip-dot"></span> Savings</label>
+            <label class="chip"><input type="checkbox" class="to-cat" value="investment" /><span class="chip-dot"></span> Investment</label>
+            <label class="chip"><input type="checkbox" class="to-cat" value="expenses" /><span class="chip-dot"></span> Expenses</label>
+            <label class="chip"><input type="checkbox" class="to-cat" value="checking" /><span class="chip-dot"></span> Checking</label>
           </div>
         </div>
       </div>
@@ -246,6 +269,44 @@
       window.location.href = 'log.html';
     });
 
+    // ================= SETTINGS GEAR =================
+    const gearBtn = document.getElementById('settings-gear');
+    const gearDropdown = document.getElementById('settings-dropdown');
+
+    gearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      gearDropdown.classList.toggle('open');
+      gearBtn.classList.toggle('spin');
+    });
+
+    document.addEventListener('click', () => {
+      gearDropdown.classList.remove('open');
+      gearBtn.classList.remove('spin');
+    });
+
+    document.getElementById('reset-categories-btn').addEventListener('click', async () => {
+      if (!confirm('Reset all category totals to $0.00? This cannot be undone.')) return;
+      totals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+      await saveTotals();
+      renderTotals();
+      gearDropdown.classList.remove('open');
+    });
+
+    document.getElementById('clear-log-btn').addEventListener('click', async () => {
+      if (!confirm('Delete every entry in your log? This cannot be undone.')) return;
+      const { error } = await supabaseClient.from('finance_log').delete().eq('user_id', currentUserId);
+      if (error) console.error(error);
+      gearDropdown.classList.remove('open');
+      alert('Log cleared.');
+    });
+
+    // ================= CHIP TOGGLE STYLING =================
+    document.querySelectorAll('.chip input[type="checkbox"]').forEach(input => {
+      input.addEventListener('change', () => {
+        input.closest('.chip').classList.toggle('chip-active', input.checked);
+      });
+    });
+
     // ================= ADD SECTION LOGIC =================
     const incomeInput = document.getElementById('income-amount');
     const remainingDisplay = document.getElementById('remaining-value');
@@ -292,7 +353,6 @@
     });
 
     incomeInput.addEventListener('input', () => {
-      // Recompute dollar amounts from existing percentages when income changes
       categoryBoxes.forEach(box => {
         const dollarInput = box.querySelector('.cat-dollar');
         const percentInput = box.querySelector('.cat-percent');
@@ -307,6 +367,7 @@
     document.getElementById('add-button').addEventListener('click', async () => {
       const msg = document.getElementById('add-message');
       const income = getIncome();
+      const notes = document.getElementById('add-notes').value;
 
       const splits = {};
       categoryBoxes.forEach(box => {
@@ -326,7 +387,7 @@
         investment: splits.investment,
         expenses: splits.expenses,
         checking: splits.checking,
-        notes: '',
+        notes,
         action_type: 'add'
       });
 
@@ -342,6 +403,7 @@
         box.querySelector('.cat-dollar').value = '';
         box.querySelector('.cat-percent').value = '';
       });
+      document.getElementById('add-notes').value = '';
       updateRemaining();
     }
 
@@ -385,7 +447,7 @@
 
     function resetSubtractForm() {
       document.getElementById('subtract-amount').value = '';
-      document.querySelectorAll('.sub-cat').forEach(c => c.checked = false);
+      document.querySelectorAll('.sub-cat').forEach(c => { c.checked = false; c.closest('.chip').classList.remove('chip-active'); });
       document.getElementById('subtract-notes').value = '';
     }
 
@@ -434,7 +496,7 @@
 
     function resetTransferForm() {
       document.getElementById('transfer-amount').value = '';
-      document.querySelectorAll('.from-cat, .to-cat').forEach(c => c.checked = false);
+      document.querySelectorAll('.from-cat, .to-cat').forEach(c => { c.checked = false; c.closest('.chip').classList.remove('chip-active'); });
       document.getElementById('transfer-notes').value = '';
     }
 

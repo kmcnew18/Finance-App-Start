@@ -7,6 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="dashboard.css" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
 </head>
 <body>
 
@@ -14,6 +19,18 @@
     <nav class="nav">
       <a href="dashboard.html" class="wordmark" style="text-decoration:none;"><span class="wordmark-brand">Arko</span> | Pre-Alpha</a>
       <div class="nav-auth">
+        <div class="settings-wrap">
+          <button type="button" id="settings-gear" class="btn-icon" aria-label="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+          <div class="settings-dropdown" id="settings-dropdown">
+            <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
+            <button type="button" id="clear-log-btn" class="dropdown-item danger">Clear entire log</button>
+          </div>
+        </div>
         <button type="button" id="back-button" class="btn-ghost">← Back to Dashboard</button>
       </div>
     </nav>
@@ -21,10 +38,17 @@
 
   <main class="dash-main">
     <h1 class="log-title">Full Log</h1>
+
+    <div class="log-toolbar">
+      <label class="chip"><input type="checkbox" id="select-all" /><span class="chip-dot"></span> Select all</label>
+      <button type="button" id="delete-selected-btn" class="btn-danger">Delete selected</button>
+    </div>
+
     <div class="log-table-wrap">
       <table class="log-table" id="log-table">
         <thead>
           <tr>
+            <th></th>
             <th>Date</th>
             <th>Amount</th>
             <th>Savings</th>
@@ -35,7 +59,7 @@
           </tr>
         </thead>
         <tbody id="log-body">
-          <tr><td colspan="7" class="loading-message">Loading...</td></tr>
+          <tr><td colspan="8" class="loading-message">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -46,6 +70,8 @@
     const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUserId = null;
 
     function money(n) {
       const num = Number(n || 0);
@@ -63,31 +89,28 @@
       transfer: 'log-row-transfer'
     };
 
-    async function init() {
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if (!session) { window.location.href = 'login.html'; return; }
-
+    async function loadLog() {
+      const tbody = document.getElementById('log-body');
       const { data: rows, error } = await supabaseClient
         .from('finance_log')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', currentUserId)
         .order('created_at', { ascending: false });
-
-      const tbody = document.getElementById('log-body');
 
       if (error) {
         console.error(error);
-        tbody.innerHTML = '<tr><td colspan="7">Could not load your log.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8">Could not load your log.</td></tr>';
         return;
       }
 
       if (!rows || rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7">No entries yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8">No entries yet.</td></tr>';
         return;
       }
 
       tbody.innerHTML = rows.map(r => `
         <tr class="${rowClassByType[r.action_type] || ''}">
+          <td><input type="checkbox" class="row-select" data-id="${r.id}" /></td>
           <td>${formatDate(r.entry_date)}</td>
           <td>${money(r.amount)}</td>
           <td>${money(r.savings)}</td>
@@ -99,8 +122,66 @@
       `).join('');
     }
 
+    async function init() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+      currentUserId = session.user.id;
+      await loadLog();
+    }
+
     document.getElementById('back-button').addEventListener('click', () => {
       window.location.href = 'dashboard.html';
+    });
+
+    document.getElementById('select-all').addEventListener('change', (e) => {
+      document.querySelectorAll('.row-select').forEach(cb => cb.checked = e.target.checked);
+    });
+
+    document.getElementById('delete-selected-btn').addEventListener('click', async () => {
+      const ids = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.dataset.id);
+      if (ids.length === 0) {
+        alert('No entries selected.');
+        return;
+      }
+      if (!confirm(`Delete ${ids.length} selected entr${ids.length === 1 ? 'y' : 'ies'}? This cannot be undone.`)) return;
+
+      const { error } = await supabaseClient.from('finance_log').delete().in('id', ids);
+      if (error) { console.error(error); alert('Could not delete entries.'); return; }
+      await loadLog();
+    });
+
+    // ================= SETTINGS GEAR =================
+    const gearBtn = document.getElementById('settings-gear');
+    const gearDropdown = document.getElementById('settings-dropdown');
+
+    gearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      gearDropdown.classList.toggle('open');
+      gearBtn.classList.toggle('spin');
+    });
+
+    document.addEventListener('click', () => {
+      gearDropdown.classList.remove('open');
+      gearBtn.classList.remove('spin');
+    });
+
+    document.getElementById('reset-categories-btn').addEventListener('click', async () => {
+      if (!confirm('Reset all category totals to $0.00? This cannot be undone.')) return;
+      const { error } = await supabaseClient
+        .from('finance_totals')
+        .update({ savings: 0, investment: 0, expenses: 0, checking: 0, updated_at: new Date().toISOString() })
+        .eq('user_id', currentUserId);
+      if (error) console.error(error);
+      gearDropdown.classList.remove('open');
+      alert('Category totals reset.');
+    });
+
+    document.getElementById('clear-log-btn').addEventListener('click', async () => {
+      if (!confirm('Delete every entry in your log? This cannot be undone.')) return;
+      const { error } = await supabaseClient.from('finance_log').delete().eq('user_id', currentUserId);
+      if (error) console.error(error);
+      gearDropdown.classList.remove('open');
+      await loadLog();
     });
 
     init();
