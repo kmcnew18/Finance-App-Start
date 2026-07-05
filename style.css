@@ -12,6 +12,7 @@
   --ink: #20262B;
   --slate: #5B6268;
   --line: #C9CBCC;
+  --DarkGrey: #313032;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -46,13 +47,13 @@ h1, h2, h3, h4 {
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--silver);
+  color: var(--DarkGrey);
 }
 
 .wordmark-brand {
   font-family: 'Jura', 'Fraunces', serif;
   letter-spacing: 0.08em;
-  color: var(--silver);
+  color: var(--DarkGrey);
 }
 
 .hero-content {
@@ -65,7 +66,7 @@ h1, h2, h3, h4 {
   font-size: clamp(2.2rem, 5vw, 3.4rem);
   line-height: 1.1;
   margin-bottom: 20px;
-  color: var(--silver);
+  color: var(--DarkGrey);
 }
 
 .subhead {
@@ -140,12 +141,12 @@ h1, h2, h3, h4 {
 }
 
 .waitlist-form input::placeholder {
-  color: #7C8A93;
+  color: #E8E1D3;
 }
 
 .waitlist-form input:focus,
 button:focus-visible {
-  outline: 2px solid var(--silver);
+  outline: 2px solid var(--DarkGrey);
   outline-offset: 2px;
 }
 
@@ -153,8 +154,8 @@ button:focus-visible {
   padding: 14px 22px;
   border: none;
   border-radius: 6px;
-  background: var(--silver);
-  color: var(--brown);
+  background: var(--tan);
+  color: var(--DarkGrey);
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
@@ -162,7 +163,7 @@ button:focus-visible {
 }
 
 .waitlist-form button:hover {
-  background: var(--silver-hover);
+  background: var(--DarkGrey);
 }
 
 .microcopy {
