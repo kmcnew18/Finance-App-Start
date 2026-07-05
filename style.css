@@ -191,47 +191,27 @@ h1, h2, h3, h4 {
   to { stroke-dashoffset: -140; }
 }
 
-.waitlist-form {
-  display: flex;
-  gap: 10px;
-  max-width: 420px;
-  margin: 0 auto;
-}
-
-.waitlist-form input {
-  flex: 1;
-  padding: 14px 16px;
-  border-radius: 6px;
-  border: 1px solid #0F1620;
-  background: #12181F;
-  color: var(--tan);
-  font-size: 0.95rem;
-}
-
-.waitlist-form input::placeholder {
-  color: #E8E1D3;
-}
-
-.waitlist-form input:focus,
-button:focus-visible {
-  outline: 2px solid var(--grey);
-  outline-offset: 2px;
-}
-
-.waitlist-form button {
-  padding: 14px 22px;
+.hero-cta {
+  display: inline-block;
+  padding: 16px 32px;
   border: none;
-  border-radius: 6px;
-  background: var(--tan);
-  color: var(--grey);
+  border-radius: 8px;
+  background: var(--brown);
+  color: var(--tan);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 1rem;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.15s ease;
 }
 
-.waitlist-form button:hover {
-  background: var(--grey);
+.hero-cta:hover {
+  background: #7d5745;
+}
+
+.hero-cta:focus-visible {
+  outline: 2px solid var(--tan);
+  outline-offset: 2px;
 }
 
 .microcopy {
