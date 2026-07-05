@@ -6,7 +6,7 @@
   --silver-hover: #C7CACD;
   --tan: #E8E1D3;
   --tan-hover: #F0EBE0;
-  --brown: #4A3428;
+  --brown: #6b4a38;
   --paper: #DCDDDE;
   --paper-light: #E6E7E8;
   --ink: #20262B;
@@ -19,7 +19,7 @@
 
 body {
   font-family: 'Public Sans', -apple-system, sans-serif;
-  background: var(--paper);
+  background: var(--grey);
   color: var(--ink);
   line-height: 1.55;
 }
@@ -180,7 +180,7 @@ button:focus-visible {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 40px;
-  background: var(--brown);
+  background: var(--grey);
 }
 
 .benefit h3 {
@@ -190,7 +190,7 @@ button:focus-visible {
 }
 
 .benefit p {
-  color: var(--grey);
+  color: var(--brown);
   font-size: 0.95rem;
 }
 
