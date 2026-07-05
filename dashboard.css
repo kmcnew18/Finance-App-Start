@@ -519,6 +519,7 @@ input[type="number"]::-webkit-outer-spin-button {
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px;
   flex-shrink: 0;
+  cursor: pointer;
 }
 .log-check input {
   position: absolute; inset: 0;
@@ -658,23 +659,83 @@ input[type="number"]::-webkit-outer-spin-button {
 .panel-subtract .panel-head h2 { color: var(--subtract-glow); }
 .panel-transfer .panel-head h2 { color: var(--transfer-glow); }
 
-/* ============= WHITE NEON GLOW — LOG TABLE ============= */
+/* ============= WHITE NEON GLOW — LOG TABLE (subtle) ============= */
 
 .log-table-wrap {
   box-shadow:
-    0 0 10px rgba(255, 255, 255, 0.55),
-    0 0 26px rgba(255, 255, 255, 0.35),
-    0 0 55px rgba(255, 255, 255, 0.2),
-    0 0 90px rgba(255, 255, 255, 0.1),
+    0 0 4px rgba(255, 255, 255, 0.25),
+    0 0 12px rgba(255, 255, 255, 0.12),
+    0 0 24px rgba(255, 255, 255, 0.06),
     0 6px 22px rgba(0,0,0,0.25);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   transition: box-shadow 0.3s ease;
 }
 .log-table-wrap:hover {
   box-shadow:
-    0 0 14px rgba(255, 255, 255, 0.7),
-    0 0 34px rgba(255, 255, 255, 0.45),
-    0 0 70px rgba(255, 255, 255, 0.25),
-    0 0 110px rgba(255, 255, 255, 0.12),
+    0 0 6px rgba(255, 255, 255, 0.35),
+    0 0 16px rgba(255, 255, 255, 0.18),
+    0 0 32px rgba(255, 255, 255, 0.09),
     0 6px 22px rgba(0,0,0,0.25);
+}
+
+/* ============= MOBILE-ONLY ADJUSTMENTS ============= */
+/* Everything below only applies on small screens — desktop is untouched */
+
+@media (max-width: 600px) {
+  .dash-header { padding: 14px 16px; }
+
+  .nav { gap: 8px; flex-wrap: wrap; }
+  .wordmark { font-size: 1rem; }
+  .nav-auth { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .user-email { display: none; } /* saves space on small screens */
+
+  .btn-logout, .btn-ghost {
+    padding: 7px 11px;
+    font-size: 0.78rem;
+  }
+
+  .dash-main { padding: 20px 12px 80px; }
+
+  .overview-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .card { padding: 14px 12px; }
+  .card-value { font-size: 1.1rem; }
+
+  .panel { padding: 18px 14px; margin-bottom: 16px; }
+  .panel-head { flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 16px; }
+  .panel-head h2 { font-size: 1rem; }
+
+  .income-row { flex-direction: column; align-items: stretch; gap: 12px; }
+  .income-row label { min-width: 0; }
+
+  .category-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .transfer-groups {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .checkbox-row { gap: 8px; }
+  .chip { padding: 8px 12px 8px 10px; font-size: 0.8rem; }
+
+  .panel-actions { flex-direction: column; }
+  .panel-actions .btn-primary,
+  .panel-actions .btn-ghost { width: 100%; }
+
+  /* Log page */
+  .log-title { font-size: 1.35rem; margin-bottom: 16px; }
+  .log-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .log-toolbar .btn-danger { width: 100%; }
+
+  .log-table th, .log-table td {
+    padding: 9px 10px;
+    font-size: 0.78rem;
+  }
+  .log-table td.notes-cell { font-size: 0.8rem; }
 }

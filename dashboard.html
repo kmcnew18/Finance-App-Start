@@ -217,7 +217,9 @@
     const loadingMessage = document.getElementById('loading-message');
 
     function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
-    function money(n) { return '$' + Number(n || 0).toFixed(2); }
+    function money(n) {
+      return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
     function todayStr() {
       return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     }

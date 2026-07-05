@@ -79,7 +79,7 @@
     function money(n) {
       const num = Number(n || 0);
       const sign = num < 0 ? '-' : '';
-      return sign + '$' + Math.abs(num).toFixed(2);
+      return sign + '$' + Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     function formatDate(d) {
@@ -113,7 +113,7 @@
 
       tbody.innerHTML = rows.map(r => `
         <tr class="${rowClassByType[r.action_type] || ''}">
-          <td><span class="log-check"><input type="checkbox" class="row-select" data-id="${r.id}" /><span class="check-box"></span></span></td>
+          <td><label class="log-check"><input type="checkbox" class="row-select" data-id="${r.id}" /><span class="check-box"></span></label></td>
           <td>${formatDate(r.entry_date)}</td>
           <td class="num-cell">${money(r.amount)}</td>
           <td class="num-cell">${money(r.savings)}</td>
