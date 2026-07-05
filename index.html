@@ -12,8 +12,12 @@
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
 <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<style>
+  /* Hide page until we know whether to redirect, to prevent a flash of the landing page */
+  body.auth-checking { visibility: hidden; }
+</style>
 </head>
-<body>
+<body class="auth-checking">
 
   <!-- HERO -->
   <header class="hero">
@@ -87,6 +91,24 @@
   <footer class="footer">
     <p>&copy; 2026 ArkoFinance. Built by someone tired of six banking apps.</p>
   </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    (async () => {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session) {
+        // Logged in -> go straight to dashboard
+        window.location.href = 'dashboard.html';
+      } else {
+        // Not logged in -> reveal the landing page
+        document.body.classList.remove('auth-checking');
+      }
+    })();
+  </script>
 
 </body>
 </html>
