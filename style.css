@@ -66,12 +66,12 @@ h1, h2, h3, h4 {
   font-size: clamp(2.2rem, 5vw, 3.4rem);
   line-height: 1.1;
   margin-bottom: 20px;
-  color: var(--brown);
+  color: var(--tan);
 }
 
 .subhead {
   font-size: 1.1rem;
-  color: var(--tan);
+  color: var(--brown);
   opacity: 0.85;
   max-width: 480px;
   margin: 0 auto 40px;
@@ -180,7 +180,7 @@ button:focus-visible {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 40px;
-  background: var(--dark-grey);
+  background: var(--brown);
 }
 
 .benefit h3 {
@@ -190,7 +190,7 @@ button:focus-visible {
 }
 
 .benefit p {
-  color: var(--slate);
+  color: var(--grey);
   font-size: 0.95rem;
 }
 
@@ -244,7 +244,7 @@ button:focus-visible {
   padding: 32px 24px;
   color: var(--brown);
   font-size: 0.85rem;
-  background: var(--grey);
+  background: var(--paper-light);
 }
 
 /* ---------- RESPONSIVE ---------- */
