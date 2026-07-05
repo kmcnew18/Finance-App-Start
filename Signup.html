@@ -8,10 +8,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="signup.css" />
   <link rel="icon" href="favicon.ico" sizes="any" />
-<link rel="icon" type="image/png" href="favicon.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
-<link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
-<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 </head>
 <body>
 
@@ -65,24 +65,46 @@
       button.disabled = true;
       button.textContent = 'Creating account...';
 
-      const { data, error } = await supabaseClient.auth.signUp({ email, password });
+      try {
+        const { data, error } = await supabaseClient.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin + '/login.html'
+          }
+        });
 
-      button.disabled = false;
-      button.textContent = 'Sign up';
+        if (error) {
+          console.error('Signup error:', error);
+          message.textContent = error.message || 'Something went wrong. Please try again.';
+          message.classList.add('auth-message-error');
+          return;
+        }
 
-      if (error) {
-        message.textContent = error.message;
+        console.log('Signup response:', data);
+
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+          message.textContent = "An account with this email already exists. Try logging in instead.";
+          message.classList.add('auth-message-error');
+          return;
+        }
+
+        if (data.user && !data.session) {
+          message.textContent = "Check your email to confirm your account before logging in.";
+          message.classList.add('auth-message-success');
+        } else if (data.session) {
+          message.textContent = "Account created! Redirecting...";
+          message.classList.add('auth-message-success');
+          setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+        }
+
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        message.textContent = 'Network error — please check your connection and try again.';
         message.classList.add('auth-message-error');
-        return;
-      }
-
-      if (data.user && !data.session) {
-        message.textContent = "Check your email to confirm your account before logging in.";
-        message.classList.add('auth-message-success');
-      } else {
-        message.textContent = "Account created! Redirecting...";
-        message.classList.add('auth-message-success');
-        setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Sign up';
       }
     });
   </script>
