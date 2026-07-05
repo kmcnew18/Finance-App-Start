@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log · Arko</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+
+  <header class="dash-header">
+    <nav class="nav">
+      <a href="dashboard.html" class="wordmark" style="text-decoration:none;"><span class="wordmark-brand">Arko</span> | Pre-Alpha</a>
+      <div class="nav-auth">
+        <button type="button" id="back-button" class="btn-ghost">← Back to Dashboard</button>
+      </div>
+    </nav>
+  </header>
+
+  <main class="dash-main">
+    <h1 class="log-title">Full Log</h1>
+    <div class="log-table-wrap">
+      <table class="log-table" id="log-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Savings</th>
+            <th>Investment</th>
+            <th>Expenses</th>
+            <th>Checking</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="log-body">
+          <tr><td colspan="7" class="loading-message">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function money(n) {
+      const num = Number(n || 0);
+      const sign = num < 0 ? '-' : '';
+      return sign + '$' + Math.abs(num).toFixed(2);
+    }
+
+    function formatDate(d) {
+      return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    const rowClassByType = {
+      add: 'log-row-add',
+      subtract: 'log-row-subtract',
+      transfer: 'log-row-transfer'
+    };
+
+    async function init() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+
+      const { data: rows, error } = await supabaseClient
+        .from('finance_log')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      const tbody = document.getElementById('log-body');
+
+      if (error) {
+        console.error(error);
+        tbody.innerHTML = '<tr><td colspan="7">Could not load your log.</td></tr>';
+        return;
+      }
+
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7">No entries yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = rows.map(r => `
+        <tr class="${rowClassByType[r.action_type] || ''}">
+          <td>${formatDate(r.entry_date)}</td>
+          <td>${money(r.amount)}</td>
+          <td>${money(r.savings)}</td>
+          <td>${money(r.investment)}</td>
+          <td>${money(r.expenses)}</td>
+          <td>${money(r.checking)}</td>
+          <td>${r.notes ? r.notes.replace(/</g,'&lt;') : ''}</td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('back-button').addEventListener('click', () => {
+      window.location.href = 'dashboard.html';
+    });
+
+    init();
+  </script>
+
+</body>
+</html>

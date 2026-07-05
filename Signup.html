@@ -17,7 +17,7 @@
 
   <header class="hero">
     <nav class="nav">
-      <a href="index.html" class="wordmark" style="text-decoration: none;"><span class="wordmark-brand">Arko</span> | Pre-Alpha</a>
+      <a href="dashboard.html" class="wordmark" style="text-decoration: none;"><span class="wordmark-brand">Arko</span> | Pre-Alpha</a>
       <div class="nav-auth">
         <button type="button" class="btn-login" onclick="window.location.href='login.html'">Log in</button>
       </div>
@@ -103,7 +103,7 @@
         } else if (data.session) {
           message.textContent = "Account created! Redirecting...";
           message.classList.add('auth-message-success');
-          setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+          setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
         }
 
       } catch (err) {

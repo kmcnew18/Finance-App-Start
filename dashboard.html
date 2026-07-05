@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard · Arko</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+
+  <header class="dash-header">
+    <nav class="nav">
+      <a href="dashboard.html" class="wordmark" style="text-decoration:none;"><span class="wordmark-brand">Arko</span> | Pre-Alpha</a>
+      <div class="nav-auth">
+        <span id="user-email" class="user-email"></span>
+        <button type="button" id="view-log-button" class="btn-ghost">View Log</button>
+        <button type="button" id="logout-button" class="btn-logout">Log out</button>
+      </div>
+    </nav>
+  </header>
+
+  <main class="dash-main" id="dash-main" style="display:none;">
+
+    <section class="overview-cards">
+      <div class="card"><span class="card-label">Savings</span><span class="card-value" id="val-savings">$0.00</span></div>
+      <div class="card"><span class="card-label">Investment</span><span class="card-value" id="val-investment">$0.00</span></div>
+      <div class="card"><span class="card-label">Expenses</span><span class="card-value" id="val-expenses">$0.00</span></div>
+      <div class="card"><span class="card-label">Checking</span><span class="card-value" id="val-checking">$0.00</span></div>
+      <div class="card card-total"><span class="card-label">Total</span><span class="card-value" id="val-total">$0.00</span></div>
+    </section>
+
+    <!-- ================= ADD / DEPOSIT ================= -->
+    <section class="panel panel-add">
+      <div class="panel-head">
+        <h2>Add / Deposit</h2>
+        <span class="panel-date" id="add-date"></span>
+      </div>
+
+      <div class="income-row">
+        <label>Income
+          <input type="number" id="income-amount" min="0" step="0.01" placeholder="0.00" />
+        </label>
+        <div class="remaining-display">
+          <span class="card-label">Remaining</span>
+          <span id="remaining-value">$0.00</span>
+        </div>
+      </div>
+
+      <div class="category-grid">
+        <div class="category-box" data-cat="savings">
+          <h3>Savings</h3>
+          <label>$ <input type="number" class="cat-dollar" min="0" step="0.01" placeholder="0.00" /></label>
+          <label>% <input type="number" class="cat-percent" min="0" max="100" step="0.01" placeholder="0" /></label>
+        </div>
+        <div class="category-box" data-cat="investment">
+          <h3>Investment</h3>
+          <label>$ <input type="number" class="cat-dollar" min="0" step="0.01" placeholder="0.00" /></label>
+          <label>% <input type="number" class="cat-percent" min="0" max="100" step="0.01" placeholder="0" /></label>
+        </div>
+        <div class="category-box" data-cat="expenses">
+          <h3>Expenses</h3>
+          <label>$ <input type="number" class="cat-dollar" min="0" step="0.01" placeholder="0.00" /></label>
+          <label>% <input type="number" class="cat-percent" min="0" max="100" step="0.01" placeholder="0" /></label>
+        </div>
+        <div class="category-box" data-cat="checking">
+          <h3>Checking</h3>
+          <label>$ <input type="number" class="cat-dollar" min="0" step="0.01" placeholder="0.00" /></label>
+          <label>% <input type="number" class="cat-percent" min="0" max="100" step="0.01" placeholder="0" /></label>
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <button type="button" id="add-button" class="btn-primary" disabled>Add</button>
+        <button type="button" id="add-reset" class="btn-ghost">Reset</button>
+      </div>
+      <p class="panel-message" id="add-message"></p>
+    </section>
+
+    <!-- ================= SUBTRACT / WITHDRAW ================= -->
+    <section class="panel panel-subtract">
+      <div class="panel-head">
+        <h2>Subtract / Withdraw</h2>
+        <span class="panel-date" id="subtract-date"></span>
+      </div>
+
+      <label class="amount-label">Amount
+        <input type="number" id="subtract-amount" min="0" step="0.01" placeholder="0.00" />
+      </label>
+
+      <div class="checkbox-row">
+        <label class="chip"><input type="checkbox" class="sub-cat" value="savings" /> Savings</label>
+        <label class="chip"><input type="checkbox" class="sub-cat" value="investment" /> Investment</label>
+        <label class="chip"><input type="checkbox" class="sub-cat" value="expenses" /> Expenses</label>
+        <label class="chip"><input type="checkbox" class="sub-cat" value="checking" /> Checking</label>
+      </div>
+
+      <label class="notes-label">Notes (optional)
+        <textarea id="subtract-notes" rows="2"></textarea>
+      </label>
+
+      <div class="panel-actions">
+        <button type="button" id="subtract-button" class="btn-primary">Subtract</button>
+        <button type="button" id="subtract-reset" class="btn-ghost">Reset</button>
+      </div>
+      <p class="panel-message" id="subtract-message"></p>
+    </section>
+
+    <!-- ================= TRANSFER ================= -->
+    <section class="panel panel-transfer">
+      <div class="panel-head">
+        <h2>Transfer</h2>
+        <span class="panel-date" id="transfer-date"></span>
+      </div>
+
+      <label class="amount-label">Amount
+        <input type="number" id="transfer-amount" min="0" step="0.01" placeholder="0.00" />
+      </label>
+
+      <div class="transfer-groups">
+        <div>
+          <p class="group-label">From</p>
+          <div class="checkbox-row">
+            <label class="chip"><input type="checkbox" class="from-cat" value="savings" /> Savings</label>
+            <label class="chip"><input type="checkbox" class="from-cat" value="investment" /> Investment</label>
+            <label class="chip"><input type="checkbox" class="from-cat" value="expenses" /> Expenses</label>
+            <label class="chip"><input type="checkbox" class="from-cat" value="checking" /> Checking</label>
+          </div>
+        </div>
+        <div>
+          <p class="group-label">To</p>
+          <div class="checkbox-row">
+            <label class="chip"><input type="checkbox" class="to-cat" value="savings" /> Savings</label>
+            <label class="chip"><input type="checkbox" class="to-cat" value="investment" /> Investment</label>
+            <label class="chip"><input type="checkbox" class="to-cat" value="expenses" /> Expenses</label>
+            <label class="chip"><input type="checkbox" class="to-cat" value="checking" /> Checking</label>
+          </div>
+        </div>
+      </div>
+
+      <label class="notes-label">Notes (optional)
+        <textarea id="transfer-notes" rows="2"></textarea>
+      </label>
+
+      <div class="panel-actions">
+        <button type="button" id="transfer-button" class="btn-primary">Transfer</button>
+        <button type="button" id="transfer-reset" class="btn-ghost">Reset</button>
+      </div>
+      <p class="panel-message" id="transfer-message"></p>
+    </section>
+
+  </main>
+
+  <p id="loading-message" class="loading-message">Loading your dashboard...</p>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUserId = null;
+    let totals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+
+    const dashMain = document.getElementById('dash-main');
+    const loadingMessage = document.getElementById('loading-message');
+
+    function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+    function money(n) { return '$' + Number(n || 0).toFixed(2); }
+    function todayStr() {
+      return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+    function todayISO() {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    function renderTotals() {
+      const total = totals.savings + totals.investment + totals.expenses + totals.checking;
+      document.getElementById('val-savings').textContent = money(totals.savings);
+      document.getElementById('val-investment').textContent = money(totals.investment);
+      document.getElementById('val-expenses').textContent = money(totals.expenses);
+      document.getElementById('val-checking').textContent = money(totals.checking);
+      document.getElementById('val-total').textContent = money(total);
+    }
+
+    async function saveTotals() {
+      const { error } = await supabaseClient
+        .from('finance_totals')
+        .update({ ...totals, updated_at: new Date().toISOString() })
+        .eq('user_id', currentUserId);
+      if (error) console.error('Save totals error:', error);
+    }
+
+    async function logEntry({ amount, savings=0, investment=0, expenses=0, checking=0, notes='', action_type }) {
+      const { error } = await supabaseClient.from('finance_log').insert({
+        user_id: currentUserId,
+        entry_date: todayISO(),
+        amount, savings, investment, expenses, checking,
+        notes, action_type
+      });
+      if (error) console.error('Log insert error:', error);
+    }
+
+    async function init() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+
+      currentUserId = session.user.id;
+      document.getElementById('user-email').textContent = session.user.email;
+
+      const dateNow = todayStr();
+      document.getElementById('add-date').textContent = dateNow;
+      document.getElementById('subtract-date').textContent = dateNow;
+      document.getElementById('transfer-date').textContent = dateNow;
+
+      const { data: row, error: fetchError } = await supabaseClient
+        .from('finance_totals').select('*').eq('user_id', currentUserId).maybeSingle();
+
+      if (fetchError) {
+        console.error(fetchError);
+        loadingMessage.textContent = 'Could not load your dashboard. Please refresh.';
+        return;
+      }
+
+      if (!row) {
+        const { data: newRow, error: insertError } = await supabaseClient
+          .from('finance_totals').insert({ user_id: currentUserId }).select().single();
+        if (insertError) { console.error(insertError); loadingMessage.textContent = 'Setup failed. Please refresh.'; return; }
+        totals = { savings: newRow.savings, investment: newRow.investment, expenses: newRow.expenses, checking: newRow.checking };
+      } else {
+        totals = { savings: row.savings, investment: row.investment, expenses: row.expenses, checking: row.checking };
+      }
+
+      loadingMessage.style.display = 'none';
+      dashMain.style.display = 'block';
+      renderTotals();
+    }
+
+    document.getElementById('logout-button').addEventListener('click', async () => {
+      await supabaseClient.auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    document.getElementById('view-log-button').addEventListener('click', () => {
+      window.location.href = 'log.html';
+    });
+
+    // ================= ADD SECTION LOGIC =================
+    const incomeInput = document.getElementById('income-amount');
+    const remainingDisplay = document.getElementById('remaining-value');
+    const addButton = document.getElementById('add-button');
+    const categoryBoxes = Array.from(document.querySelectorAll('.category-box'));
+    let updatingPair = false;
+
+    function getIncome() { return parseFloat(incomeInput.value) || 0; }
+
+    function updateRemaining() {
+      const income = getIncome();
+      let allocated = 0;
+      categoryBoxes.forEach(box => {
+        allocated += parseFloat(box.querySelector('.cat-dollar').value) || 0;
+      });
+      const remaining = round2(income - allocated);
+      remainingDisplay.textContent = money(remaining);
+      addButton.disabled = !(income > 0 && Math.abs(remaining) < 0.005);
+    }
+
+    categoryBoxes.forEach(box => {
+      const dollarInput = box.querySelector('.cat-dollar');
+      const percentInput = box.querySelector('.cat-percent');
+
+      dollarInput.addEventListener('input', () => {
+        if (updatingPair) return;
+        updatingPair = true;
+        const income = getIncome();
+        const dollar = parseFloat(dollarInput.value) || 0;
+        percentInput.value = income > 0 ? round2((dollar / income) * 100) : 0;
+        updatingPair = false;
+        updateRemaining();
+      });
+
+      percentInput.addEventListener('input', () => {
+        if (updatingPair) return;
+        updatingPair = true;
+        const income = getIncome();
+        const pct = parseFloat(percentInput.value) || 0;
+        dollarInput.value = round2((income * pct) / 100);
+        updatingPair = false;
+        updateRemaining();
+      });
+    });
+
+    incomeInput.addEventListener('input', () => {
+      // Recompute dollar amounts from existing percentages when income changes
+      categoryBoxes.forEach(box => {
+        const dollarInput = box.querySelector('.cat-dollar');
+        const percentInput = box.querySelector('.cat-percent');
+        const pct = parseFloat(percentInput.value) || 0;
+        if (pct > 0) {
+          dollarInput.value = round2((getIncome() * pct) / 100);
+        }
+      });
+      updateRemaining();
+    });
+
+    document.getElementById('add-button').addEventListener('click', async () => {
+      const msg = document.getElementById('add-message');
+      const income = getIncome();
+
+      const splits = {};
+      categoryBoxes.forEach(box => {
+        const cat = box.dataset.cat;
+        splits[cat] = parseFloat(box.querySelector('.cat-dollar').value) || 0;
+      });
+
+      totals.savings += splits.savings;
+      totals.investment += splits.investment;
+      totals.expenses += splits.expenses;
+      totals.checking += splits.checking;
+
+      await saveTotals();
+      await logEntry({
+        amount: income,
+        savings: splits.savings,
+        investment: splits.investment,
+        expenses: splits.expenses,
+        checking: splits.checking,
+        notes: '',
+        action_type: 'add'
+      });
+
+      renderTotals();
+      resetAddForm();
+      msg.textContent = 'Added and logged.';
+      msg.className = 'panel-message panel-message-success';
+    });
+
+    function resetAddForm() {
+      incomeInput.value = '';
+      categoryBoxes.forEach(box => {
+        box.querySelector('.cat-dollar').value = '';
+        box.querySelector('.cat-percent').value = '';
+      });
+      updateRemaining();
+    }
+
+    document.getElementById('add-reset').addEventListener('click', () => {
+      resetAddForm();
+      document.getElementById('add-message').textContent = '';
+    });
+
+    // ================= SUBTRACT SECTION LOGIC =================
+    document.getElementById('subtract-button').addEventListener('click', async () => {
+      const msg = document.getElementById('subtract-message');
+      const amount = parseFloat(document.getElementById('subtract-amount').value) || 0;
+      const checked = Array.from(document.querySelectorAll('.sub-cat:checked')).map(c => c.value);
+      const notes = document.getElementById('subtract-notes').value;
+
+      if (amount <= 0) {
+        msg.textContent = 'Enter an amount greater than 0.';
+        msg.className = 'panel-message panel-message-error';
+        return;
+      }
+      if (checked.length === 0) {
+        msg.textContent = 'Select at least one category.';
+        msg.className = 'panel-message panel-message-error';
+        return;
+      }
+
+      const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+      checked.forEach(cat => {
+        totals[cat] = round2(totals[cat] - amount);
+        logRow[cat] = amount;
+      });
+
+      await saveTotals();
+      await logEntry({ amount, ...logRow, notes, action_type: 'subtract' });
+
+      renderTotals();
+      resetSubtractForm();
+      msg.textContent = 'Subtracted and logged.';
+      msg.className = 'panel-message panel-message-success';
+    });
+
+    function resetSubtractForm() {
+      document.getElementById('subtract-amount').value = '';
+      document.querySelectorAll('.sub-cat').forEach(c => c.checked = false);
+      document.getElementById('subtract-notes').value = '';
+    }
+
+    document.getElementById('subtract-reset').addEventListener('click', () => {
+      resetSubtractForm();
+      document.getElementById('subtract-message').textContent = '';
+    });
+
+    // ================= TRANSFER SECTION LOGIC =================
+    document.getElementById('transfer-button').addEventListener('click', async () => {
+      const msg = document.getElementById('transfer-message');
+      const amount = parseFloat(document.getElementById('transfer-amount').value) || 0;
+      const fromChecked = Array.from(document.querySelectorAll('.from-cat:checked')).map(c => c.value);
+      const toChecked = Array.from(document.querySelectorAll('.to-cat:checked')).map(c => c.value);
+      const notes = document.getElementById('transfer-notes').value;
+
+      if (amount <= 0) {
+        msg.textContent = 'Enter an amount greater than 0.';
+        msg.className = 'panel-message panel-message-error';
+        return;
+      }
+      if (fromChecked.length === 0 || toChecked.length === 0) {
+        msg.textContent = 'Select at least one "From" and one "To" category.';
+        msg.className = 'panel-message panel-message-error';
+        return;
+      }
+
+      const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+      fromChecked.forEach(cat => {
+        totals[cat] = round2(totals[cat] - amount);
+        logRow[cat] += -amount;
+      });
+      toChecked.forEach(cat => {
+        totals[cat] = round2(totals[cat] + amount);
+        logRow[cat] += amount;
+      });
+
+      await saveTotals();
+      await logEntry({ amount, ...logRow, notes, action_type: 'transfer' });
+
+      renderTotals();
+      resetTransferForm();
+      msg.textContent = 'Transferred and logged.';
+      msg.className = 'panel-message panel-message-success';
+    });
+
+    function resetTransferForm() {
+      document.getElementById('transfer-amount').value = '';
+      document.querySelectorAll('.from-cat, .to-cat').forEach(c => c.checked = false);
+      document.getElementById('transfer-notes').value = '';
+    }
+
+    document.getElementById('transfer-reset').addEventListener('click', () => {
+      resetTransferForm();
+      document.getElementById('transfer-message').textContent = '';
+    });
+
+    init();
+  </script>
+
+</body>
+</html>
