@@ -45,6 +45,11 @@ h1, h2, h3, h4 {
   letter-spacing: 0.02em;
 }
 
+.wordmark-brand {
+  font-family: 'Jura', 'Fraunces', serif;
+  letter-spacing: 0.08em;
+}
+
 .hero-content {
   max-width: 640px;
   margin: 0 auto;
