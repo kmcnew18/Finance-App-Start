@@ -354,6 +354,17 @@ input[type="number"]:focus, input[type="text"]:focus, textarea:focus {
   box-shadow: 0 0 0 3px rgba(110,143,163,0.18);
 }
 
+/* remove native up/down spinner arrows on number inputs */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .category-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
