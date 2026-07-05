@@ -1,21 +1,23 @@
 :root {
-  --blue: #3F6E80;
-  --blue-deep: #2C4B57;
-  --blue-light: #7FA6B3;
-  --tan: #C7B79E;
-  --tan-hover: #D6C9B2;
-  --brown: #33221C;
-  --paper: #F7F3EC;
-  --ink: #2E211D;
-  --slate: #6B5F55;
-  --line: #E4DDD3;
+  --blue: #2E5472;
+  --blue-deep: #1C3446;
+  --blue-light: #5E8CA6;
+  --cream: #E8E1D3;
+  --cream-hover: #F2EDE3;
+  --silver: #B3B6B9;
+  --dark: #1B2330;
+  --surface-1: #252F40;
+  --surface-2: #2F3B4E;
+  --ink: #E8E1D3;
+  --slate: #8C96A0;
+  --line: #3A465C;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: 'Public Sans', -apple-system, sans-serif;
-  background: var(--paper);
+  background: var(--dark);
   color: var(--ink);
   line-height: 1.55;
 }
@@ -29,7 +31,7 @@ h1, h2, h3, h4 {
 /* ---------- HERO ---------- */
 .hero {
   background: var(--blue);
-  color: var(--paper);
+  color: var(--dark);
   padding: 32px 24px 72px;
 }
 
@@ -43,11 +45,22 @@ h1, h2, h3, h4 {
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.wordmark-brand {
-  font-family: 'Jura', 'Fraunces', serif;
-  letter-spacing: 0.08em;
+.wordmark-logo {
+  height: 34px;
+  width: auto;
+  display: block;
+}
+
+.wordmark-tag {
+  font-family: 'Jura', sans-serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  color: var(--silver);
 }
 
 .hero-content {
@@ -60,11 +73,12 @@ h1, h2, h3, h4 {
   font-size: clamp(2.2rem, 5vw, 3.4rem);
   line-height: 1.1;
   margin-bottom: 20px;
+  color: var(--cream);
 }
 
 .subhead {
   font-size: 1.1rem;
-  color: #D9E4E8;
+  color: #C9D6DD;
   max-width: 480px;
   margin: 0 auto 40px;
 }
@@ -87,7 +101,7 @@ h1, h2, h3, h4 {
 }
 
 .stream.main {
-  stroke: var(--tan);
+  stroke: var(--cream);
   stroke-width: 3;
   opacity: 1;
 }
@@ -97,7 +111,7 @@ h1, h2, h3, h4 {
 }
 
 .main-node {
-  fill: var(--tan);
+  fill: var(--cream);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -126,19 +140,19 @@ h1, h2, h3, h4 {
   flex: 1;
   padding: 14px 16px;
   border-radius: 6px;
-  border: 1px solid #24404A;
+  border: 1px solid var(--blue-deep);
   background: var(--blue-deep);
-  color: var(--paper);
+  color: var(--cream);
   font-size: 0.95rem;
 }
 
 .waitlist-form input::placeholder {
-  color: #A9C1C9;
+  color: #9FB4C0;
 }
 
 .waitlist-form input:focus,
 button:focus-visible {
-  outline: 2px solid var(--tan);
+  outline: 2px solid var(--cream);
   outline-offset: 2px;
 }
 
@@ -146,8 +160,8 @@ button:focus-visible {
   padding: 14px 22px;
   border: none;
   border-radius: 6px;
-  background: var(--tan);
-  color: var(--brown);
+  background: var(--cream);
+  color: var(--dark);
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
@@ -155,12 +169,12 @@ button:focus-visible {
 }
 
 .waitlist-form button:hover {
-  background: var(--tan-hover);
+  background: var(--cream-hover);
 }
 
 .microcopy {
   font-size: 0.8rem;
-  color: #A9C1C9;
+  color: #9FB4C0;
   margin-top: 12px;
 }
 
@@ -172,12 +186,13 @@ button:focus-visible {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 40px;
+  background: var(--surface-1);
 }
 
 .benefit h3 {
   font-size: 1.2rem;
   margin-bottom: 10px;
-  color: var(--brown);
+  color: var(--silver);
 }
 
 .benefit p {
@@ -187,7 +202,7 @@ button:focus-visible {
 
 /* ---------- HOW IT WORKS ---------- */
 .how {
-  background: #EEE6D3;
+  background: var(--surface-2);
   padding: 72px 24px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -197,6 +212,7 @@ button:focus-visible {
   text-align: center;
   font-size: 1.8rem;
   margin-bottom: 48px;
+  color: var(--ink);
 }
 
 .steps {
@@ -212,7 +228,7 @@ button:focus-visible {
   display: block;
   font-family: 'Fraunces', serif;
   font-size: 0.85rem;
-  color: var(--brown);
+  color: var(--silver);
   letter-spacing: 0.08em;
   margin-bottom: 10px;
 }
@@ -220,6 +236,7 @@ button:focus-visible {
 .steps h4 {
   font-size: 1.1rem;
   margin-bottom: 8px;
+  color: var(--ink);
 }
 
 .steps p {
@@ -233,6 +250,7 @@ button:focus-visible {
   padding: 32px 24px;
   color: var(--slate);
   font-size: 0.85rem;
+  background: var(--dark);
 }
 
 /* ---------- RESPONSIVE ---------- */
