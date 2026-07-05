@@ -31,6 +31,15 @@
           </button>
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-toggle-row" id="override-toggle-row">
+              <span>Override totals</span>
+              <label class="switch">
+                <input type="checkbox" id="override-toggle" />
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+            <div class="dropdown-divider"></div>
             <button type="button" id="clear-log-btn" class="dropdown-item danger">Clear entire log</button>
           </div>
         </div>
@@ -43,12 +52,30 @@
   <main class="dash-main" id="dash-main" style="display:none;">
 
     <section class="overview-cards">
-      <div class="card"><span class="card-label">Savings</span><span class="card-value" id="val-savings">$0.00</span></div>
-      <div class="card"><span class="card-label">Investment</span><span class="card-value" id="val-investment">$0.00</span></div>
-      <div class="card"><span class="card-label">Expenses</span><span class="card-value" id="val-expenses">$0.00</span></div>
-      <div class="card"><span class="card-label">Checking</span><span class="card-value" id="val-checking">$0.00</span></div>
+      <div class="card" data-cat="savings">
+        <span class="card-label">Savings</span>
+        <span class="card-value" id="val-savings">$0.00</span>
+        <input type="number" class="card-value-input" id="edit-savings" data-cat="savings" step="0.01" />
+      </div>
+      <div class="card" data-cat="investment">
+        <span class="card-label">Investment</span>
+        <span class="card-value" id="val-investment">$0.00</span>
+        <input type="number" class="card-value-input" id="edit-investment" data-cat="investment" step="0.01" />
+      </div>
+      <div class="card" data-cat="expenses">
+        <span class="card-label">Expenses</span>
+        <span class="card-value" id="val-expenses">$0.00</span>
+        <input type="number" class="card-value-input" id="edit-expenses" data-cat="expenses" step="0.01" />
+      </div>
+      <div class="card" data-cat="checking">
+        <span class="card-label">Checking</span>
+        <span class="card-value" id="val-checking">$0.00</span>
+        <input type="number" class="card-value-input" id="edit-checking" data-cat="checking" step="0.01" />
+      </div>
       <div class="card card-total"><span class="card-label">Total</span><span class="card-value" id="val-total">$0.00</span></div>
     </section>
+
+    <p class="override-hint" id="override-hint" style="display:none;">Override mode is on — click a category amount above to type in an exact total.</p>
 
     <!-- ================= ADD / DEPOSIT ================= -->
     <section class="panel panel-add">
@@ -205,6 +232,12 @@
       document.getElementById('val-expenses').textContent = money(totals.expenses);
       document.getElementById('val-checking').textContent = money(totals.checking);
       document.getElementById('val-total').textContent = money(total);
+
+      document.querySelectorAll('.card-value-input').forEach(input => {
+        if (document.activeElement !== input) {
+          input.value = totals[input.dataset.cat];
+        }
+      });
     }
 
     async function saveTotals() {
@@ -294,13 +327,65 @@
 
     document.getElementById('clear-log-btn').addEventListener('click', async () => {
       if (!confirm('This will clear your entire log and reset all category totals to $0.00 \u2014 just like a fresh account. This cannot be undone.')) return;
-      const { error: logError } = await supabaseClient.from('finance_log').delete().eq('user_id', currentUserId);
-      if (logError) console.error(logError);
+
+      const { count: beforeCount } = await supabaseClient
+        .from('finance_log')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUserId);
+
+      const { data: deletedRows, error: logError } = await supabaseClient
+        .from('finance_log')
+        .delete()
+        .eq('user_id', currentUserId)
+        .select();
+
+      if (logError) {
+        console.error('Clear log error:', logError);
+        alert('Could not clear the log: ' + logError.message);
+        return;
+      }
+
       totals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       await saveTotals();
       renderTotals();
       gearDropdown.classList.remove('open');
-      alert('Your account has been reset to a fresh state.');
+
+      if (beforeCount > 0 && (!deletedRows || deletedRows.length === 0)) {
+        alert('Category totals were reset, but the log entries could not be deleted. Your Supabase "finance_log" table is likely missing a DELETE policy that lets a user delete their own rows (e.g. USING (auth.uid() = user_id)). Check Row Level Security policies on that table.');
+      } else {
+        alert('Your account has been reset to a fresh state.');
+      }
+    });
+
+    // ================= OVERRIDE TOTALS TOGGLE =================
+    const overrideToggle = document.getElementById('override-toggle');
+    const overrideHint = document.getElementById('override-hint');
+    const overrideToggleRow = document.getElementById('override-toggle-row');
+
+    overrideToggleRow.addEventListener('click', (e) => e.stopPropagation());
+
+    overrideToggle.addEventListener('change', () => {
+      if (overrideToggle.checked) {
+        dashMain.classList.add('override-mode');
+        overrideHint.style.display = 'block';
+        document.querySelectorAll('.card-value-input').forEach(input => {
+          input.value = totals[input.dataset.cat];
+        });
+      } else {
+        dashMain.classList.remove('override-mode');
+        overrideHint.style.display = 'none';
+      }
+    });
+
+    document.querySelectorAll('.card-value-input').forEach(input => {
+      input.addEventListener('change', async () => {
+        const cat = input.dataset.cat;
+        const val = round2(parseFloat(input.value) || 0);
+        totals[cat] = val;
+        input.value = val;
+        await saveTotals();
+        renderTotals();
+      });
     });
 
     // ================= CHIP TOGGLE STYLING =================
@@ -349,7 +434,7 @@
         updatingPair = true;
         const income = getIncome();
         const pct = parseFloat(percentInput.value) || 0;
-        dollarInput.value = round2((income * pct) / 100);
+        dollarInput.value = round2((income * pct) / 100).toFixed(2);
         updatingPair = false;
         updateRemaining();
       });
@@ -361,7 +446,7 @@
         const percentInput = box.querySelector('.cat-percent');
         const pct = parseFloat(percentInput.value) || 0;
         if (pct > 0) {
-          dollarInput.value = round2((getIncome() * pct) / 100);
+          dollarInput.value = round2((getIncome() * pct) / 100).toFixed(2);
         }
       });
       updateRemaining();

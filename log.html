@@ -181,16 +181,38 @@
 
     document.getElementById('clear-log-btn').addEventListener('click', async () => {
       if (!confirm('This will clear your entire log and reset all category totals to $0.00 \u2014 just like a fresh account. This cannot be undone.')) return;
-      const { error: logError } = await supabaseClient.from('finance_log').delete().eq('user_id', currentUserId);
-      if (logError) console.error(logError);
+
+      const { count: beforeCount } = await supabaseClient
+        .from('finance_log')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUserId);
+
+      const { data: deletedRows, error: logError } = await supabaseClient
+        .from('finance_log')
+        .delete()
+        .eq('user_id', currentUserId)
+        .select();
+
+      if (logError) {
+        console.error('Clear log error:', logError);
+        alert('Could not clear the log: ' + logError.message);
+        return;
+      }
+
       const { error: totalsError } = await supabaseClient
         .from('finance_totals')
         .update({ savings: 0, investment: 0, expenses: 0, checking: 0, updated_at: new Date().toISOString() })
         .eq('user_id', currentUserId);
       if (totalsError) console.error(totalsError);
+
       gearDropdown.classList.remove('open');
       await loadLog();
-      alert('Your account has been reset to a fresh state.');
+
+      if (beforeCount > 0 && (!deletedRows || deletedRows.length === 0)) {
+        alert('Category totals were reset, but the log entries could not be deleted. Your Supabase "finance_log" table is likely missing a DELETE policy that lets a user delete their own rows (e.g. USING (auth.uid() = user_id)). Check Row Level Security policies on that table.');
+      } else {
+        alert('Your account has been reset to a fresh state.');
+      }
     });
 
     init();
