@@ -39,6 +39,8 @@
 
       <p class="auth-message" id="auth-message"></p>
 
+      <button type="button" id="resend-button" class="btn-resend" style="display:none;">Resend confirmation email</button>
+
       <p class="auth-switch">Already have an account? <a href="login.html">Log in</a></p>
     </div>
   </header>
@@ -53,11 +55,15 @@
     const form = document.getElementById('signup-form');
     const button = document.getElementById('signup-button');
     const message = document.getElementById('auth-message');
+    const resendButton = document.getElementById('resend-button');
+
+    let lastSignupEmail = '';
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       message.textContent = '';
       message.className = 'auth-message';
+      resendButton.style.display = 'none';
 
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
@@ -90,8 +96,10 @@
         }
 
         if (data.user && !data.session) {
+          lastSignupEmail = email;
           message.textContent = "Check your email to confirm your account before logging in.";
           message.classList.add('auth-message-success');
+          resendButton.style.display = 'inline-block';
         } else if (data.session) {
           message.textContent = "Account created! Redirecting...";
           message.classList.add('auth-message-success');
@@ -105,6 +113,39 @@
       } finally {
         button.disabled = false;
         button.textContent = 'Sign up';
+      }
+    });
+
+    resendButton.addEventListener('click', async () => {
+      if (!lastSignupEmail) return;
+
+      resendButton.disabled = true;
+      resendButton.textContent = 'Sending...';
+
+      try {
+        const { error } = await supabaseClient.auth.resend({
+          type: 'signup',
+          email: lastSignupEmail,
+          options: {
+            emailRedirectTo: window.location.origin + '/login.html'
+          }
+        });
+
+        if (error) {
+          console.error('Resend error:', error);
+          message.textContent = error.message || 'Could not resend email. Please try again.';
+          message.classList.add('auth-message-error');
+        } else {
+          message.textContent = "Confirmation email resent. Check your inbox.";
+          message.className = 'auth-message auth-message-success';
+        }
+      } catch (err) {
+        console.error('Unexpected resend error:', err);
+        message.textContent = 'Network error — please try again.';
+        message.classList.add('auth-message-error');
+      } finally {
+        resendButton.disabled = false;
+        resendButton.textContent = 'Resend confirmation email';
       }
     });
   </script>

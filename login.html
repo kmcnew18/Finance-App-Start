@@ -39,6 +39,8 @@
 
       <p class="auth-message" id="auth-message"></p>
 
+      <button type="button" id="resend-button" class="btn-resend" style="display:none;">Resend confirmation email</button>
+
       <p class="auth-switch">Don't have an account? <a href="signup.html">Sign up</a></p>
     </div>
   </header>
@@ -53,14 +55,20 @@
     const form = document.getElementById('login-form');
     const button = document.getElementById('login-button');
     const message = document.getElementById('auth-message');
+    const resendButton = document.getElementById('resend-button');
+
+    let lastLoginEmail = '';
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       message.textContent = '';
       message.className = 'auth-message';
+      resendButton.style.display = 'none';
 
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
+
+      lastLoginEmail = email;
 
       button.disabled = true;
       button.textContent = 'Logging in...';
@@ -72,6 +80,7 @@
           console.error('Login error:', error);
           if (error.message.toLowerCase().includes('email not confirmed')) {
             message.textContent = "Please confirm your email before logging in. Check your inbox.";
+            resendButton.style.display = 'inline-block';
           } else {
             message.textContent = error.message || 'Invalid email or password.';
           }
@@ -90,6 +99,39 @@
       } finally {
         button.disabled = false;
         button.textContent = 'Log in';
+      }
+    });
+
+    resendButton.addEventListener('click', async () => {
+      if (!lastLoginEmail) return;
+
+      resendButton.disabled = true;
+      resendButton.textContent = 'Sending...';
+
+      try {
+        const { error } = await supabaseClient.auth.resend({
+          type: 'signup',
+          email: lastLoginEmail,
+          options: {
+            emailRedirectTo: window.location.origin + '/login.html'
+          }
+        });
+
+        if (error) {
+          console.error('Resend error:', error);
+          message.textContent = error.message || 'Could not resend email. Please try again.';
+          message.classList.add('auth-message-error');
+        } else {
+          message.textContent = "Confirmation email resent. Check your inbox.";
+          message.className = 'auth-message auth-message-success';
+        }
+      } catch (err) {
+        console.error('Unexpected resend error:', err);
+        message.textContent = 'Network error — please try again.';
+        message.classList.add('auth-message-error');
+      } finally {
+        resendButton.disabled = false;
+        resendButton.textContent = 'Resend confirmation email';
       }
     });
   </script>
