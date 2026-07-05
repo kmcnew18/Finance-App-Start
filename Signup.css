@@ -205,6 +205,20 @@ button:focus-visible {
   margin-top: 24px;
 }
 
+.auth-message {
+  font-size: 0.85rem;
+  margin-top: 16px;
+  min-height: 1.2em;
+}
+
+.auth-message-error {
+  color: #E08B7D;
+}
+
+.auth-message-success {
+  color: var(--tan);
+}
+
 .auth-switch a {
   color: var(--tan);
   font-weight: 600;

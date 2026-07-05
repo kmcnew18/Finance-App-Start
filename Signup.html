@@ -3,15 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sign Up · Arko</title>
+  <title>Sign up · Arko</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="signup.css" />
-  <link rel="icon" href="favicon.ico" sizes="any" />
-<link rel="icon" type="image/png" href="favicon.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
-<link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
-<link rel="apple-touch-icon" href="apple-touch-icon.png" />
 </head>
 <body>
 
@@ -25,21 +20,67 @@
 
     <div class="auth-content">
       <h1>Create your account</h1>
-      <p class="auth-subhead">Start your journey with us.</p>
+      <p class="auth-subhead">Get set up in seconds.</p>
 
-      <form class="auth-form" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+      <form class="auth-form" id="signup-form">
         <label for="email">Email</label>
         <input type="email" id="email" name="email" placeholder="you@email.com" required />
 
         <label for="password">Password</label>
         <input type="password" id="password" name="password" placeholder="••••••••" required minlength="8" />
 
-        <button type="submit">Sign up</button>
+        <button type="submit" id="signup-button">Sign up</button>
       </form>
+
+      <p class="auth-message" id="auth-message"></p>
 
       <p class="auth-switch">Already have an account? <a href="login.html">Log in</a></p>
     </div>
   </header>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const form = document.getElementById('signup-form');
+    const button = document.getElementById('signup-button');
+    const message = document.getElementById('auth-message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      message.textContent = '';
+      message.className = 'auth-message';
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      button.disabled = true;
+      button.textContent = 'Creating account...';
+
+      const { data, error } = await supabaseClient.auth.signUp({ email, password });
+
+      button.disabled = false;
+      button.textContent = 'Sign up';
+
+      if (error) {
+        message.textContent = error.message;
+        message.classList.add('auth-message-error');
+        return;
+      }
+
+      if (data.user && !data.session) {
+        message.textContent = "Check your email to confirm your account before logging in.";
+        message.classList.add('auth-message-success');
+      } else {
+        message.textContent = "Account created! Redirecting...";
+        message.classList.add('auth-message-success');
+        setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+      }
+    });
+  </script>
 
 </body>
 </html>
