@@ -1,12 +1,12 @@
 :root {
-  --ink: #0F1B2D;
-  --ink-soft: #1B2C44;
-  --paper: #FAF9F6;
-  --moss: #3C7A68;
-  --moss-light: #5C9782;
-  --gold: #C9A959;
-  --slate: #5B6472;
-  --line: #E3E1DB;
+  --ink: #4A3A38;
+  --ink-soft: #5A4744;
+  --paper: #F6F1EA;
+  --moss: #766161;
+  --moss-light: #97817F;
+  --gold: #87A7B3;
+  --slate: #6B5F5C;
+  --line: #E4DDD3;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -57,7 +57,7 @@ h1, h2, h3, h4 {
 
 .subhead {
   font-size: 1.1rem;
-  color: #C7CEDB;
+  color: #DCD0C8;
   max-width: 480px;
   margin: 0 auto 40px;
 }
@@ -119,14 +119,14 @@ h1, h2, h3, h4 {
   flex: 1;
   padding: 14px 16px;
   border-radius: 6px;
-  border: 1px solid #33415A;
+  border: 1px solid #6B5451;
   background: var(--ink-soft);
   color: var(--paper);
   font-size: 0.95rem;
 }
 
 .waitlist-form input::placeholder {
-  color: #8590A3;
+  color: #C9BDB6;
 }
 
 .waitlist-form input:focus,
@@ -148,12 +148,12 @@ button:focus-visible {
 }
 
 .waitlist-form button:hover {
-  background: #DAB96C;
+  background: #9BB8C2;
 }
 
 .microcopy {
   font-size: 0.8rem;
-  color: #7C8698;
+  color: #B5A79E;
   margin-top: 12px;
 }
 
@@ -180,7 +180,7 @@ button:focus-visible {
 
 /* ---------- HOW IT WORKS ---------- */
 .how {
-  background: #F1EFE9;
+  background: #EFE7DB;
   padding: 72px 24px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
