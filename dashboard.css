@@ -23,6 +23,11 @@
   --transfer-accent: #BC9A4A;
   --transfer-accent-hover: #CDAE63;
   --transfer-bg: #272012;
+
+  /* brighter glow versions of the accent colors, for neon panel glows */
+  --add-glow: #7FE39A;
+  --subtract-glow: #FF6F5E;
+  --transfer-glow: #F0C860;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -297,10 +302,6 @@ h1, h2, h3 {
   position: relative;
   box-shadow: 0 6px 22px rgba(0,0,0,0.25);
 }
-
-.panel-add { border-left: 4px solid var(--add-accent); }
-.panel-subtract { border-left: 4px solid var(--subtract-accent); }
-.panel-transfer { border-left: 4px solid var(--transfer-accent); }
 
 .panel-head {
   display: flex;
@@ -596,3 +597,63 @@ input[type="number"]::-webkit-outer-spin-button {
   .category-grid { grid-template-columns: 1fr 1fr; }
   .transfer-groups { grid-template-columns: 1fr; }
 }
+
+/* ============= NEON PANEL GLOWS ============= */
+
+.panel-add {
+  border-left: 4px solid var(--add-glow);
+  box-shadow:
+    0 0 8px rgba(127, 227, 154, 0.5),
+    0 0 20px rgba(127, 227, 154, 0.3),
+    0 0 40px rgba(127, 227, 154, 0.15),
+    0 6px 22px rgba(0,0,0,0.25);
+  transition: box-shadow 0.3s ease;
+}
+.panel-add:hover,
+.panel-add:focus-within {
+  box-shadow:
+    0 0 12px rgba(127, 227, 154, 0.7),
+    0 0 30px rgba(127, 227, 154, 0.45),
+    0 0 60px rgba(127, 227, 154, 0.22),
+    0 6px 22px rgba(0,0,0,0.25);
+}
+
+.panel-subtract {
+  border-left: 4px solid var(--subtract-glow);
+  box-shadow:
+    0 0 8px rgba(255, 111, 94, 0.5),
+    0 0 20px rgba(255, 111, 94, 0.3),
+    0 0 40px rgba(255, 111, 94, 0.15),
+    0 6px 22px rgba(0,0,0,0.25);
+  transition: box-shadow 0.3s ease;
+}
+.panel-subtract:hover,
+.panel-subtract:focus-within {
+  box-shadow:
+    0 0 12px rgba(255, 111, 94, 0.7),
+    0 0 30px rgba(255, 111, 94, 0.45),
+    0 0 60px rgba(255, 111, 94, 0.22),
+    0 6px 22px rgba(0,0,0,0.25);
+}
+
+.panel-transfer {
+  border-left: 4px solid var(--transfer-glow);
+  box-shadow:
+    0 0 8px rgba(240, 200, 96, 0.5),
+    0 0 20px rgba(240, 200, 96, 0.3),
+    0 0 40px rgba(240, 200, 96, 0.15),
+    0 6px 22px rgba(0,0,0,0.25);
+  transition: box-shadow 0.3s ease;
+}
+.panel-transfer:hover,
+.panel-transfer:focus-within {
+  box-shadow:
+    0 0 12px rgba(240, 200, 96, 0.7),
+    0 0 30px rgba(240, 200, 96, 0.45),
+    0 0 60px rgba(240, 200, 96, 0.22),
+    0 6px 22px rgba(0,0,0,0.25);
+}
+
+.panel-add .panel-head h2 { color: var(--add-glow); }
+.panel-subtract .panel-head h2 { color: var(--subtract-glow); }
+.panel-transfer .panel-head h2 { color: var(--transfer-glow); }
