@@ -35,11 +35,38 @@ h1, h2, h3, h4 {
   background: var(--blue-deep);
   color: var(--tan);
   padding: 32px 24px 72px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 15% 20%, rgba(255,255,255,0.05), transparent 60%),
+    radial-gradient(ellipse 50% 60% at 85% 15%, rgba(0,0,0,0.25), transparent 65%),
+    radial-gradient(ellipse 70% 50% at 30% 80%, rgba(0,0,0,0.2), transparent 60%),
+    radial-gradient(ellipse 55% 45% at 75% 75%, rgba(255,255,255,0.04), transparent 60%),
+    radial-gradient(ellipse 40% 40% at 55% 45%, rgba(0,0,0,0.15), transparent 55%);
+  pointer-events: none;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  pointer-events: none;
 }
 
 .nav {
   max-width: 960px;
   margin: 0 auto 64px;
+  position: relative;
+  z-index: 1;
 }
 
 .wordmark {
@@ -60,6 +87,8 @@ h1, h2, h3, h4 {
   max-width: 640px;
   margin: 0 auto;
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
 .hero h1 {
