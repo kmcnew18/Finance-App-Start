@@ -1,11 +1,13 @@
 :root {
-  --ink: #4A3A38;
-  --ink-soft: #5A4744;
-  --paper: #F6F1EA;
-  --moss: #766161;
-  --moss-light: #97817F;
-  --gold: #87A7B3;
-  --slate: #6B5F5C;
+  --blue: #3F6E80;
+  --blue-deep: #2C4B57;
+  --blue-light: #7FA6B3;
+  --tan: #C7B79E;
+  --tan-hover: #D6C9B2;
+  --brown: #4A342B;
+  --paper: #F7F3EC;
+  --ink: #2E211D;
+  --slate: #6B5F55;
   --line: #E4DDD3;
 }
 
@@ -26,7 +28,7 @@ h1, h2, h3, h4 {
 
 /* ---------- HERO ---------- */
 .hero {
-  background: var(--ink);
+  background: var(--blue);
   color: var(--paper);
   padding: 32px 24px 72px;
 }
@@ -57,7 +59,7 @@ h1, h2, h3, h4 {
 
 .subhead {
   font-size: 1.1rem;
-  color: #DCD0C8;
+  color: #D9E4E8;
   max-width: 480px;
   margin: 0 auto 40px;
 }
@@ -73,24 +75,24 @@ h1, h2, h3, h4 {
 
 .stream {
   fill: none;
-  stroke: var(--moss-light);
+  stroke: var(--blue-light);
   stroke-width: 2;
   stroke-linecap: round;
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 .stream.main {
-  stroke: var(--gold);
+  stroke: var(--tan);
   stroke-width: 3;
   opacity: 1;
 }
 
 .node {
-  fill: var(--moss-light);
+  fill: var(--blue-light);
 }
 
 .main-node {
-  fill: var(--gold);
+  fill: var(--tan);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -119,19 +121,19 @@ h1, h2, h3, h4 {
   flex: 1;
   padding: 14px 16px;
   border-radius: 6px;
-  border: 1px solid #6B5451;
-  background: var(--ink-soft);
+  border: 1px solid #24404A;
+  background: var(--blue-deep);
   color: var(--paper);
   font-size: 0.95rem;
 }
 
 .waitlist-form input::placeholder {
-  color: #C9BDB6;
+  color: #A9C1C9;
 }
 
 .waitlist-form input:focus,
 button:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--tan);
   outline-offset: 2px;
 }
 
@@ -139,8 +141,8 @@ button:focus-visible {
   padding: 14px 22px;
   border: none;
   border-radius: 6px;
-  background: var(--gold);
-  color: var(--ink);
+  background: var(--tan);
+  color: var(--brown);
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
@@ -148,12 +150,12 @@ button:focus-visible {
 }
 
 .waitlist-form button:hover {
-  background: #9BB8C2;
+  background: var(--tan-hover);
 }
 
 .microcopy {
   font-size: 0.8rem;
-  color: #B5A79E;
+  color: #A9C1C9;
   margin-top: 12px;
 }
 
@@ -170,7 +172,7 @@ button:focus-visible {
 .benefit h3 {
   font-size: 1.2rem;
   margin-bottom: 10px;
-  color: var(--moss);
+  color: var(--brown);
 }
 
 .benefit p {
@@ -180,7 +182,7 @@ button:focus-visible {
 
 /* ---------- HOW IT WORKS ---------- */
 .how {
-  background: #EFE7DB;
+  background: #EEE6D3;
   padding: 72px 24px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -205,7 +207,7 @@ button:focus-visible {
   display: block;
   font-family: 'Fraunces', serif;
   font-size: 0.85rem;
-  color: var(--gold);
+  color: var(--brown);
   letter-spacing: 0.08em;
   margin-bottom: 10px;
 }
