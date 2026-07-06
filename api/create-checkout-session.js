@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({ url: session.url });
   } catch (err) {
-    console.error(err);
+    console.error('create-checkout-session error:', err);
     res.status(500).json({ error: err.message });
   }
 }

@@ -16,11 +16,22 @@ export default async function handler(req, res) {
   if (mine) return res.status(200).json({ ok: true, alreadyExists: true });
 
   // Has this device fingerprint or IP already claimed a trial under another account?
-  const { data: existing } = await supabaseAdmin
-    .from('user_billing')
-    .select('user_id')
-    .or(`signup_fingerprint.eq.${fingerprint},signup_ip.eq.${ip}`)
-    .limit(1);
+  let existing = null;
+  if (fingerprint) {
+    const { data } = await supabaseAdmin
+      .from('user_billing')
+      .select('user_id')
+      .or(`signup_fingerprint.eq.${fingerprint},signup_ip.eq.${ip}`)
+      .limit(1);
+    existing = data;
+  } else {
+    const { data } = await supabaseAdmin
+      .from('user_billing')
+      .select('user_id')
+      .eq('signup_ip', ip)
+      .limit(1);
+    existing = data;
+  }
 
   const alreadyUsedTrial = existing && existing.length > 0;
 
@@ -33,11 +44,14 @@ export default async function handler(req, res) {
     trial_start: trialStart.toISOString(),
     // Flagged devices get a trial that's already expired -> forced straight to paywall
     trial_end: alreadyUsedTrial ? trialStart.toISOString() : trialEnd.toISOString(),
-    signup_fingerprint: fingerprint,
+    signup_fingerprint: fingerprint || null,
     signup_ip: ip
   });
 
-  if (error) { console.error(error); return res.status(500).json({ error: error.message }); }
+  if (error) {
+    console.error('register-trial insert error:', error);
+    return res.status(500).json({ error: error.message });
+  }
 
   res.status(200).json({ ok: true, flagged: alreadyUsedTrial });
 }
