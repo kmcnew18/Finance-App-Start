@@ -12,6 +12,27 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="dashboard.css" />
+  <style>
+    .wip-banner{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      padding:9px 20px;
+      background:#fafaf8;
+      border-bottom:1px solid rgba(20,20,20,0.07);
+      font-family:'Public Sans', sans-serif;
+      font-size:12.5px;
+      color:#8a8578;
+      letter-spacing:.2px;
+      text-align:center;
+    }
+    .wip-banner .wip-dot{
+      width:6px;height:6px;border-radius:50%;
+      background:#d1a24a;
+      flex-shrink:0;
+    }
+  </style>
 </head>
 <body>
 
@@ -48,6 +69,8 @@
       </div>
     </nav>
   </header>
+
+  <div class="wip-banner"><span class="wip-dot"></span>Arko is in early development — most features shown are for preview purposes and are not yet fully live.</div>
 
   <main class="dash-main" id="dash-main" style="display:none;">
 
@@ -220,11 +243,18 @@
     function money(n) {
       return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+
+    // All "today" values are pinned to Central Time so the date is consistent
+    // for every user regardless of their device's local timezone/OS setting.
+    const APP_TIMEZONE = 'America/Chicago';
+
     function todayStr() {
-      return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: APP_TIMEZONE });
     }
     function todayISO() {
-      return new Date().toISOString().split('T')[0];
+      // en-CA locale formats as YYYY-MM-DD, giving us a clean ISO date string
+      // that reflects the *Central Time* calendar day (not UTC, not local browser tz).
+      return new Date().toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE });
     }
 
     function renderTotals() {
