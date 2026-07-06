@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unlock Full Access · Arko</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="signup.css" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+</head>
+<body>
+
+  <header class="hero">
+    <nav class="nav">
+      <span class="wordmark"><span class="wordmark-brand">Arko</span> | Pre-Alpha</span>
+    </nav>
+
+    <div class="auth-content">
+      <h1>Your free trial has ended</h1>
+      <p class="auth-subhead">Unlock Arko for good with a one-time $10 payment. No subscription, ever.</p>
+
+      <button type="button" id="checkout-button" class="hero-cta">Unlock full access — $10</button>
+      <p class="auth-message" id="auth-message"></p>
+
+      <p class="auth-switch"><a href="#" id="logout-link">Log out</a></p>
+    </div>
+  </header>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = null;
+
+    (async () => {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+      currentUser = session.user;
+
+      // Already paid? Don't show the paywall.
+      const { data: billing } = await supabaseClient
+        .from('user_billing').select('is_paid').eq('user_id', currentUser.id).maybeSingle();
+      if (billing && billing.is_paid) window.location.href = 'dashboard.html';
+    })();
+
+    document.getElementById('checkout-button').addEventListener('click', async () => {
+      const message = document.getElementById('auth-message');
+      message.textContent = 'Redirecting to secure checkout...';
+      message.className = 'auth-message';
+
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id, email: currentUser.email })
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          message.textContent = 'Could not start checkout. Please try again.';
+          message.classList.add('auth-message-error');
+        }
+      } catch (err) {
+        console.error(err);
+        message.textContent = 'Network error — please try again.';
+        message.classList.add('auth-message-error');
+      }
+    });
+
+    document.getElementById('logout-link').addEventListener('click', async (e) => {
+      e.preventDefault();
+      await supabaseClient.auth.signOut();
+      window.location.href = 'login.html';
+    });
+  </script>
+
+</body>
+</html>

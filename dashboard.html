@@ -266,6 +266,16 @@
 
       currentUserId = session.user.id;
       document.getElementById('user-email').textContent = session.user.email;
+      const { data: billing } = await supabaseClient
+        .from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
+
+      if (billing) {
+        const trialExpired = new Date(billing.trial_end) < new Date();
+        if (trialExpired && !billing.is_paid) {
+          window.location.href = 'paywall.html';
+          return;
+        }
+      }
 
       const dateNow = todayStr();
       document.getElementById('add-date').textContent = dateNow;

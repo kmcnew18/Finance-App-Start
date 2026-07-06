@@ -47,6 +47,7 @@
     </div>
   </header>
 
+  <script src="https://openfpcdn.io/fingerprintjs/v4/iife.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
@@ -90,8 +91,18 @@
           return;
         }
 
-        message.textContent = "Logged in! Redirecting...";
+       message.textContent = "Logged in! Redirecting...";
         message.classList.add('auth-message-success');
+
+        // Register (or check) trial status before redirecting
+        const fp = await FingerprintJS.load();
+        const fpResult = await fp.get();
+        await fetch('/api/register-trial', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: data.user.id, fingerprint: fpResult.visitorId })
+        });
+
         setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
 
       } catch (err) {
