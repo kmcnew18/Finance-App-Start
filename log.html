@@ -23,6 +23,21 @@
       color:#b3ae9f;
       letter-spacing:.15px;
     }
+
+    .log-date-firstofmonth{
+      color:#b5822a;
+      font-weight:600;
+      position:relative;
+    }
+    .log-date-firstofmonth::after{
+      content:'';
+      position:absolute;
+      left:0; right:0; bottom:-2px;
+      height:1px;
+      background:#b5822a;
+      box-shadow:0 0 6px rgba(197,146,58,0.65), 0 0 2px rgba(197,146,58,0.5);
+      opacity:.8;
+    }
   </style>
 </head>
 <body>
@@ -100,6 +115,13 @@
       return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     }
 
+    function isFirstOfMonth(d) {
+      // d is an ISO date string like "2026-07-01" — check the day segment directly
+      // to avoid timezone parsing issues shifting the date.
+      const day = d.split('-')[2];
+      return day === '01';
+    }
+
     const rowClassByType = {
       add: 'log-row-add',
       subtract: 'log-row-subtract',
@@ -128,7 +150,7 @@
       tbody.innerHTML = rows.map(r => `
         <tr class="${rowClassByType[r.action_type] || ''}">
           <td><label class="log-check"><input type="checkbox" class="row-select" data-id="${r.id}" /><span class="check-box"></span></label></td>
-          <td>${formatDate(r.entry_date)}</td>
+          <td class="${isFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${formatDate(r.entry_date)}</td>
           <td class="num-cell">${money(r.amount)}</td>
           <td class="num-cell">${money(r.savings)}</td>
           <td class="num-cell">${money(r.investment)}</td>
