@@ -23,7 +23,6 @@
       <button type="button" id="checkout-button" class="hero-cta">Unlock full access — $10</button>
       <p class="auth-message" id="auth-message"></p>
 
-      <p class="auth-switch"><a href="#" id="logout-link">Log out</a></p>
     </div>
   </header>
 
@@ -71,11 +70,6 @@
       }
     });
 
-    document.getElementById('logout-link').addEventListener('click', async (e) => {
-      e.preventDefault();
-      await supabaseClient.auth.signOut();
-      window.location.href = 'login.html';
-    });
   </script>
 
 </body>
