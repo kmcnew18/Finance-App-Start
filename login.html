@@ -91,17 +91,35 @@
           return;
         }
 
-       message.textContent = "Logged in! Redirecting...";
+        message.textContent = "Logged in! Redirecting...";
         message.classList.add('auth-message-success');
 
-        // Register (or check) trial status before redirecting
-        const fp = await FingerprintJS.load();
-        const fpResult = await fp.get();
-        await fetch('/api/register-trial', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: data.user.id, fingerprint: fpResult.visitorId })
-        });
+        // Register (or check) trial status before redirecting.
+        // Fingerprinting is wrapped in its own try/catch so a blocked
+        // script (ad blockers / Brave / Firefox commonly block it)
+        // never prevents login or trial registration from completing.
+        let visitorId = null;
+        try {
+          const fp = await FingerprintJS.load();
+          const fpResult = await fp.get();
+          visitorId = fpResult.visitorId;
+        } catch (fpErr) {
+          console.warn('Fingerprint unavailable (likely blocked by browser/extension):', fpErr);
+        }
+
+        try {
+          const trialRes = await fetch('/api/register-trial', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: data.user.id, fingerprint: visitorId })
+          });
+          if (!trialRes.ok) {
+            const errBody = await trialRes.text();
+            console.error('register-trial failed:', trialRes.status, errBody);
+          }
+        } catch (regErr) {
+          console.warn('Trial registration request failed:', regErr);
+        }
 
         setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
 
