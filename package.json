@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.0",
+    "micro": "^10.0.1",
+    "stripe": "^22.3.0"
+  }
+}
