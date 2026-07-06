@@ -258,6 +258,53 @@ button:focus-visible {
   cursor: not-allowed;
 }
 
+/* ---------- PAYWALL CTA ---------- */
+.hero-cta {
+  position: relative;
+  display: inline-block;
+  margin-top: 8px;
+  padding: 16px 40px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--brown), var(--brown-hover));
+  color: var(--tan);
+  font-family: 'Public Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow:
+    0 0 18px rgba(107, 74, 56, 0.55),
+    0 0 36px rgba(107, 74, 56, 0.3),
+    0 8px 18px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.3s ease, background 0.2s ease;
+}
+
+.hero-cta:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 26px rgba(107, 74, 56, 0.7),
+    0 0 52px rgba(107, 74, 56, 0.4),
+    0 10px 22px rgba(0, 0, 0, 0.4);
+}
+
+.hero-cta:active {
+  transform: translateY(0);
+}
+
+.hero-cta:focus-visible {
+  outline: 2px solid var(--tan);
+  outline-offset: 3px;
+}
+
+.hero-cta:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 @media (max-width: 480px) {
   .nav {
     flex-direction: column;
