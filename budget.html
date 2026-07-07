@@ -28,6 +28,7 @@
       <a href="dashboard.html" class="wordmark" style="text-decoration:none;"><span class="wordmark-brand">Arko</span> | Pre-Alpha</a>
       <div class="nav-auth">
         <button type="button" id="history-button" class="btn-ghost">Archive</button>
+        <button type="button" id="import-log-button" class="btn-ghost">Import from Log</button>
 
         <!-- ================= PREMIUM FEATURE MENU ================= -->
         <div class="settings-wrap">
@@ -222,6 +223,19 @@
         <button type="button" id="archives-delete-selected" class="btn-danger">Delete selected</button>
       </div>
       <div class="history-list" id="archives-list"></div>
+    </div>
+  </div>
+
+  <!-- ================= IMPORT FROM LOG OVERLAY ================= -->
+  <div class="history-overlay" id="import-log-overlay">
+    <div class="history-panel import-log-panel">
+      <div class="history-head">
+        <h2>Import from Log</h2>
+        <button type="button" class="history-close" id="import-log-close">×</button>
+      </div>
+      <div class="import-log-body" id="import-log-body">
+        <!-- populated by JS -->
+      </div>
     </div>
   </div>
 
@@ -1012,6 +1026,166 @@
       dd.addEventListener('click', (e) => e.stopPropagation());
     }
 
+    // ================= IMPORT FROM LOG =================
+    // Pull entries straight from the dashboard's log into an Expense line
+    // for the currently open period. Since we're already inside the Budget
+    // Planner, this writes directly into `current` and reuses the same
+    // render/save pipeline as the planner's own "+ Log expense" — no
+    // separate fetch/sync path to keep consistent.
+    let importLogRows = [];
+
+    async function fetchFinanceLog() {
+      const { data, error } = await supabaseClient
+        .from('finance_log')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false })
+        .limit(150);
+      if (error) { console.error(error); return []; }
+      return data || [];
+    }
+
+    function importDefaultAmount(row) {
+      if (row.expenses && Number(row.expenses) !== 0) return round2(Math.abs(Number(row.expenses)));
+      return round2(Math.abs(Number(row.amount) || 0));
+    }
+
+    function renderImportLogBody() {
+      const body = document.getElementById('import-log-body');
+
+      if (isLocked()) {
+        body.innerHTML = '<div class="import-log-empty">This period is finalized. Unlock it first to import log entries into it.</div>';
+        return;
+      }
+
+      if (!importLogRows.length) {
+        body.innerHTML = '<div class="import-log-empty">No entries in your dashboard log yet. Add some from the Dashboard, then come back here.</div>';
+        return;
+      }
+
+      const rowsHtml = importLogRows.map(r => `
+        <div class="import-log-row" data-log-id="${r.id}">
+          <label class="log-check"><input type="checkbox" class="import-log-select" data-id="${r.id}" /><span class="check-box"></span></label>
+          <div class="import-log-meta">
+            <span class="import-log-date">${fmtDate(r.entry_date)}</span>
+            <span class="import-log-note">${r.notes ? r.notes.replace(/</g, '&lt;') : '—'}</span>
+          </div>
+          <input type="number" class="import-log-amount" step="0.01" placeholder="0.00" value="${importDefaultAmount(r) || ''}" />
+        </div>
+      `).join('');
+
+      const expenseLines = current.categories.expenses || [];
+      const optionsHtml = expenseLines.map(l =>
+        `<option value="${l.id}">${(l.name || '(unnamed line)').replace(/</g, '&lt;')}</option>`
+      ).join('');
+
+      body.innerHTML = `
+        <p class="import-log-sub">Pick entries from your dashboard log, adjust the amounts if needed, and file them into an Expense line for this period.</p>
+        <div class="log-toolbar import-log-toolbar">
+          <label class="log-check-label">
+            <span class="log-check"><input type="checkbox" id="import-log-select-all" /><span class="check-box"></span></span>
+            Select all
+          </label>
+        </div>
+        <div class="import-log-list">${rowsHtml}</div>
+        <div class="import-field">
+          <label for="import-category-select">Add to Expense line</label>
+          <select id="import-category-select">
+            ${optionsHtml}
+            <option value="__new__">+ Add new expense line…</option>
+          </select>
+        </div>
+        <div class="import-field" id="import-new-line-field" style="display:${expenseLines.length ? 'none' : 'flex'};">
+          <label for="import-new-line-name">New expense line name</label>
+          <input type="text" id="import-new-line-name" placeholder="e.g. Coffee shops" />
+        </div>
+        <div class="import-log-actions">
+          <button type="button" id="import-confirm-btn" class="btn-brass-solid">Add selected to Expenses</button>
+          <button type="button" id="import-cancel-btn" class="btn-brass">Cancel</button>
+        </div>
+      `;
+
+      document.getElementById('import-log-select-all').addEventListener('change', (e) => {
+        document.querySelectorAll('.import-log-select').forEach(cb => cb.checked = e.target.checked);
+      });
+
+      const select = document.getElementById('import-category-select');
+      const newLineField = document.getElementById('import-new-line-field');
+      select.addEventListener('change', () => {
+        newLineField.style.display = select.value === '__new__' ? 'flex' : 'none';
+      });
+
+      document.getElementById('import-cancel-btn').addEventListener('click', closeImportLogOverlay);
+
+      document.getElementById('import-confirm-btn').addEventListener('click', () => {
+        const ids = Array.from(document.querySelectorAll('.import-log-select:checked')).map(cb => cb.dataset.id);
+        if (ids.length === 0) { alert('Select at least one log entry first.'); return; }
+
+        const lines = current.categories.expenses || (current.categories.expenses = []);
+        let targetLine;
+        if (select.value === '__new__') {
+          const nameInput = document.getElementById('import-new-line-name');
+          const name = (nameInput.value || '').trim();
+          if (!name) { nameInput.focus(); return; }
+          targetLine = { id: uid(), name, budget: 0, actual: 0, done: false, entries: [] };
+          lines.push(targetLine);
+        } else {
+          targetLine = lines.find(l => l.id === select.value);
+          if (!targetLine) return;
+          if (!Array.isArray(targetLine.entries)) targetLine.entries = [];
+        }
+
+        let addedCount = 0;
+        document.querySelectorAll('.import-log-row').forEach(rowEl => {
+          const logId = rowEl.dataset.logId;
+          if (!ids.includes(logId)) return;
+          const amountInput = rowEl.querySelector('.import-log-amount');
+          const amount = round2(parseFloat(amountInput.value) || 0);
+          if (amount <= 0) return;
+          const sourceRow = importLogRows.find(r => r.id === logId);
+          targetLine.entries.push({
+            id: uid(),
+            amount,
+            note: (sourceRow && sourceRow.notes) ? sourceRow.notes.trim() : '',
+            date: sourceRow ? sourceRow.entry_date : todayISO()
+          });
+          targetLine.actual = round2((Number(targetLine.actual) || 0) + amount);
+          addedCount++;
+        });
+
+        if (addedCount === 0) {
+          alert('Enter at least one amount greater than 0 for a selected entry.');
+          return;
+        }
+
+        renderCategoryPanel('expenses');
+        recalcSummary();
+        queueSave();
+        updateScrollSpy();
+        closeImportLogOverlay();
+        alert(`Added ${addedCount} entr${addedCount === 1 ? 'y' : 'ies'} to "${targetLine.name || '(unnamed line)'}".`);
+      });
+    }
+
+    async function openImportLogOverlay() {
+      document.getElementById('import-log-body').innerHTML = '<div class="import-log-empty">Loading your log…</div>';
+      document.getElementById('import-log-overlay').classList.add('open');
+      importLogRows = await fetchFinanceLog();
+      renderImportLogBody();
+    }
+
+    function closeImportLogOverlay() {
+      document.getElementById('import-log-overlay').classList.remove('open');
+    }
+
+    function setupImportLogOverlay() {
+      document.getElementById('import-log-button').addEventListener('click', openImportLogOverlay);
+      document.getElementById('import-log-close').addEventListener('click', closeImportLogOverlay);
+      document.getElementById('import-log-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'import-log-overlay') closeImportLogOverlay();
+      });
+    }
+
     function setupStaticListeners() {
       document.getElementById('logout-button').addEventListener('click', async () => {
         await supabaseClient.auth.signOut();
@@ -1021,6 +1195,7 @@
       setupSettingsGear();
       setupLedgerMenu();
       setupArchivesOverlay();
+      setupImportLogOverlay();
 
       document.getElementById('start-date-input').addEventListener('change', (e) => {
         current.start_date = e.target.value;

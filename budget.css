@@ -633,6 +633,57 @@
 .history-item-status.finalized { color: var(--brass-bright); background: rgba(184,147,74,0.15); }
 .history-empty { padding: 30px 20px; text-align: center; color: var(--silver-dim); font-size: 0.85rem; }
 
+/* ---------- import from log ---------- */
+.import-log-panel { max-width: 620px; }
+.import-log-body { display: flex; flex-direction: column; }
+.import-log-sub {
+  padding: 14px 20px 0;
+  font-size: 0.82rem;
+  color: var(--silver-dim);
+  line-height: 1.5;
+}
+.import-log-toolbar { padding: 12px 20px 0; margin-bottom: 0; }
+.import-log-list {
+  overflow-y: auto;
+  max-height: 240px;
+  padding: 8px 10px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.import-log-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--ledger-panel-raised);
+  border: 1px solid var(--ledger-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.import-log-row:focus-within { border-color: var(--brass-dim); box-shadow: 0 0 10px rgba(216,188,122,0.14); }
+.import-log-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.import-log-date { font-size: 0.7rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; }
+.import-log-note { font-size: 0.82rem; color: var(--tan); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.import-log-amount {
+  width: 100px; flex-shrink: 0;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--ledger-line); border-radius: 6px;
+  padding: 8px 9px; font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; color: var(--tan); text-align: right;
+}
+.import-log-amount:focus { outline: none; border-color: var(--brass-dim); }
+.import-field { display: flex; flex-direction: column; gap: 6px; padding: 12px 20px 0; }
+.import-field label { font-size: 0.78rem; font-weight: 600; color: var(--tan); }
+.import-field select, .import-field input[type="text"] {
+  padding: 10px 12px; border-radius: 8px; border: 1px solid var(--ledger-line);
+  background: var(--dark-vintage); color: var(--tan); font-size: 0.88rem; font-family: inherit;
+}
+.import-field select:focus, .import-field input[type="text"]:focus {
+  outline: none; border-color: var(--brass-dim); box-shadow: 0 0 0 3px rgba(184,147,74,0.16);
+}
+.import-log-actions { display: flex; gap: 10px; padding: 16px 20px 20px; }
+.import-log-empty { padding: 26px 10px; text-align: center; color: var(--silver-dim); font-size: 0.85rem; line-height: 1.6; }
+.import-log-empty a { color: var(--brass-bright); }
+
 /* ---------- default-template hint ---------- */
 .default-hint {
   font-size: 0.78rem;
