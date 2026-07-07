@@ -927,21 +927,34 @@
         queueSave();
       });
 
-      // Scroll-spy: pick the last panel whose top has crossed the "active
-      // zone" near the top of the viewport. This is deliberately not an
-      // IntersectionObserver — with a shrunk root margin, the *last* panel
-      // (Debt) can never occupy that zone if the page can't scroll far
-      // enough past it, so it would never light up. Scroll-position math
-      // has no such edge case: at the bottom of the page, Debt always wins.
+      // Scroll-spy: find whichever panel's vertical span actually contains
+      // the "active zone" line near the top of the viewport, rather than
+      // just picking the last panel whose top has crossed it. That
+      // last-crossed approach silently skips short panels: if Savings (few
+      // lines) is short enough that Debt's top crosses the same line only
+      // moments later, Debt — being the later index — always wins and
+      // Savings never lights up. Checking each panel's full top→bottom span
+      // gives every category its own genuine highlighted window, no matter
+      // how short its content is.
       const railTabs = Array.from(document.querySelectorAll('.rail-tab'));
       const railPanels = CATS.map(c => document.getElementById('panel-' + c.key));
       const ACTIVE_ZONE = 150; // px from top of viewport
 
       function updateRailActive() {
         let activeIndex = 0;
-        railPanels.forEach((panel, i) => {
-          if (panel && panel.getBoundingClientRect().top - ACTIVE_ZONE <= 0) activeIndex = i;
-        });
+        for (let i = 0; i < railPanels.length; i++) {
+          const panel = railPanels[i];
+          if (!panel) continue;
+          const rect = panel.getBoundingClientRect();
+          if (rect.top <= ACTIVE_ZONE) {
+            activeIndex = i;
+            if (rect.bottom > ACTIVE_ZONE) break; // the zone line falls inside this panel — this is the one
+            // otherwise this panel has already fully scrolled past the zone;
+            // keep looking at the next panel before settling
+          } else {
+            break; // this panel hasn't reached the zone yet — the previous activeIndex stands
+          }
+        }
         const atBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 2);
         if (atBottom) activeIndex = railPanels.length - 1;
         railTabs.forEach((t, i) => t.classList.toggle('active', i === activeIndex));

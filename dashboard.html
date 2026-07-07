@@ -71,8 +71,6 @@
             </div>
             <div class="dropdown-divider"></div>
             <button type="button" id="clear-log-btn" class="dropdown-item danger">Clear entire log</button>
-            <div class="dropdown-divider"></div>
-            <button type="button" id="clear-archives-btn" class="dropdown-item danger">Clear budget archives</button>
           </div>
         </div>
 
@@ -415,18 +413,6 @@
       }
     });
 
-    document.getElementById('clear-archives-btn').addEventListener('click', async () => {
-      if (!confirm('Clear your budget archives? This permanently deletes every finalized period. Your current active period is not affected. This cannot be undone.')) return;
-      const { error } = await supabaseClient
-        .from('budget_periods')
-        .delete()
-        .eq('user_id', currentUserId)
-        .eq('status', 'finalized');
-      if (error) { console.error(error); alert('Could not clear your archives: ' + error.message); return; }
-      gearDropdown.classList.remove('open');
-      alert('Your budget archives have been cleared.');
-    });
-
     // ================= OVERRIDE TOTALS TOGGLE =================
     const overrideToggle = document.getElementById('override-toggle');
     const overrideHint = document.getElementById('override-hint');
@@ -690,7 +676,12 @@
 
     function currentFileName() {
       const seg = window.location.pathname.split('/').pop();
-      return seg && seg.length ? seg : 'dashboard.html';
+      const raw = seg && seg.length ? seg : 'dashboard.html';
+      // Normalize away a .html/.htm extension so this still matches correctly
+      // on hosts that serve clean URLs (e.g. "/dashboard" instead of
+      // "/dashboard.html") — otherwise the "current" badge silently never
+      // shows up on those deployments.
+      return raw.replace(/\.html?$/i, '');
     }
 
     function renderLedgerMenu() {
@@ -701,7 +692,7 @@
       const here = currentFileName();
 
       const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
-        const isCurrent = tool.href === here;
+        const isCurrent = tool.href.replace(/\.html?$/i, '') === here;
         const classes = ['ledger-tool-item'];
         if (isCurrent) classes.push('current');
         if (!isPaidUser) classes.push('locked-preview');

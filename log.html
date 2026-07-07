@@ -75,8 +75,6 @@
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
             <button type="button" id="clear-log-btn" class="dropdown-item danger">Clear entire log</button>
-            <div class="dropdown-divider"></div>
-            <button type="button" id="clear-archives-btn" class="dropdown-item danger">Clear budget archives</button>
           </div>
         </div>
         <button type="button" id="back-button" class="btn-ghost">← Back to Dashboard</button>
@@ -281,18 +279,6 @@
       }
     });
 
-    document.getElementById('clear-archives-btn').addEventListener('click', async () => {
-      if (!confirm('Clear your budget archives? This permanently deletes every finalized period. Your current active period is not affected. This cannot be undone.')) return;
-      const { error } = await supabaseClient
-        .from('budget_periods')
-        .delete()
-        .eq('user_id', currentUserId)
-        .eq('status', 'finalized');
-      if (error) { console.error(error); alert('Could not clear your archives: ' + error.message); return; }
-      gearDropdown.classList.remove('open');
-      alert('Your budget archives have been cleared.');
-    });
-
     // ================= PREMIUM FEATURE MENU =================
     // Data-driven so future premium tools are a one-line addition. Each tool
     // needs: id, label, desc, href, an iconClass for its own visual identity,
@@ -320,7 +306,8 @@
 
     function currentFileName() {
       const seg = window.location.pathname.split('/').pop();
-      return seg && seg.length ? seg : 'dashboard.html';
+      const raw = seg && seg.length ? seg : 'dashboard.html';
+      return raw.replace(/\.html?$/i, '');
     }
 
     function renderLedgerMenu() {
@@ -331,7 +318,7 @@
       const here = currentFileName();
 
       const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
-        const isCurrent = tool.href === here;
+        const isCurrent = tool.href.replace(/\.html?$/i, '') === here;
         const classes = ['ledger-tool-item'];
         if (isCurrent) classes.push('current');
         if (!isPaidUser) classes.push('locked-preview');
