@@ -57,8 +57,13 @@
   color: var(--brass-bright);
   border-right-color: var(--brass-bright);
   background: linear-gradient(180deg, var(--ledger-panel-raised), var(--ledger-panel));
-  box-shadow: 5px 0 16px rgba(201, 162, 39, 0.22);
+  box-shadow: 5px 0 16px rgba(184, 147, 74, 0.22);
 }
+.rail-tab.active[data-target="panel-income"]   { color: #8FDCB0; border-right-color: #6EC496; box-shadow: 5px 0 16px rgba(110,196,150,0.28); }
+.rail-tab.active[data-target="panel-bills"]     { color: #EC9C86; border-right-color: #E0806A; box-shadow: 5px 0 16px rgba(224,128,106,0.28); }
+.rail-tab.active[data-target="panel-expenses"]  { color: #EFCB8C; border-right-color: #E0B96E; box-shadow: 5px 0 16px rgba(224,185,110,0.28); }
+.rail-tab.active[data-target="panel-savings"]   { color: #8CB4E0; border-right-color: #6E96C4; box-shadow: 5px 0 16px rgba(110,150,196,0.28); }
+.rail-tab.active[data-target="panel-debt"]      { color: #CE9BDE; border-right-color: #B27AC4; box-shadow: 5px 0 16px rgba(178,122,196,0.28); }
 
 @media (max-width: 760px) {
   .ledger-rail { display: none; }
@@ -253,7 +258,7 @@
   padding: 22px 22px 18px;
   scroll-margin-top: 96px;
   position: relative;
-  transition: box-shadow .25s ease;
+  transition: box-shadow .25s ease, border-color .25s ease;
 }
 .category-panel::before {
   content: '';
@@ -261,6 +266,67 @@
   background: linear-gradient(90deg, transparent, var(--brass-dim), transparent);
   opacity: 0.7;
 }
+
+/* Each category gets its own quiet neon accent — a slightly different color
+   temperature per "room" while everything else (layout, type, spacing)
+   stays identical, so the page reads as cohesive rather than five clashing
+   themes. Glow lives on the top hairline + a soft ambient box-shadow, and
+   brightens slightly on hover/focus like the rest of the app. */
+.category-panel.accent-income {
+  border-color: rgba(110, 196, 150, 0.28);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 18px rgba(110, 196, 150, 0.08);
+}
+.category-panel.accent-income::before { background: linear-gradient(90deg, transparent, #6EC496, transparent); opacity: 0.9; }
+.category-panel.accent-income:hover,
+.category-panel.accent-income:focus-within {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 26px rgba(110, 196, 150, 0.16);
+}
+
+.category-panel.accent-bills {
+  border-color: rgba(224, 128, 106, 0.28);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 18px rgba(224, 128, 106, 0.08);
+}
+.category-panel.accent-bills::before { background: linear-gradient(90deg, transparent, #E0806A, transparent); opacity: 0.9; }
+.category-panel.accent-bills:hover,
+.category-panel.accent-bills:focus-within {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 26px rgba(224, 128, 106, 0.16);
+}
+
+.category-panel.accent-expenses {
+  border-color: rgba(224, 185, 110, 0.28);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 18px rgba(224, 185, 110, 0.08);
+}
+.category-panel.accent-expenses::before { background: linear-gradient(90deg, transparent, #E0B96E, transparent); opacity: 0.9; }
+.category-panel.accent-expenses:hover,
+.category-panel.accent-expenses:focus-within {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 26px rgba(224, 185, 110, 0.16);
+}
+
+.category-panel.accent-savings {
+  border-color: rgba(110, 150, 196, 0.28);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 18px rgba(110, 150, 196, 0.08);
+}
+.category-panel.accent-savings::before { background: linear-gradient(90deg, transparent, #6E96C4, transparent); opacity: 0.9; }
+.category-panel.accent-savings:hover,
+.category-panel.accent-savings:focus-within {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 26px rgba(110, 150, 196, 0.16);
+}
+
+.category-panel.accent-debt {
+  border-color: rgba(178, 122, 196, 0.28);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 18px rgba(178, 122, 196, 0.08);
+}
+.category-panel.accent-debt::before { background: linear-gradient(90deg, transparent, #B27AC4, transparent); opacity: 0.9; }
+.category-panel.accent-debt:hover,
+.category-panel.accent-debt:focus-within {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 26px rgba(178, 122, 196, 0.16);
+}
+
+.category-panel.accent-income h2 { color: #8FDCB0; }
+.category-panel.accent-bills h2 { color: #EC9C86; }
+.category-panel.accent-expenses h2 { color: #EFCB8C; }
+.category-panel.accent-savings h2 { color: #8CB4E0; }
+.category-panel.accent-debt h2 { color: #CE9BDE; }
 .category-panel-head {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
 }
@@ -285,6 +351,7 @@
 }
 .ledger-col-heads span:nth-child(2),
 .ledger-col-heads span:nth-child(3) { text-align: right; }
+.ledger-col-heads span:nth-child(4) { text-align: center; }
 
 .ledger-row {
   display: grid;
