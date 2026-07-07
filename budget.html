@@ -207,6 +207,24 @@
     </div>
   </div>
 
+  <!-- ================= CLEAR ARCHIVES OVERLAY ================= -->
+  <div class="history-overlay" id="archives-overlay">
+    <div class="history-panel">
+      <div class="history-head">
+        <h2>Clear budget archives</h2>
+        <button type="button" class="history-close" id="archives-close">×</button>
+      </div>
+      <div class="log-toolbar archives-toolbar">
+        <label class="log-check-label">
+          <span class="log-check"><input type="checkbox" id="archives-select-all" /><span class="check-box"></span></span>
+          Select all
+        </label>
+        <button type="button" id="archives-delete-selected" class="btn-danger">Delete selected</button>
+      </div>
+      <div class="history-list" id="archives-list"></div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
@@ -800,19 +818,106 @@
 
       gearDropdown.addEventListener('click', (e) => e.stopPropagation());
 
-      document.getElementById('clear-archives-btn').addEventListener('click', async () => {
-        if (!confirm('Clear your budget archives? This permanently deletes every finalized period. Your current active period is not affected. This cannot be undone.')) return;
+      document.getElementById('clear-archives-btn').addEventListener('click', () => {
+        gearDropdown.classList.remove('open');
+        gearBtn.classList.remove('spin');
+        openArchivesOverlay();
+      });
+    }
+
+    // ================= CLEAR ARCHIVES (select + delete) =================
+    function renderArchivesList() {
+      const list = document.getElementById('archives-list');
+      const deleteBtn = document.getElementById('archives-delete-selected');
+      const selectAll = document.getElementById('archives-select-all');
+      const finalizedPeriods = periods.filter(p => p.status === 'finalized');
+
+      selectAll.checked = false;
+
+      if (!finalizedPeriods.length) {
+        list.innerHTML = '<div class="history-empty">No archived periods to clear.</div>';
+        deleteBtn.disabled = true;
+        selectAll.disabled = true;
+        return;
+      }
+
+      selectAll.disabled = false;
+      deleteBtn.disabled = false;
+
+      list.innerHTML = finalizedPeriods.map(p => {
+        const isCal = p.start_date === firstOfMonthISO(p.start_date) && p.end_date === lastOfMonthISO(p.start_date);
+        const title = isCal
+          ? new Date(p.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          : `${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}`;
+        return `
+          <div class="history-item">
+            <label class="log-check"><input type="checkbox" class="archive-select" data-id="${p.id}" /><span class="check-box"></span></label>
+            <div class="history-item-left">
+              <span class="history-item-title">${title}</span>
+              <span class="history-item-sub">${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}</span>
+            </div>
+            <span class="history-item-status finalized">finalized</span>
+          </div>`;
+      }).join('');
+    }
+
+    function openArchivesOverlay() {
+      renderArchivesList();
+      document.getElementById('archives-overlay').classList.add('open');
+    }
+
+    function closeArchivesOverlay() {
+      document.getElementById('archives-overlay').classList.remove('open');
+    }
+
+    async function pickOrCreateCurrentPeriod() {
+      const today = todayISO();
+      let next = periods.find(p => p.status === 'active' && p.start_date <= today && p.end_date >= today)
+              || periods.find(p => p.status === 'active')
+              || null;
+      if (!next) {
+        next = await createPeriod(firstOfMonthISO(today), lastOfMonthISO(today));
+        if (next) periods.unshift(next);
+      }
+      return next;
+    }
+
+    function setupArchivesOverlay() {
+      document.getElementById('archives-close').addEventListener('click', closeArchivesOverlay);
+      document.getElementById('archives-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'archives-overlay') closeArchivesOverlay();
+      });
+
+      document.getElementById('archives-select-all').addEventListener('change', (e) => {
+        document.querySelectorAll('.archive-select').forEach(cb => cb.checked = e.target.checked);
+      });
+
+      document.getElementById('archives-delete-selected').addEventListener('click', async () => {
+        const ids = Array.from(document.querySelectorAll('.archive-select:checked')).map(cb => cb.dataset.id);
+        if (ids.length === 0) {
+          alert('No archived periods selected.');
+          return;
+        }
+        if (!confirm(`Delete ${ids.length} selected archived period${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+
         const { error } = await supabaseClient
           .from('budget_periods')
           .delete()
           .eq('user_id', currentUserId)
-          .eq('status', 'finalized');
-        if (error) { console.error(error); alert('Could not clear your archives: ' + error.message); return; }
+          .in('id', ids);
+        if (error) { console.error(error); alert('Could not delete the selected periods: ' + error.message); return; }
 
-        periods = periods.filter(p => p.status !== 'finalized' || (current && p.id === current.id));
-        gearDropdown.classList.remove('open');
-        renderCharts();
-        alert('Your budget archives have been cleared.');
+        periods = periods.filter(p => !ids.includes(p.id));
+
+        if (current && ids.includes(current.id)) {
+          current = await pickOrCreateCurrentPeriod();
+          unlocked = false;
+          renderAll();
+        } else {
+          renderCharts();
+        }
+
+        renderArchivesList();
       });
     }
 
@@ -915,6 +1020,7 @@
 
       setupSettingsGear();
       setupLedgerMenu();
+      setupArchivesOverlay();
 
       document.getElementById('start-date-input').addEventListener('change', (e) => {
         current.start_date = e.target.value;
