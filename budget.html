@@ -310,6 +310,8 @@
       income: 'income',
       bills: 'payment',
       expenses: 'expense',
+      savings: 'savings',
+      debt: 'payment',
     };
 
     // Each line's logged history shows only its most recent 5 entries by
@@ -515,7 +517,7 @@
 
       const noun = LOG_LABELS[cat];
       const entries = line.entries || [];
-      const allEntriesDesc = entries.slice().reverse(); // most recent first
+      const allEntriesDesc = entries.slice().sort((a,b) => (b.date || '').localeCompare(a.date || '')); // newest first
       const isExpanded = expandedLogLines.has(line.id);
       const visibleEntries = isExpanded ? allEntriesDesc : allEntriesDesc.slice(0, VISIBLE_LOG_ENTRIES);
       const hiddenCount = allEntriesDesc.length - visibleEntries.length;
@@ -591,7 +593,7 @@
               // Flip the checkbox directly instead of re-rendering the row —
               // re-rendering here was what destroyed focus on this exact
               // input after the first keystroke, blocking further typing.
-              if (field === 'actual' && c_hasAutoFill(cat) && (parseFloat(input.value) || 0) > 0 && !line.done) {
+              if (field === 'actual' && c_shouldMarkPaid(cat, line) && !line.done) {
                 line.done = true;
                 const doneInput = rowEl.querySelector('input[data-field="done"]');
                 if (doneInput) doneInput.checked = true;
@@ -679,7 +681,7 @@
             if (!Array.isArray(line.entries)) line.entries = [];
             line.entries.push({ id: uid(), amount, note: noteInput.value.trim(), date: todayISO() });
             line.actual = round2((Number(line.actual) || 0) + amount);
-            if (c_hasAutoFill(cat) && line.actual > 0) line.done = true;
+            if (c_shouldMarkPaid(cat, line)) line.done = true;
 
             renderCategoryPanel(cat);
             recalcSummary();
@@ -713,6 +715,10 @@
     function c_hasAutoFill(cat) {
       const c = CATS.find(x => x.key === cat);
       return !!(c && c.checkbox === 'Paid');
+    }
+
+    function c_shouldMarkPaid(cat, line) {
+      return c_hasAutoFill(cat) && (Number(line.actual) || 0) >= (Number(line.budget) || 0) && (Number(line.budget) || 0) > 0;
     }
 
     function recalcSummary() {
@@ -1165,6 +1171,9 @@
       if (cat === 'expenses' && row.expenses && Number(row.expenses) !== 0) {
         return round2(Math.abs(Number(row.expenses)));
       }
+      if (row.action_type === 'transfer') {
+        return round2(Math.abs(Number(row.amount) || 0));
+      }
       return round2(Math.abs(Number(row.amount) || 0));
     }
 
@@ -1253,7 +1262,8 @@
         if (!row) return;
         const amount = logMirrorDefaultAmount(row, cat);
         if (amount <= 0) return;
-        line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date });
+        line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date, action_type: row.action_type });
+        line.entries.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
         line.actual = round2((Number(line.actual) || 0) + amount);
         addedCount++;
       });
@@ -1263,7 +1273,7 @@
         return;
       }
 
-      if (c_hasAutoFill(cat) && line.actual > 0) line.done = true;
+      if (c_shouldMarkPaid(cat, line)) line.done = true;
 
       renderCategoryPanel(cat);
       recalcSummary();
