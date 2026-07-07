@@ -19,6 +19,23 @@
       border-bottom:1px solid rgba(139,111,71,0.25);
       font-family:'Public Sans', sans-serif; font-size:11px; color:#b3ae9f; letter-spacing:.15px;
     }
+
+    /* Identical to the dashboard log page's own style, so the mirrored log
+       table in the "+ From log" picker looks pixel-for-pixel the same. */
+    .log-date-firstofmonth{
+      color:#b5822a;
+      font-weight:600;
+      position:relative;
+    }
+    .log-date-firstofmonth::after{
+      content:'';
+      position:absolute;
+      left:0; right:0; bottom:-2px;
+      height:1px;
+      background:#b5822a;
+      box-shadow:0 0 6px rgba(197,146,58,0.65), 0 0 2px rgba(197,146,58,0.5);
+      opacity:.8;
+    }
   </style>
 </head>
 <body>
@@ -28,7 +45,6 @@
       <a href="dashboard.html" class="wordmark" style="text-decoration:none;"><span class="wordmark-brand">Arko</span> | Pre-Alpha</a>
       <div class="nav-auth">
         <button type="button" id="history-button" class="btn-ghost">Archive</button>
-        <button type="button" id="import-log-button" class="btn-ghost">Import from Log</button>
 
         <!-- ================= PREMIUM FEATURE MENU ================= -->
         <div class="settings-wrap">
@@ -226,15 +242,36 @@
     </div>
   </div>
 
-  <!-- ================= IMPORT FROM LOG OVERLAY ================= -->
-  <div class="history-overlay" id="import-log-overlay">
-    <div class="history-panel import-log-panel">
+  <!-- ================= "+ FROM LOG" OVERLAY =================
+       Deliberately reuses the exact same table markup/classes as the
+       dashboard's log.html (log-table-wrap, log-table, log-row-add/
+       subtract/transfer, log-date-firstofmonth) so it renders visually
+       identical — like the log itself appeared inside the planner. -->
+  <div class="history-overlay" id="logmirror-overlay">
+    <div class="history-panel logmirror-panel">
       <div class="history-head">
-        <h2>Import from Log</h2>
-        <button type="button" class="history-close" id="import-log-close">×</button>
+        <h2>Add from Log</h2>
+        <button type="button" class="history-close" id="logmirror-close">×</button>
       </div>
-      <div class="import-log-body" id="import-log-body">
-        <!-- populated by JS -->
+      <p class="logmirror-sub" id="logmirror-sub">Click an entry to add it.</p>
+      <div class="log-table-wrap logmirror-table-wrap">
+        <table class="log-table" id="logmirror-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Savings</th>
+              <th>Investment</th>
+              <th>Expenses</th>
+              <th>Checking</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="logmirror-body">
+            <tr><td colspan="8" class="loading-message">Loading...</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -458,6 +495,9 @@
             <button type="button" class="expense-log-toggle" data-id="${line.id}" ${locked ? 'disabled' : ''}>
               + Log expense${entries.length ? `<span class="expense-log-count">${entries.length}</span>` : ''}
             </button>
+            <button type="button" class="expense-log-fromlog" data-id="${line.id}" data-name="${(line.name || '').replace(/"/g,'&quot;')}" ${locked ? 'disabled' : ''}>
+              + From log
+            </button>
           </div>
           <div class="expense-log-form" id="expense-form-${line.id}" style="display:none;">
             <input type="number" class="expense-log-amount" placeholder="0.00" step="0.01" />
@@ -544,6 +584,13 @@
       };
 
       if (cat === 'expenses') {
+        container.querySelectorAll('.expense-log-fromlog').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (isLocked()) return;
+            openLogMirrorOverlay(btn.dataset.id, btn.dataset.name);
+          });
+        });
+
         container.querySelectorAll('.expense-log-toggle').forEach(btn => {
           btn.addEventListener('click', () => {
             if (isLocked()) return;
@@ -1026,163 +1073,93 @@
       dd.addEventListener('click', (e) => e.stopPropagation());
     }
 
-    // ================= IMPORT FROM LOG =================
-    // Pull entries straight from the dashboard's log into an Expense line
-    // for the currently open period. Since we're already inside the Budget
-    // Planner, this writes directly into `current` and reuses the same
-    // render/save pipeline as the planner's own "+ Log expense" — no
-    // separate fetch/sync path to keep consistent.
-    let importLogRows = [];
+    // ================= "+ FROM LOG" (log mirror) =================
+    // Renders finance_log using the exact same table structure and CSS
+    // classes as the dashboard's log.html, so it looks like that page
+    // itself appeared inside the planner. Clicking any row adds it straight
+    // to whichever Expense line opened the picker — single click, done.
+    let logMirrorTargetLineId = null;
 
-    async function fetchFinanceLog() {
-      const { data, error } = await supabaseClient
+    const logMirrorRowClass = { add: 'log-row-add', subtract: 'log-row-subtract', transfer: 'log-row-transfer' };
+
+    function logMirrorFormatDate(d) {
+      return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+    function logMirrorIsFirstOfMonth(d) {
+      return d.split('-')[2] === '01';
+    }
+
+    async function openLogMirrorOverlay(lineId, lineName) {
+      logMirrorTargetLineId = lineId;
+      document.getElementById('logmirror-sub').textContent = `Click an entry to add it to "${lineName || '(unnamed line)'}".`;
+      document.getElementById('logmirror-body').innerHTML = '<tr><td colspan="8" class="loading-message">Loading...</td></tr>';
+      document.getElementById('logmirror-overlay').classList.add('open');
+
+      const { data: rows, error } = await supabaseClient
         .from('finance_log')
         .select('*')
         .eq('user_id', currentUserId)
         .order('created_at', { ascending: false })
         .limit(150);
-      if (error) { console.error(error); return []; }
-      return data || [];
-    }
 
-    function importDefaultAmount(row) {
-      if (row.expenses && Number(row.expenses) !== 0) return round2(Math.abs(Number(row.expenses)));
-      return round2(Math.abs(Number(row.amount) || 0));
-    }
+      const tbody = document.getElementById('logmirror-body');
+      if (error) { console.error(error); tbody.innerHTML = '<tr><td colspan="8">Could not load your log.</td></tr>'; return; }
+      if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="8">No entries yet — add some from the Dashboard first.</td></tr>'; return; }
 
-    function renderImportLogBody() {
-      const body = document.getElementById('import-log-body');
-
-      if (isLocked()) {
-        body.innerHTML = '<div class="import-log-empty">This period is finalized. Unlock it first to import log entries into it.</div>';
-        return;
-      }
-
-      if (!importLogRows.length) {
-        body.innerHTML = '<div class="import-log-empty">No entries in your dashboard log yet. Add some from the Dashboard, then come back here.</div>';
-        return;
-      }
-
-      const rowsHtml = importLogRows.map(r => `
-        <div class="import-log-row" data-log-id="${r.id}">
-          <label class="log-check"><input type="checkbox" class="import-log-select" data-id="${r.id}" /><span class="check-box"></span></label>
-          <div class="import-log-meta">
-            <span class="import-log-date">${fmtDate(r.entry_date)}</span>
-            <span class="import-log-note">${r.notes ? r.notes.replace(/</g, '&lt;') : '—'}</span>
-          </div>
-          <input type="number" class="import-log-amount" step="0.01" placeholder="0.00" value="${importDefaultAmount(r) || ''}" />
-        </div>
+      tbody.innerHTML = rows.map(r => `
+        <tr class="${logMirrorRowClass[r.action_type] || ''} logmirror-row" data-log-id="${r.id}">
+          <td><label class="log-check"><input type="checkbox" tabindex="-1" /><span class="check-box"></span></label></td>
+          <td class="${logMirrorIsFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${logMirrorFormatDate(r.entry_date)}</td>
+          <td class="num-cell">${money(r.amount)}</td>
+          <td class="num-cell">${money(r.savings)}</td>
+          <td class="num-cell">${money(r.investment)}</td>
+          <td class="num-cell">${money(r.expenses)}</td>
+          <td class="num-cell">${money(r.checking)}</td>
+          <td class="notes-cell">${r.notes ? r.notes.replace(/</g, '&lt;') : ''}</td>
+        </tr>
       `).join('');
 
-      const expenseLines = current.categories.expenses || [];
-      const optionsHtml = expenseLines.map(l =>
-        `<option value="${l.id}">${(l.name || '(unnamed line)').replace(/</g, '&lt;')}</option>`
-      ).join('');
-
-      body.innerHTML = `
-        <p class="import-log-sub">Pick entries from your dashboard log, adjust the amounts if needed, and file them into an Expense line for this period.</p>
-        <div class="log-toolbar import-log-toolbar">
-          <label class="log-check-label">
-            <span class="log-check"><input type="checkbox" id="import-log-select-all" /><span class="check-box"></span></span>
-            Select all
-          </label>
-        </div>
-        <div class="import-log-list">${rowsHtml}</div>
-        <div class="import-field">
-          <label for="import-category-select">Add to Expense line</label>
-          <select id="import-category-select">
-            ${optionsHtml}
-            <option value="__new__">+ Add new expense line…</option>
-          </select>
-        </div>
-        <div class="import-field" id="import-new-line-field" style="display:${expenseLines.length ? 'none' : 'flex'};">
-          <label for="import-new-line-name">New expense line name</label>
-          <input type="text" id="import-new-line-name" placeholder="e.g. Coffee shops" />
-        </div>
-        <div class="import-log-actions">
-          <button type="button" id="import-confirm-btn" class="btn-brass-solid">Add selected to Expenses</button>
-          <button type="button" id="import-cancel-btn" class="btn-brass">Cancel</button>
-        </div>
-      `;
-
-      document.getElementById('import-log-select-all').addEventListener('change', (e) => {
-        document.querySelectorAll('.import-log-select').forEach(cb => cb.checked = e.target.checked);
-      });
-
-      const select = document.getElementById('import-category-select');
-      const newLineField = document.getElementById('import-new-line-field');
-      select.addEventListener('change', () => {
-        newLineField.style.display = select.value === '__new__' ? 'flex' : 'none';
-      });
-
-      document.getElementById('import-cancel-btn').addEventListener('click', closeImportLogOverlay);
-
-      document.getElementById('import-confirm-btn').addEventListener('click', () => {
-        const ids = Array.from(document.querySelectorAll('.import-log-select:checked')).map(cb => cb.dataset.id);
-        if (ids.length === 0) { alert('Select at least one log entry first.'); return; }
-
-        const lines = current.categories.expenses || (current.categories.expenses = []);
-        let targetLine;
-        if (select.value === '__new__') {
-          const nameInput = document.getElementById('import-new-line-name');
-          const name = (nameInput.value || '').trim();
-          if (!name) { nameInput.focus(); return; }
-          targetLine = { id: uid(), name, budget: 0, actual: 0, done: false, entries: [] };
-          lines.push(targetLine);
-        } else {
-          targetLine = lines.find(l => l.id === select.value);
-          if (!targetLine) return;
-          if (!Array.isArray(targetLine.entries)) targetLine.entries = [];
-        }
-
-        let addedCount = 0;
-        document.querySelectorAll('.import-log-row').forEach(rowEl => {
-          const logId = rowEl.dataset.logId;
-          if (!ids.includes(logId)) return;
-          const amountInput = rowEl.querySelector('.import-log-amount');
-          const amount = round2(parseFloat(amountInput.value) || 0);
-          if (amount <= 0) return;
-          const sourceRow = importLogRows.find(r => r.id === logId);
-          targetLine.entries.push({
-            id: uid(),
-            amount,
-            note: (sourceRow && sourceRow.notes) ? sourceRow.notes.trim() : '',
-            date: sourceRow ? sourceRow.entry_date : todayISO()
-          });
-          targetLine.actual = round2((Number(targetLine.actual) || 0) + amount);
-          addedCount++;
+      tbody.querySelectorAll('.logmirror-row').forEach(rowEl => {
+        rowEl.addEventListener('click', () => {
+          const row = rows.find(r => r.id === rowEl.dataset.logId);
+          if (row) addLogRowToExpenseLine(row);
         });
-
-        if (addedCount === 0) {
-          alert('Enter at least one amount greater than 0 for a selected entry.');
-          return;
-        }
-
-        renderCategoryPanel('expenses');
-        recalcSummary();
-        queueSave();
-        updateScrollSpy();
-        closeImportLogOverlay();
-        alert(`Added ${addedCount} entr${addedCount === 1 ? 'y' : 'ies'} to "${targetLine.name || '(unnamed line)'}".`);
       });
     }
 
-    async function openImportLogOverlay() {
-      document.getElementById('import-log-body').innerHTML = '<div class="import-log-empty">Loading your log…</div>';
-      document.getElementById('import-log-overlay').classList.add('open');
-      importLogRows = await fetchFinanceLog();
-      renderImportLogBody();
+    function closeLogMirrorOverlay() {
+      document.getElementById('logmirror-overlay').classList.remove('open');
+      logMirrorTargetLineId = null;
     }
 
-    function closeImportLogOverlay() {
-      document.getElementById('import-log-overlay').classList.remove('open');
+    function addLogRowToExpenseLine(row) {
+      const line = (current.categories.expenses || []).find(l => l.id === logMirrorTargetLineId);
+      if (!line) { closeLogMirrorOverlay(); return; }
+
+      const amount = row.expenses && Number(row.expenses) !== 0
+        ? round2(Math.abs(Number(row.expenses)))
+        : round2(Math.abs(Number(row.amount) || 0));
+
+      if (amount <= 0) {
+        alert('This entry has no dollar amount to add.');
+        return;
+      }
+
+      if (!Array.isArray(line.entries)) line.entries = [];
+      line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date });
+      line.actual = round2((Number(line.actual) || 0) + amount);
+
+      renderCategoryPanel('expenses');
+      recalcSummary();
+      queueSave();
+      updateScrollSpy();
+      closeLogMirrorOverlay();
     }
 
-    function setupImportLogOverlay() {
-      document.getElementById('import-log-button').addEventListener('click', openImportLogOverlay);
-      document.getElementById('import-log-close').addEventListener('click', closeImportLogOverlay);
-      document.getElementById('import-log-overlay').addEventListener('click', (e) => {
-        if (e.target.id === 'import-log-overlay') closeImportLogOverlay();
+    function setupLogMirrorOverlay() {
+      document.getElementById('logmirror-close').addEventListener('click', closeLogMirrorOverlay);
+      document.getElementById('logmirror-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'logmirror-overlay') closeLogMirrorOverlay();
       });
     }
 
@@ -1195,7 +1172,7 @@
       setupSettingsGear();
       setupLedgerMenu();
       setupArchivesOverlay();
-      setupImportLogOverlay();
+      setupLogMirrorOverlay();
 
       document.getElementById('start-date-input').addEventListener('change', (e) => {
         current.start_date = e.target.value;
