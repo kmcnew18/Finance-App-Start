@@ -561,8 +561,11 @@ input[type="number"]::-webkit-outer-spin-button {
 .log-table { width: 100%; border-collapse: collapse; background: var(--panel-bg); }
 .log-table th, .log-table td {
   padding: 13px 16px; text-align: left; font-size: 0.85rem;
-  border-bottom: 1px solid var(--dark-vintage); white-space: nowrap;
+  border-bottom: 1px solid var(--dark-vintage);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  white-space: nowrap;
 }
+.log-table th:last-child, .log-table td:last-child { border-right: none; }
 .log-table th {
   background: var(--dark-vintage);
   color: var(--silver-dim);
@@ -572,6 +575,7 @@ input[type="number"]::-webkit-outer-spin-button {
   position: sticky;
   top: 0;
   z-index: 2;
+  border-right-color: rgba(255,255,255,0.1);
 }
 .log-table td:first-child, .log-table th:first-child { width: 40px; }
 

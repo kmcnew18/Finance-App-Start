@@ -404,10 +404,8 @@
   grid-template-columns: 1fr 108px 108px 74px 30px;
   gap: 10px;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px dashed var(--ledger-line-soft);
+  padding: 10px 0 6px;
 }
-.ledger-row:last-of-type { border-bottom: none; }
 
 .ledger-row input[type="text"] {
   background: transparent;
@@ -481,8 +479,7 @@
 
 /* ---------- expense tracking (per-line transaction log, Expenses category only) ---------- */
 .expense-log-wrap {
-  padding: 0 0 10px;
-  margin-top: -4px;
+  padding: 0 0 12px;
   border-bottom: 1px dashed var(--ledger-line-soft);
 }
 .expense-log-wrap:last-child { border-bottom: none; }
