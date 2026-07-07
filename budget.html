@@ -795,7 +795,7 @@
       const incomeActual = Math.max(0, totals.income.actual);
       const leftover = round2(incomeActual - outflow);
       if (leftover > 0) {
-        labels.push('Unspent (still yours)');
+        labels.push('Unspent');
         data.push(leftover);
         colors.push(CHART_COLORS.leftover);
       }
