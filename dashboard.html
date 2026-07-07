@@ -34,6 +34,24 @@
         <span id="user-email" class="user-email"></span>
         <button type="button" id="view-log-button" class="btn-ghost">View Log</button>
 
+        <!-- ================= BUDGET PLANNER MENU ================= -->
+        <div class="settings-wrap">
+          <button type="button" id="ledger-menu-btn" class="btn-icon btn-ledger" aria-label="Budget Planner">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <line x1="8.5" y1="7" x2="15.5" y2="7"></line>
+              <line x1="8.5" y1="11" x2="15.5" y2="11"></line>
+            </svg>
+            <span class="lock-badge" id="ledger-lock-badge" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="1"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+            </span>
+          </button>
+          <div class="ledger-dropdown" id="ledger-dropdown">
+            <div class="ledger-dropdown-inner" id="ledger-dropdown-inner"></div>
+          </div>
+        </div>
+
         <div class="settings-wrap">
           <button type="button" id="settings-gear" class="btn-icon" aria-label="Settings">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -225,6 +243,7 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUserId = null;
+    let isPaidUser = false;
     let totals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
 
     const dashMain = document.getElementById('dash-main');
@@ -291,12 +310,14 @@
         .from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
 
       if (billing) {
+        isPaidUser = !!billing.is_paid;
         const trialExpired = new Date(billing.trial_end) < new Date();
         if (trialExpired && !billing.is_paid) {
           window.location.href = 'paywall.html';
           return;
         }
       }
+      setupLedgerMenu();
 
       const dateNow = todayStr();
       document.getElementById('add-date').textContent = dateNow;
@@ -341,6 +362,7 @@
 
     gearBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      closeLedgerMenu();
       gearDropdown.classList.toggle('open');
       gearBtn.classList.toggle('spin');
     });
@@ -348,6 +370,7 @@
     document.addEventListener('click', () => {
       gearDropdown.classList.remove('open');
       gearBtn.classList.remove('spin');
+      closeLedgerMenu();
     });
 
     document.getElementById('reset-categories-btn').addEventListener('click', async () => {
@@ -625,6 +648,58 @@
       resetTransferForm();
       document.getElementById('transfer-message').textContent = '';
     });
+
+    // ================= BUDGET PLANNER LEDGER MENU =================
+    function closeLedgerMenu() {
+      const dd = document.getElementById('ledger-dropdown');
+      const btn = document.getElementById('ledger-menu-btn');
+      if (dd) dd.classList.remove('open');
+      if (btn) btn.classList.remove('stamp');
+    }
+
+    function setupLedgerMenu() {
+      const btn = document.getElementById('ledger-menu-btn');
+      const dd = document.getElementById('ledger-dropdown');
+      const inner = document.getElementById('ledger-dropdown-inner');
+      const lockBadge = document.getElementById('ledger-lock-badge');
+
+      lockBadge.style.display = isPaidUser ? 'none' : 'flex';
+
+      inner.innerHTML = isPaidUser
+        ? `
+          <div class="ledger-heading">Budget Planner</div>
+          <p class="ledger-sub">Plan a monthly budget, track it as you go, and finalize periods into your archive.</p>
+          <button type="button" class="ledger-link-item" id="ledger-go-planner">Open budget planner →</button>
+          <button type="button" class="ledger-link-item" id="ledger-go-archive">View archive →</button>
+        `
+        : `
+          <div class="ledger-heading">Budget Planner</div>
+          <p class="ledger-sub">Full monthly budgeting — with custom categories, saved defaults, and an archive of past months — is part of full access.</p>
+          <button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">Unlock full access — $10</button>
+        `;
+
+      if (isPaidUser) {
+        document.getElementById('ledger-go-planner').addEventListener('click', () => window.location.href = 'budget.html');
+        document.getElementById('ledger-go-archive').addEventListener('click', () => window.location.href = 'budget.html?history=1');
+      } else {
+        document.getElementById('ledger-unlock-cta').addEventListener('click', () => window.location.href = 'paywall.html');
+      }
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        gearDropdown.classList.remove('open');
+        gearBtn.classList.remove('spin');
+        const opening = !dd.classList.contains('open');
+        dd.classList.toggle('open', opening);
+        if (opening) {
+          btn.classList.remove('stamp');
+          void btn.offsetWidth; // restart animation
+          btn.classList.add('stamp');
+        }
+      });
+
+      dd.addEventListener('click', (e) => e.stopPropagation());
+    }
 
     init();
   </script>

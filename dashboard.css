@@ -739,3 +739,110 @@ input[type="number"]::-webkit-outer-spin-button {
   }
   .log-table td.notes-cell { font-size: 0.8rem; }
 }
+
+/* ==========================================================================
+   BUDGET PLANNER MENU BUTTON — brass "ledger" trigger, shared across pages.
+   Deliberately different from the settings gear: it always carries the
+   brass accent (a "premium feature lives here" signal) and pops with a
+   quick seal-stamp animation instead of the gear's slow spin.
+   ========================================================================== */
+
+.btn-icon.btn-ledger svg { stroke: #C9A227; }
+.btn-icon.btn-ledger:hover svg { stroke: #E7C766; }
+
+.btn-icon.btn-ledger .lock-badge {
+  position: absolute;
+  bottom: 1px; right: 1px;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--dark-vintage);
+  border: 1.5px solid #C9A227;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-icon.btn-ledger .lock-badge svg {
+  width: 7px; height: 7px; stroke: #C9A227; stroke-width: 3; fill: none;
+}
+
+.btn-icon.btn-ledger.stamp { animation: ledgerStamp 0.42s ease; }
+@keyframes ledgerStamp {
+  0%   { transform: scale(1) rotate(0deg); }
+  30%  { transform: scale(0.8) rotate(-8deg); }
+  55%  { transform: scale(1.18) rotate(4deg); }
+  80%  { transform: scale(0.96) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.ledger-dropdown {
+  position: absolute;
+  top: 46px;
+  right: 0;
+  width: 270px;
+  background: linear-gradient(180deg, #1D1608, #171106);
+  border: 1px solid #6E5B21;
+  border-radius: 4px 4px 12px 12px;
+  z-index: 20;
+  opacity: 0;
+  visibility: hidden;
+  transform-origin: top right;
+  transform: scaleY(0.1) translateY(-8px);
+  transition: transform 0.4s cubic-bezier(.22,.9,.24,1.2), opacity 0.22s ease, visibility 0.4s;
+  box-shadow: 0 16px 38px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+.ledger-dropdown::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 22px;
+  width: 22px; height: 15px;
+  background: #C9A227;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 68%, 0 100%);
+}
+.ledger-dropdown.open {
+  opacity: 1;
+  visibility: visible;
+  transform: scaleY(1) translateY(0);
+}
+.ledger-dropdown-inner { padding: 20px 16px 14px; }
+.ledger-heading {
+  font-family: 'Fraunces', serif;
+  font-size: 0.95rem;
+  color: #E7C766;
+  margin-bottom: 4px;
+}
+.ledger-sub {
+  font-size: 0.72rem;
+  color: var(--silver-dim);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.ledger-link-item {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; text-align: left;
+  padding: 10px 10px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(201,162,39,0.07);
+  color: var(--tan);
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: background 0.15s ease, padding-left 0.15s ease;
+}
+.ledger-link-item:last-child { margin-bottom: 0; }
+.ledger-link-item:hover { background: rgba(201,162,39,0.15); padding-left: 14px; }
+.ledger-lock-cta {
+  margin-top: 6px;
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 7px;
+  background: #C9A227;
+  color: #171106;
+  font-weight: 700;
+  font-size: 0.83rem;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.ledger-lock-cta:hover { background: #E7C766; transform: translateY(-1px); }

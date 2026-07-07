@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Budget Planner · Arko</title>
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="budget.css" />
+  <style>
+    .wip-banner{
+      text-align:center; padding:5px 20px; background:transparent;
+      border-bottom:1px solid rgba(139,111,71,0.25);
+      font-family:'Public Sans', sans-serif; font-size:11px; color:#b3ae9f; letter-spacing:.15px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="dash-header">
+    <nav class="nav">
+      <a href="dashboard.html" class="wordmark" style="text-decoration:none;"><span class="wordmark-brand">Arko</span> | Pre-Alpha</a>
+      <div class="nav-auth">
+        <button type="button" id="history-button" class="btn-ghost">Archive</button>
+        <button type="button" id="back-button" class="btn-ghost">← Back to Dashboard</button>
+      </div>
+    </nav>
+  </header>
+
+  <div class="wip-banner">Early development · some features may not be live</div>
+
+  <div id="loading-message" class="loading-message">Loading your budget planner...</div>
+
+  <main class="budget-shell" id="budget-shell" style="display:none;">
+
+    <aside class="ledger-rail" id="ledger-rail">
+      <div class="rail-tab" data-target="panel-income">Income</div>
+      <div class="rail-tab" data-target="panel-bills">Bills</div>
+      <div class="rail-tab" data-target="panel-expenses">Expenses</div>
+      <div class="rail-tab" data-target="panel-savings">Savings</div>
+      <div class="rail-tab" data-target="panel-debt">Debt</div>
+    </aside>
+
+    <div class="budget-main">
+
+      <div class="budget-title-row">
+        <div>
+          <span class="budget-eyebrow">Budget Planner</span>
+          <h1 id="period-title">This period</h1>
+        </div>
+        <span class="default-hint" id="default-hint" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          Filled in from your saved default layout
+        </span>
+      </div>
+
+      <div class="period-bar">
+        <div class="field">
+          <label for="start-date-input">Start date</label>
+          <input type="date" id="start-date-input" />
+        </div>
+        <div class="field">
+          <label for="end-date-input">End date</label>
+          <input type="date" id="end-date-input" />
+        </div>
+        <span class="period-status-pill" id="status-pill">active</span>
+        <div class="period-bar-actions">
+          <button type="button" id="save-default-btn" class="btn-brass">Save as default layout</button>
+          <button type="button" id="new-period-btn" class="btn-brass">New period</button>
+          <button type="button" id="unlock-btn" class="btn-brass" style="display:none;">Unlock to edit</button>
+          <button type="button" id="reopen-btn" class="btn-brass" style="display:none;">Reopen period</button>
+          <button type="button" id="finalize-btn" class="btn-brass-solid">Finalize period</button>
+        </div>
+      </div>
+
+      <div class="finalized-banner" id="finalized-banner" style="display:none;">
+        <span><b>This period is finalized.</b> It's archived, but you can still pull it up or unlock it to make edits.</span>
+      </div>
+
+      <section class="cashflow-card">
+        <h2>Cash Flow Summary</h2>
+        <div class="cashflow-grid" id="cashflow-grid"></div>
+      </section>
+
+      <section class="category-panel" id="panel-income" data-cat="income">
+        <div class="category-panel-head">
+          <h2>Income</h2>
+          <span class="cat-subtotal">Budget <b id="income-sub-budget">$0.00</b> · Actual <b id="income-sub-actual">$0.00</b></span>
+        </div>
+        <div class="ledger-col-heads"><span>Source</span><span>Budget</span><span>Actual</span><span></span><span></span></div>
+        <div class="ledger-rows" id="rows-income"></div>
+        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="income">+ Add line</button></div>
+      </section>
+
+      <section class="category-panel" id="panel-bills" data-cat="bills">
+        <div class="category-panel-head">
+          <h2>Bills</h2>
+          <span class="cat-subtotal">Budget <b id="bills-sub-budget">$0.00</b> · Actual <b id="bills-sub-actual">$0.00</b></span>
+        </div>
+        <div class="ledger-col-heads"><span>Bill</span><span>Budget</span><span>Actual</span><span>Paid</span><span></span></div>
+        <div class="ledger-rows" id="rows-bills"></div>
+        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="bills">+ Add line</button></div>
+      </section>
+
+      <section class="category-panel" id="panel-expenses" data-cat="expenses">
+        <div class="category-panel-head">
+          <h2>Expenses</h2>
+          <span class="cat-subtotal">Budget <b id="expenses-sub-budget">$0.00</b> · Actual <b id="expenses-sub-actual">$0.00</b></span>
+        </div>
+        <div class="ledger-col-heads"><span>Category</span><span>Budget</span><span>Actual</span><span></span><span></span></div>
+        <div class="ledger-rows" id="rows-expenses"></div>
+        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="expenses">+ Add line</button></div>
+      </section>
+
+      <section class="category-panel" id="panel-savings" data-cat="savings">
+        <div class="category-panel-head">
+          <h2>Savings</h2>
+          <span class="cat-subtotal">Budget <b id="savings-sub-budget">$0.00</b> · Actual <b id="savings-sub-actual">$0.00</b></span>
+        </div>
+        <div class="ledger-col-heads"><span>Goal</span><span>Budget</span><span>Actual</span><span>Funded</span><span></span></div>
+        <div class="ledger-rows" id="rows-savings"></div>
+        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="savings">+ Add line</button></div>
+      </section>
+
+      <section class="category-panel" id="panel-debt" data-cat="debt">
+        <div class="category-panel-head">
+          <h2>Debt</h2>
+          <span class="cat-subtotal">Budget <b id="debt-sub-budget">$0.00</b> · Actual <b id="debt-sub-actual">$0.00</b></span>
+        </div>
+        <div class="ledger-col-heads"><span>Debt</span><span>Budget</span><span>Actual</span><span>Paid</span><span></span></div>
+        <div class="ledger-rows" id="rows-debt"></div>
+        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="debt">+ Add line</button></div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ================= HISTORY / ARCHIVE OVERLAY ================= -->
+  <div class="history-overlay" id="history-overlay">
+    <div class="history-panel">
+      <div class="history-head">
+        <h2>Budget history</h2>
+        <button type="button" class="history-close" id="history-close">×</button>
+      </div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const APP_TIMEZONE = 'America/Chicago';
+    let currentUserId = null;
+
+    const CATS = [
+      { key: 'income',   label: 'Income',   checkbox: null },
+      { key: 'bills',    label: 'Bills',    checkbox: 'Paid' },
+      { key: 'expenses', label: 'Expenses', checkbox: null },
+      { key: 'savings',  label: 'Savings',  checkbox: 'Funded' },
+      { key: 'debt',     label: 'Debt',     checkbox: 'Paid' },
+    ];
+    const SIGN = { income: 1, bills: -1, expenses: -1, savings: -1, debt: -1 };
+
+    const SEED = {
+      income:   ['Paycheck', 'Business', 'Side Hustle', 'Interest Income', 'Dividends'],
+      bills:    ['Rent', 'Electricity', 'Mobile', 'Gym', 'Health Insurance', 'Subscriptions'],
+      expenses: ['Food', 'Personal', 'Transportation', 'Household', 'Education', 'Health', 'Beauty', 'Gifts', 'Self-Development', 'Dining Out'],
+      savings:  ['Emergency Fund', 'Investments', 'Vacation'],
+      debt:     ['Student Loan', 'Credit Card'],
+    };
+
+    function uid() { return (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2)); }
+    function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+    function money(n) {
+      const num = Number(n || 0);
+      const sign = num < 0 ? '-' : '';
+      return sign + '$' + Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function todayISO() { return new Date().toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE }); }
+    function firstOfMonthISO(d) { const dt = new Date(d + 'T00:00:00'); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-01`; }
+    function lastOfMonthISO(d) { const dt = new Date(d + 'T00:00:00'); const last = new Date(dt.getFullYear(), dt.getMonth()+1, 0); return `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`; }
+    function fmtDate(d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+
+    function blankCategories(seedNames) {
+      const out = {};
+      CATS.forEach(c => {
+        out[c.key] = (seedNames ? seedNames[c.key] : []).map(name => ({
+          id: uid(), name, budget: 0, actual: 0, done: false
+        }));
+      });
+      return out;
+    }
+
+    function cloneTemplateForNewPeriod(templateCategories) {
+      const out = {};
+      CATS.forEach(c => {
+        const lines = (templateCategories && templateCategories[c.key]) || [];
+        out[c.key] = lines.map(l => ({ id: uid(), name: l.name, budget: l.budget || 0, actual: 0, done: false }));
+      });
+      return out;
+    }
+
+    // ================= STATE =================
+    let periods = [];       // all periods for this user, newest first
+    let current = null;     // currently loaded period row
+    let unlocked = false;   // manual unlock for a finalized period
+    let saveTimer = null;
+
+    async function loadBillingAndGate() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return false; }
+      currentUserId = session.user.id;
+
+      const { data: billing } = await supabaseClient
+        .from('user_billing').select('is_paid').eq('user_id', currentUserId).maybeSingle();
+
+      if (!billing || !billing.is_paid) {
+        window.location.href = 'paywall.html';
+        return false;
+      }
+      return true;
+    }
+
+    async function fetchDefaultTemplate() {
+      const { data, error } = await supabaseClient
+        .from('budget_defaults').select('categories').eq('user_id', currentUserId).maybeSingle();
+      if (error) { console.error(error); return null; }
+      return data ? data.categories : null;
+    }
+
+    async function fetchPeriods() {
+      const { data, error } = await supabaseClient
+        .from('budget_periods').select('*').eq('user_id', currentUserId)
+        .order('start_date', { ascending: false });
+      if (error) { console.error(error); return []; }
+      return data || [];
+    }
+
+    async function createPeriod(startISO, endISO) {
+      const template = await fetchDefaultTemplate();
+      const categories = template ? cloneTemplateForNewPeriod(template) : blankCategories(SEED);
+      const { data, error } = await supabaseClient
+        .from('budget_periods')
+        .insert({ user_id: currentUserId, start_date: startISO, end_date: endISO, status: 'active', categories })
+        .select().single();
+      if (error) { console.error(error); alert('Could not create a new period: ' + error.message); return null; }
+      return data;
+    }
+
+    async function init() {
+      const ok = await loadBillingAndGate();
+      if (!ok) return;
+
+      periods = await fetchPeriods();
+
+      const today = todayISO();
+      current = periods.find(p => p.status === 'active' && p.start_date <= today && p.end_date >= today)
+             || periods.find(p => p.status === 'active')
+             || null;
+
+      if (!current) {
+        current = await createPeriod(firstOfMonthISO(today), lastOfMonthISO(today));
+        if (current) periods.unshift(current);
+      }
+
+      unlocked = false;
+      document.getElementById('loading-message').style.display = 'none';
+      document.getElementById('budget-shell').style.display = 'flex';
+      renderAll();
+      setupStaticListeners();
+
+      if (new URLSearchParams(window.location.search).get('history') === '1') {
+        document.getElementById('history-button').click();
+      }
+    }
+
+    // ================= RENDER =================
+    function isLocked() { return current.status === 'finalized' && !unlocked; }
+
+    function computeTotals() {
+      const totals = {};
+      CATS.forEach(c => {
+        const lines = current.categories[c.key] || [];
+        totals[c.key] = {
+          budget: round2(lines.reduce((s, l) => s + (Number(l.budget) || 0), 0)),
+          actual: round2(lines.reduce((s, l) => s + (Number(l.actual) || 0), 0)),
+        };
+      });
+      const leftBudget = round2(CATS.reduce((s, c) => s + SIGN[c.key] * totals[c.key].budget, 0));
+      const leftActual = round2(CATS.reduce((s, c) => s + SIGN[c.key] * totals[c.key].actual, 0));
+      return { totals, leftBudget, leftActual };
+    }
+
+    function renderAll() {
+      // title + dates
+      const isCalendarMonth = current.start_date === firstOfMonthISO(current.start_date) && current.end_date === lastOfMonthISO(current.start_date);
+      document.getElementById('period-title').textContent = isCalendarMonth
+        ? new Date(current.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        : `${fmtDate(current.start_date)} – ${fmtDate(current.end_date)}`;
+
+      document.getElementById('start-date-input').value = current.start_date;
+      document.getElementById('end-date-input').value = current.end_date;
+
+      const pill = document.getElementById('status-pill');
+      pill.textContent = current.status;
+      pill.className = 'period-status-pill ' + current.status;
+
+      const finalized = current.status === 'finalized';
+      document.getElementById('finalized-banner').style.display = finalized ? 'flex' : 'none';
+      document.getElementById('unlock-btn').style.display = finalized && !unlocked ? 'inline-block' : 'none';
+      document.getElementById('reopen-btn').style.display = finalized ? 'inline-block' : 'none';
+      document.getElementById('finalize-btn').style.display = finalized ? 'none' : 'inline-block';
+
+      CATS.forEach(c => renderCategoryPanel(c.key));
+      recalcSummary();
+    }
+
+    function rowTemplate(cat, line, locked) {
+      const c = CATS.find(x => x.key === cat);
+      const checkboxCell = c.checkbox
+        ? `<label class="log-check"><input type="checkbox" class="row-input" data-field="done" ${line.done ? 'checked' : ''} ${locked ? 'disabled' : ''} /><span class="check-box"></span></label>`
+        : '';
+      return `
+        <div class="ledger-row" data-id="${line.id}">
+          <input type="text" class="row-input" data-field="name" value="${line.name.replace(/"/g,'&quot;')}" placeholder="Name" ${locked ? 'disabled' : ''} />
+          <input type="number" class="row-input" data-field="budget" value="${line.budget}" step="0.01" ${locked ? 'disabled' : ''} />
+          <input type="number" class="row-input" data-field="actual" value="${line.actual}" step="0.01" ${locked ? 'disabled' : ''} />
+          <div class="row-check-cell">${checkboxCell}</div>
+          <button type="button" class="row-delete" ${locked ? 'disabled style="visibility:hidden"' : ''} title="Delete line">×</button>
+        </div>`;
+    }
+
+    function renderCategoryPanel(cat) {
+      const locked = isLocked();
+      const panel = document.getElementById('panel-' + cat);
+      panel.classList.toggle('locked', locked);
+      const container = document.getElementById('rows-' + cat);
+      const lines = current.categories[cat] || [];
+      container.innerHTML = lines.map(l => rowTemplate(cat, l, locked)).join('');
+
+      container.querySelectorAll('.ledger-row').forEach(rowEl => {
+        const id = rowEl.dataset.id;
+        rowEl.querySelectorAll('.row-input').forEach(input => {
+          const evt = input.type === 'checkbox' ? 'change' : 'input';
+          input.addEventListener(evt, () => {
+            const line = current.categories[cat].find(l => l.id === id);
+            if (!line) return;
+            const field = input.dataset.field;
+            if (field === 'name') line.name = input.value;
+            else if (field === 'done') line.done = input.checked;
+            else line[field] = parseFloat(input.value) || 0;
+            recalcSummary();
+            queueSave();
+          });
+        });
+        const delBtn = rowEl.querySelector('.row-delete');
+        delBtn.addEventListener('click', () => {
+          current.categories[cat] = current.categories[cat].filter(l => l.id !== id);
+          renderCategoryPanel(cat);
+          recalcSummary();
+          queueSave();
+        });
+      });
+
+      panel.querySelector('.add-line-btn').onclick = () => {
+        if (isLocked()) return;
+        current.categories[cat].push({ id: uid(), name: '', budget: 0, actual: 0, done: false });
+        renderCategoryPanel(cat);
+        queueSave();
+      };
+    }
+
+    function recalcSummary() {
+      const { totals, leftBudget, leftActual } = computeTotals();
+      CATS.forEach(c => {
+        const b = document.getElementById(c.key + '-sub-budget');
+        const a = document.getElementById(c.key + '-sub-actual');
+        if (b) b.textContent = money(totals[c.key].budget);
+        if (a) a.textContent = money(totals[c.key].actual);
+      });
+
+      const grid = document.getElementById('cashflow-grid');
+      grid.innerHTML = CATS.map(c => `
+        <div class="cashflow-item">
+          <span class="cf-label">${c.label}${SIGN[c.key] < 0 ? ' (–)' : ' (+)'}</span>
+          <span class="cf-value">${money(totals[c.key].actual)}</span>
+        </div>
+      `).join('') + `
+        <div class="cashflow-item cf-left">
+          <span class="cf-label">Left</span>
+          <span class="cf-value ${leftActual >= 0 ? 'positive' : 'negative'}">${money(leftActual)}</span>
+        </div>
+      `;
+    }
+
+    function queueSave() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveCurrentPeriod, 500);
+    }
+
+    async function saveCurrentPeriod() {
+      if (!current) return;
+      const { error } = await supabaseClient
+        .from('budget_periods')
+        .update({ categories: current.categories, start_date: current.start_date, end_date: current.end_date, updated_at: new Date().toISOString() })
+        .eq('id', current.id);
+      if (error) console.error('Save error:', error);
+    }
+
+    // ================= STATIC LISTENERS =================
+    function setupStaticListeners() {
+      document.getElementById('back-button').addEventListener('click', () => window.location.href = 'dashboard.html');
+
+      document.getElementById('start-date-input').addEventListener('change', (e) => {
+        current.start_date = e.target.value;
+        renderAll();
+        queueSave();
+      });
+      document.getElementById('end-date-input').addEventListener('change', (e) => {
+        current.end_date = e.target.value;
+        renderAll();
+        queueSave();
+      });
+
+      document.querySelectorAll('.rail-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.getElementById(tab.dataset.target).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+      const railObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const tab = document.querySelector(`.rail-tab[data-target="${entry.target.id}"]`);
+          if (!tab) return;
+          if (entry.isIntersecting) {
+            document.querySelectorAll('.rail-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-30% 0px -55% 0px' });
+      CATS.forEach(c => railObserver.observe(document.getElementById('panel-' + c.key)));
+
+      document.getElementById('save-default-btn').addEventListener('click', async () => {
+        const template = {};
+        CATS.forEach(c => {
+          template[c.key] = (current.categories[c.key] || []).map(l => ({ name: l.name, budget: l.budget || 0 }));
+        });
+        const { error } = await supabaseClient
+          .from('budget_defaults')
+          .upsert({ user_id: currentUserId, categories: template, updated_at: new Date().toISOString() });
+        if (error) { console.error(error); alert('Could not save your default layout: ' + error.message); return; }
+        alert('Saved. New periods will start filled in with this layout.');
+      });
+
+      document.getElementById('new-period-btn').addEventListener('click', async () => {
+        const today = todayISO();
+        const start = firstOfMonthISO(today);
+        const end = lastOfMonthISO(today);
+        if (!confirm(`Create a new period for ${fmtDate(start)} – ${fmtDate(end)}, filled in from your saved default layout?`)) return;
+        const created = await createPeriod(start, end);
+        if (!created) return;
+        periods.unshift(created);
+        current = created;
+        unlocked = false;
+        renderAll();
+      });
+
+      document.getElementById('finalize-btn').addEventListener('click', async () => {
+        if (!confirm('Finalize this period? It will move to your archive as a record you can still pull up or unlock later.')) return;
+        const { data, error } = await supabaseClient
+          .from('budget_periods')
+          .update({ status: 'finalized', finalized_at: new Date().toISOString() })
+          .eq('id', current.id).select().single();
+        if (error) { console.error(error); alert('Could not finalize: ' + error.message); return; }
+        current = data;
+        const idx = periods.findIndex(p => p.id === current.id);
+        if (idx > -1) periods[idx] = current;
+        unlocked = false;
+        renderAll();
+      });
+
+      document.getElementById('unlock-btn').addEventListener('click', () => {
+        unlocked = true;
+        renderAll();
+      });
+
+      document.getElementById('reopen-btn').addEventListener('click', async () => {
+        if (!confirm('Reopen this period? Its status will change back to active.')) return;
+        const { data, error } = await supabaseClient
+          .from('budget_periods').update({ status: 'active' }).eq('id', current.id).select().single();
+        if (error) { console.error(error); alert('Could not reopen: ' + error.message); return; }
+        current = data;
+        const idx = periods.findIndex(p => p.id === current.id);
+        if (idx > -1) periods[idx] = current;
+        unlocked = false;
+        renderAll();
+      });
+
+      // ---- history overlay ----
+      const overlay = document.getElementById('history-overlay');
+      function openHistory() {
+        renderHistoryList();
+        overlay.classList.add('open');
+      }
+      function closeHistory() { overlay.classList.remove('open'); }
+      document.getElementById('history-button').addEventListener('click', openHistory);
+      document.getElementById('history-close').addEventListener('click', closeHistory);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeHistory(); });
+
+      function renderHistoryList() {
+        const list = document.getElementById('history-list');
+        if (!periods.length) {
+          list.innerHTML = '<div class="history-empty">No periods yet.</div>';
+          return;
+        }
+        list.innerHTML = periods.map(p => {
+          const isCal = p.start_date === firstOfMonthISO(p.start_date) && p.end_date === lastOfMonthISO(p.start_date);
+          const title = isCal
+            ? new Date(p.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+            : `${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}`;
+          return `
+            <div class="history-item ${current && p.id === current.id ? 'current' : ''}" data-id="${p.id}">
+              <div class="history-item-left">
+                <span class="history-item-title">${title}</span>
+                <span class="history-item-sub">${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}</span>
+              </div>
+              <span class="history-item-status ${p.status}">${p.status}</span>
+            </div>`;
+        }).join('');
+
+        list.querySelectorAll('.history-item').forEach(item => {
+          item.addEventListener('click', () => {
+            current = periods.find(p => p.id === item.dataset.id);
+            unlocked = false;
+            renderAll();
+            closeHistory();
+          });
+        });
+      }
+    }
+
+    init();
+  </script>
+
+</body>
+</html>
