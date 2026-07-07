@@ -303,6 +303,14 @@
       expenses: 'expense',
     };
 
+    // Each line's logged history shows only its most recent 5 entries by
+    // default — capped and predictable — with a "+ Show N more" toggle to
+    // expand. Keeps category panels from growing tall just because one line
+    // has a long history, so getting to the next category never means
+    // scrolling past someone's entire transaction log.
+    const VISIBLE_LOG_ENTRIES = 5;
+    const expandedLogLines = new Set();
+
     const SEED = {
       income:   ['Paycheck', 'Business', 'Side Hustle', 'Interest Income', 'Dividends'],
       bills:    ['Rent', 'Electricity', 'Mobile', 'Gym', 'Health Insurance', 'Subscriptions'],
@@ -498,6 +506,15 @@
 
       const noun = LOG_LABELS[cat];
       const entries = line.entries || [];
+      const allEntriesDesc = entries.slice().reverse(); // most recent first
+      const isExpanded = expandedLogLines.has(line.id);
+      const visibleEntries = isExpanded ? allEntriesDesc : allEntriesDesc.slice(0, VISIBLE_LOG_ENTRIES);
+      const hiddenCount = allEntriesDesc.length - visibleEntries.length;
+      const toggleHtml = allEntriesDesc.length > VISIBLE_LOG_ENTRIES
+        ? (isExpanded
+            ? `<button type="button" class="expense-log-showtoggle" data-id="${line.id}" data-action="less">Show less</button>`
+            : `<button type="button" class="expense-log-showtoggle" data-id="${line.id}" data-action="more">+ Show ${hiddenCount} more</button>`)
+        : '';
       const expenseExtra = `
         <div class="expense-log-wrap" data-id="${line.id}">
           <div class="expense-log-actions">
@@ -516,7 +533,7 @@
           </div>
           ${entries.length ? `
           <div class="expense-log-list">
-            ${entries.slice().reverse().map(e => `
+            ${visibleEntries.map(e => `
               <div class="expense-log-entry" data-entry-id="${e.id}">
                 <span class="expense-entry-date">${fmtDate(e.date)}</span>
                 <span class="expense-entry-note">${e.note ? e.note.replace(/</g,'&lt;') : '—'}</span>
@@ -524,7 +541,8 @@
                 <button type="button" class="expense-entry-delete" data-id="${line.id}" data-entry-id="${e.id}" ${locked ? 'disabled style="visibility:hidden"' : ''} title="Remove entry">×</button>
               </div>
             `).join('')}
-          </div>` : ''}
+          </div>
+          ${toggleHtml}` : ''}
         </div>`;
 
       return rowHtml + expenseExtra;
@@ -577,6 +595,7 @@
         const delBtn = rowEl.querySelector('.row-delete');
         delBtn.addEventListener('click', () => {
           current.categories[cat] = current.categories[cat].filter(l => l.id !== id);
+          expandedLogLines.delete(id);
           renderCategoryPanel(cat);
           recalcSummary();
           queueSave();
@@ -593,6 +612,16 @@
       };
 
       if (LOG_LABELS[cat]) {
+        container.querySelectorAll('.expense-log-showtoggle').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            if (btn.dataset.action === 'more') expandedLogLines.add(id);
+            else expandedLogLines.delete(id);
+            renderCategoryPanel(cat);
+            updateScrollSpy();
+          });
+        });
+
         container.querySelectorAll('.expense-log-fromlog').forEach(btn => {
           btn.addEventListener('click', () => {
             if (isLocked()) return;
