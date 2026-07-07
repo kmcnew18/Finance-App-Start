@@ -775,7 +775,7 @@
 .logmirror-split-selectall {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: 0.66rem;
   color: var(--silver-dim);
   font-weight: 700;
@@ -783,10 +783,9 @@
   letter-spacing: 0.02em;
   cursor: pointer;
   flex-shrink: 0;
-  padding-left: 6px;
+  padding-left: 8px;
   border-left: 1px solid var(--ledger-line);
 }
-.logmirror-split-selectall input[type="checkbox"] { accent-color: var(--brass); cursor: pointer; }
 
 /* ---------- default-template hint ---------- */
 .default-hint {
