@@ -167,8 +167,12 @@
         return;
       }
 
-      tbody.innerHTML = rows.map(r => `
-        <tr class="${rowClassByType[r.action_type] || ''}">
+      let prevActionType = null;
+      tbody.innerHTML = rows.map(r => {
+        const isGroupStart = r.action_type !== prevActionType;
+        prevActionType = r.action_type;
+        return `
+        <tr class="${rowClassByType[r.action_type] || ''}${isGroupStart ? ' log-group-start' : ''}">
           <td><label class="log-check"><input type="checkbox" class="row-select" data-id="${r.id}" /><span class="check-box"></span></label></td>
           <td class="${isFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${formatDate(r.entry_date)}</td>
           <td class="num-cell">${money(r.amount)}</td>
@@ -178,7 +182,8 @@
           <td class="num-cell">${money(r.checking)}</td>
           <td class="notes-cell">${r.notes ? r.notes.replace(/</g,'&lt;') : ''}</td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     }
 
     async function init() {

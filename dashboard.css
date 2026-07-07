@@ -596,6 +596,18 @@ input[type="number"]::-webkit-outer-spin-button {
 .log-row-subtract { background: var(--subtract-bg); }
 .log-row-transfer { background: var(--transfer-bg); }
 
+/* Each entry type gets its own left-edge stripe, and a divider line marks
+   every point where the type changes between consecutive rows — so a run
+   of deposits (or withdrawals, or transfers) reads as a visible group
+   instead of blending into whatever's above/below it. Scoped to .log-table
+   so it applies identically wherever that table markup is used — the real
+   log page and the Budget Planner's "+ From log" mirror both get it for
+   free, no separate copy to keep in sync. */
+.log-table tbody tr.log-row-add td:first-child { border-left: 3px solid var(--add-accent); }
+.log-table tbody tr.log-row-subtract td:first-child { border-left: 3px solid var(--subtract-accent); }
+.log-table tbody tr.log-row-transfer td:first-child { border-left: 3px solid var(--transfer-accent); }
+.log-table tbody tr.log-group-start td { border-top: 1px solid rgba(255,255,255,0.1); }
+
 @media (max-width: 700px) {
   .overview-cards { grid-template-columns: repeat(2, 1fr); }
   .category-grid { grid-template-columns: 1fr 1fr; }
