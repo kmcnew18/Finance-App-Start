@@ -34,9 +34,9 @@
         <span id="user-email" class="user-email"></span>
         <button type="button" id="view-log-button" class="btn-ghost">View Log</button>
 
-        <!-- ================= BUDGET PLANNER MENU ================= -->
+        <!-- ================= PREMIUM FEATURE MENU ================= -->
         <div class="settings-wrap">
-          <button type="button" id="ledger-menu-btn" class="btn-icon btn-ledger" aria-label="Budget Planner">
+          <button type="button" id="ledger-menu-btn" class="btn-icon btn-ledger" aria-label="Premium tools">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
@@ -71,6 +71,8 @@
             </div>
             <div class="dropdown-divider"></div>
             <button type="button" id="clear-log-btn" class="dropdown-item danger">Clear entire log</button>
+            <div class="dropdown-divider"></div>
+            <button type="button" id="clear-archives-btn" class="dropdown-item danger">Clear budget archives</button>
           </div>
         </div>
 
@@ -413,6 +415,18 @@
       }
     });
 
+    document.getElementById('clear-archives-btn').addEventListener('click', async () => {
+      if (!confirm('Clear your budget archives? This permanently deletes every finalized period. Your current active period is not affected. This cannot be undone.')) return;
+      const { error } = await supabaseClient
+        .from('budget_periods')
+        .delete()
+        .eq('user_id', currentUserId)
+        .eq('status', 'finalized');
+      if (error) { console.error(error); alert('Could not clear your archives: ' + error.message); return; }
+      gearDropdown.classList.remove('open');
+      alert('Your budget archives have been cleared.');
+    });
+
     // ================= OVERRIDE TOTALS TOGGLE =================
     const overrideToggle = document.getElementById('override-toggle');
     const overrideHint = document.getElementById('override-hint');
@@ -649,7 +663,88 @@
       document.getElementById('transfer-message').textContent = '';
     });
 
-    // ================= BUDGET PLANNER LEDGER MENU =================
+    // ================= PREMIUM FEATURE MENU =================
+    // Data-driven so future premium tools are a one-line addition. Each tool
+    // needs: id, label, desc, href, an iconClass for its own visual identity,
+    // and an icon (raw inline SVG markup).
+    const PREMIUM_TOOLS = [
+      {
+        id: 'dashboard',
+        label: 'Dashboard',
+        desc: 'Your accounts, at a glance.',
+        href: 'dashboard.html',
+        iconClass: 'icon-dashboard',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>'
+      },
+      {
+        id: 'budget',
+        label: 'Budget Planner',
+        desc: 'Plan, track, and archive monthly budgets.',
+        href: 'budget.html',
+        iconClass: 'icon-ledger',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><line x1="8.5" y1="7" x2="15.5" y2="7"></line><line x1="8.5" y1="11" x2="15.5" y2="11"></line></svg>'
+      }
+      // Future premium tools: add another object here, e.g.
+      // { id: 'reports', label: 'Reports', desc: '...', href: 'reports.html', iconClass: 'icon-reports', icon: '<svg>...</svg>' }
+    ];
+
+    function currentFileName() {
+      const seg = window.location.pathname.split('/').pop();
+      return seg && seg.length ? seg : 'dashboard.html';
+    }
+
+    function renderLedgerMenu() {
+      const inner = document.getElementById('ledger-dropdown-inner');
+      const lockBadge = document.getElementById('ledger-lock-badge');
+      lockBadge.style.display = isPaidUser ? 'none' : 'flex';
+
+      const here = currentFileName();
+
+      const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
+        const isCurrent = tool.href === here;
+        const classes = ['ledger-tool-item'];
+        if (isCurrent) classes.push('current');
+        if (!isPaidUser) classes.push('locked-preview');
+        return `
+          <button type="button" class="${classes.join(' ')}" data-href="${tool.href}"
+                  style="animation-delay:${i * 55}ms" ${isCurrent ? 'disabled' : ''}>
+            <span class="ledger-tool-icon ${tool.iconClass}">${tool.icon}</span>
+            <span class="ledger-tool-text">
+              <span class="ledger-tool-title">${tool.label}${isCurrent ? ' <span class="current-pill">current</span>' : ''}</span>
+              <span class="ledger-tool-desc">${tool.desc}</span>
+            </span>
+            <span class="ledger-tool-arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span>
+          </button>`;
+      }).join('');
+
+      inner.innerHTML = `
+        <div class="ledger-heading">Premium Tools</div>
+        <p class="ledger-sub">${isPaidUser
+          ? 'Your unlocked workspace for deeper financial planning.'
+          : 'Full monthly budgeting — with custom categories, saved defaults, and an archive of past months — is part of full access.'}</p>
+        <div class="ledger-tool-list">${itemsHtml}</div>
+        ${isPaidUser
+          ? '<button type="button" class="ledger-link-item" id="ledger-go-archive">View archive →</button>'
+          : '<button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">Unlock full access — $10</button>'}
+        <div class="ledger-future-hint">More premium tools are on the way</div>
+      `;
+
+      inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (btn.disabled) return;
+          window.location.href = isPaidUser ? btn.dataset.href : 'paywall.html';
+        });
+      });
+
+      if (isPaidUser) {
+        const archBtn = document.getElementById('ledger-go-archive');
+        if (archBtn) archBtn.addEventListener('click', () => window.location.href = 'budget.html?history=1');
+      } else {
+        const unlockBtn = document.getElementById('ledger-unlock-cta');
+        if (unlockBtn) unlockBtn.addEventListener('click', () => window.location.href = 'paywall.html');
+      }
+    }
+
     function closeLedgerMenu() {
       const dd = document.getElementById('ledger-dropdown');
       const btn = document.getElementById('ledger-menu-btn');
@@ -660,30 +755,8 @@
     function setupLedgerMenu() {
       const btn = document.getElementById('ledger-menu-btn');
       const dd = document.getElementById('ledger-dropdown');
-      const inner = document.getElementById('ledger-dropdown-inner');
-      const lockBadge = document.getElementById('ledger-lock-badge');
 
-      lockBadge.style.display = isPaidUser ? 'none' : 'flex';
-
-      inner.innerHTML = isPaidUser
-        ? `
-          <div class="ledger-heading">Budget Planner</div>
-          <p class="ledger-sub">Plan a monthly budget, track it as you go, and finalize periods into your archive.</p>
-          <button type="button" class="ledger-link-item" id="ledger-go-planner">Open budget planner →</button>
-          <button type="button" class="ledger-link-item" id="ledger-go-archive">View archive →</button>
-        `
-        : `
-          <div class="ledger-heading">Budget Planner</div>
-          <p class="ledger-sub">Full monthly budgeting — with custom categories, saved defaults, and an archive of past months — is part of full access.</p>
-          <button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">Unlock full access — $10</button>
-        `;
-
-      if (isPaidUser) {
-        document.getElementById('ledger-go-planner').addEventListener('click', () => window.location.href = 'budget.html');
-        document.getElementById('ledger-go-archive').addEventListener('click', () => window.location.href = 'budget.html?history=1');
-      } else {
-        document.getElementById('ledger-unlock-cta').addEventListener('click', () => window.location.href = 'paywall.html');
-      }
+      renderLedgerMenu();
 
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -692,6 +765,7 @@
         const opening = !dd.classList.contains('open');
         dd.classList.toggle('open', opening);
         if (opening) {
+          renderLedgerMenu(); // re-render so the staggered reveal replays each time it opens
           btn.classList.remove('stamp');
           void btn.offsetWidth; // restart animation
           btn.classList.add('stamp');

@@ -6,9 +6,9 @@
    ========================================================================== */
 
 :root {
-  --brass: #C9A227;
-  --brass-bright: #E7C766;
-  --brass-dim: #6E5B21;
+  --brass: #B8934A;
+  --brass-bright: #D8BC7A;
+  --brass-dim: #5C4A22;
   --ledger-panel: #171208;
   --ledger-panel-raised: #1D1608;
   --ledger-line: #33291A;
@@ -132,7 +132,7 @@
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease, border-color .15s ease;
 }
-.btn-brass:hover { background: rgba(201,162,39,0.12); border-color: var(--brass); transform: translateY(-1px); }
+.btn-brass:hover { background: rgba(184,147,74,0.12); border-color: var(--brass); transform: translateY(-1px); }
 .btn-brass:active { transform: translateY(0); }
 
 .btn-brass-solid {
@@ -159,7 +159,7 @@
   align-self: center;
 }
 .period-status-pill.active { background: rgba(92,138,107,0.18); color: var(--add-accent-hover); border: 1px solid var(--add-accent); }
-.period-status-pill.finalized { background: rgba(201,162,39,0.14); color: var(--brass-bright); border: 1px solid var(--brass-dim); }
+.period-status-pill.finalized { background: rgba(184,147,74,0.14); color: var(--brass-bright); border: 1px solid var(--brass-dim); }
 
 /* ---------- cash flow summary ---------- */
 .cashflow-card {
@@ -167,7 +167,7 @@
   border: 1px solid var(--brass-dim);
   border-radius: 14px;
   padding: 20px 22px;
-  box-shadow: 0 8px 26px rgba(0,0,0,0.35), 0 0 22px rgba(201,162,39,0.08);
+  box-shadow: 0 8px 26px rgba(0,0,0,0.35), 0 0 22px rgba(184,147,74,0.08);
 }
 .cashflow-card h2 {
   font-family: 'Fraunces', serif;
@@ -177,16 +177,73 @@
 }
 .cashflow-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 10px;
 }
+@media (max-width: 900px) { .cashflow-grid { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 760px) { .cashflow-grid { grid-template-columns: repeat(2, 1fr); } }
 .cashflow-item { display: flex; flex-direction: column; gap: 3px; }
 .cashflow-item .cf-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--silver-dim); }
 .cashflow-item .cf-value { font-family: 'IBM Plex Mono', monospace; font-size: 0.98rem; font-weight: 600; color: var(--tan); }
+.cashflow-item.cf-rollover .cf-value { color: var(--brass-bright); }
 .cashflow-item.cf-left .cf-value { color: var(--brass-bright); font-size: 1.15rem; }
 .cf-value.positive { color: var(--add-accent-hover); }
 .cf-value.negative { color: var(--subtract-accent-hover); }
+.cf-sub-hint { font-size: 0.62rem; color: var(--silver-dim); margin-top: 1px; }
+
+/* ---------- charts ---------- */
+.charts-card {
+  background: linear-gradient(150deg, var(--ledger-panel-raised), var(--ledger-panel));
+  border: 1px solid var(--ledger-line);
+  border-radius: 14px;
+  padding: 20px 22px 8px;
+  box-shadow: 0 8px 26px rgba(0,0,0,0.3);
+}
+.charts-card h2 {
+  font-family: 'Fraunces', serif;
+  font-size: 1.05rem;
+  color: var(--brass-bright);
+  margin-bottom: 14px;
+}
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.chart-box {
+  background: var(--ledger-panel);
+  border: 1px solid var(--ledger-line);
+  border-radius: 10px;
+  padding: 14px 14px 10px;
+  display: flex;
+  flex-direction: column;
+}
+.chart-box.chart-wide { grid-column: 1 / -1; }
+.chart-box-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--silver-dim);
+  margin-bottom: 10px;
+}
+.chart-canvas-wrap { position: relative; height: 220px; }
+.chart-canvas-wrap.chart-canvas-wide { height: 200px; }
+.chart-empty-note {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 20px;
+  font-size: 0.78rem;
+  color: var(--silver-dim);
+}
+
+@media (max-width: 760px) {
+  .charts-grid { grid-template-columns: 1fr; }
+  .chart-canvas-wrap { height: 200px; }
+}
 
 /* ---------- category panels ---------- */
 .category-panel {
@@ -267,6 +324,14 @@
 .ledger-row input[type="number"]::-webkit-inner-spin-button,
 .ledger-row input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
+/* Zero/empty Budget & Actual fields show a dim "0.00" placeholder instead of
+   a literal 0 — visible enough to signal a value belongs there, and it
+   fades the instant you type (native placeholder behavior) and returns the
+   instant the field is emptied again. */
+.ledger-row input[type="number"]::placeholder {
+  color: rgba(232, 225, 211, 0.3);
+}
+
 .ledger-row .row-check-cell { display: flex; justify-content: center; }
 .ledger-row .row-check-cell:empty { visibility: hidden; }
 
@@ -294,7 +359,121 @@
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, border-color .15s ease;
 }
-.add-line-btn:hover { background: rgba(201,162,39,0.1); color: var(--brass-bright); border-color: var(--brass); }
+.add-line-btn:hover { background: rgba(184,147,74,0.1); color: var(--brass-bright); border-color: var(--brass); }
+
+/* ---------- expense tracking (per-line transaction log, Expenses category only) ---------- */
+.expense-log-wrap {
+  padding: 0 0 10px;
+  margin-top: -4px;
+  border-bottom: 1px dashed var(--ledger-line-soft);
+}
+.expense-log-wrap:last-child { border-bottom: none; }
+.expense-log-actions { display: flex; }
+.expense-log-toggle {
+  background: none;
+  border: 1px dashed var(--ledger-line);
+  color: var(--silver-dim);
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.expense-log-toggle:hover { color: var(--brass-bright); border-color: var(--brass-dim); background: rgba(184,147,74,0.06); }
+.expense-log-count {
+  background: var(--brass-dim);
+  color: var(--parchment);
+  border-radius: 20px;
+  font-size: 0.62rem;
+  padding: 1px 6px;
+  font-weight: 700;
+}
+
+.expense-log-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.expense-log-form .expense-log-amount {
+  width: 100px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--ledger-line);
+  border-radius: 6px;
+  padding: 7px 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--tan);
+}
+.expense-log-form .expense-log-note {
+  flex: 1;
+  min-width: 140px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--ledger-line);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+  color: var(--tan);
+  font-family: 'Public Sans', sans-serif;
+}
+.expense-log-form .expense-log-amount:focus,
+.expense-log-form .expense-log-note:focus { outline: none; border-color: var(--brass-dim); }
+.expense-log-submit {
+  background: var(--brass);
+  color: #171106;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.expense-log-submit:hover { background: var(--brass-bright); }
+.expense-log-cancel {
+  background: none;
+  border: none;
+  color: var(--silver-dim);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 7px 6px;
+}
+.expense-log-cancel:hover { color: var(--tan); }
+
+.expense-log-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.expense-log-entry {
+  display: grid;
+  grid-template-columns: 70px 1fr 90px 22px;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  transition: background 0.12s ease;
+}
+.expense-log-entry:hover { background: rgba(184,147,74,0.06); }
+.expense-entry-date { color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; }
+.expense-entry-note { color: var(--tan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
+.expense-entry-amount { color: var(--brass-bright); font-family: 'IBM Plex Mono', monospace; text-align: right; }
+.expense-entry-delete {
+  background: none; border: none; color: var(--silver-dim);
+  font-size: 0.95rem; line-height: 1; cursor: pointer; justify-self: center;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.expense-entry-delete:hover { color: var(--subtract-accent-hover); transform: scale(1.15); }
 
 /* ---------- finalized / locked state ---------- */
 .category-panel.locked .ledger-row input,
@@ -303,7 +482,7 @@
 
 .finalized-banner {
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
-  background: linear-gradient(90deg, rgba(201,162,39,0.14), rgba(201,162,39,0.03));
+  background: linear-gradient(90deg, rgba(184,147,74,0.14), rgba(184,147,74,0.03));
   border: 1px solid var(--brass-dim);
   border-radius: 10px;
   padding: 12px 16px;
@@ -350,8 +529,8 @@
   padding: 12px 12px; border-radius: 8px; cursor: pointer;
   transition: background 0.15s ease;
 }
-.history-item:hover { background: rgba(201,162,39,0.08); }
-.history-item.current { background: rgba(201,162,39,0.12); }
+.history-item:hover { background: rgba(184,147,74,0.08); }
+.history-item.current { background: rgba(184,147,74,0.12); }
 .history-item-left { display: flex; flex-direction: column; gap: 2px; }
 .history-item-title { font-weight: 600; color: var(--tan); font-size: 0.88rem; }
 .history-item-sub { font-size: 0.72rem; color: var(--silver-dim); }
@@ -360,7 +539,7 @@
   padding: 3px 8px; border-radius: 20px; white-space: nowrap;
 }
 .history-item-status.active { color: var(--add-accent-hover); background: rgba(92,138,107,0.15); }
-.history-item-status.finalized { color: var(--brass-bright); background: rgba(201,162,39,0.15); }
+.history-item-status.finalized { color: var(--brass-bright); background: rgba(184,147,74,0.15); }
 .history-empty { padding: 30px 20px; text-align: center; color: var(--silver-dim); font-size: 0.85rem; }
 
 /* ---------- default-template hint ---------- */
@@ -372,3 +551,26 @@
   gap: 6px;
 }
 .default-hint svg { width: 13px; height: 13px; stroke: var(--brass); }
+
+/* ---------- entrance polish ---------- */
+.cashflow-card, .charts-card, .category-panel, .period-bar {
+  animation: ledgerFadeUp 0.4s ease both;
+}
+.period-bar { animation-delay: 0ms; }
+.cashflow-card { animation-delay: 40ms; }
+.charts-card { animation-delay: 70ms; }
+.category-panel { animation-delay: 90ms; }
+
+@keyframes ledgerFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Within the budget workspace, keyboard focus reads in brass rather than
+   the dashboard's vintage-blue, so the two rooms keep their own identity
+   even down to accessibility affordances. */
+.budget-shell button:focus-visible,
+.budget-shell input:focus-visible {
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 2px;
+}

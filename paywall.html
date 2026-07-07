@@ -23,6 +23,33 @@
       color:#b3ae9f;
       letter-spacing:.15px;
     }
+
+    /* Fallback styling for the logout control in case signup.css doesn't
+       define .btn-ghost — keeps this page self-sufficient. */
+    .paywall-logout-row {
+      margin-top: 28px;
+      display: flex;
+      justify-content: center;
+    }
+    .paywall-logout {
+      padding: 10px 20px;
+      border: 1px solid rgba(179,182,185,0.4);
+      border-radius: 8px;
+      background: transparent;
+      color: #C9C4B4;
+      font-family: 'Public Sans', sans-serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: 0.015em;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    }
+    .paywall-logout:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(179,182,185,0.7);
+      transform: translateY(-1px);
+    }
+    .paywall-logout:active { transform: translateY(0); }
   </style>
 </head>
 <body>
@@ -40,6 +67,10 @@
 
       <button type="button" id="checkout-button" class="hero-cta">Unlock full access — $10</button>
       <p class="auth-message" id="auth-message"></p>
+
+      <div class="paywall-logout-row">
+        <button type="button" id="logout-button" class="btn-ghost paywall-logout">Log out</button>
+      </div>
 
     </div>
   </header>
@@ -86,6 +117,11 @@
         message.textContent = 'Network error — please try again.';
         message.classList.add('auth-message-error');
       }
+    });
+
+    document.getElementById('logout-button').addEventListener('click', async () => {
+      await supabaseClient.auth.signOut();
+      window.location.href = 'login.html';
     });
 
   </script>

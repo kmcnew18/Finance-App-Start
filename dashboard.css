@@ -24,10 +24,12 @@
   --transfer-accent-hover: #CDAE63;
   --transfer-bg: #272012;
 
-  /* brighter glow versions of the accent colors, for neon panel glows */
-  --add-glow: #7FE39A;
-  --subtract-glow: #FF6F5E;
-  --transfer-glow: #F0C860;
+  /* brighter glow versions of the accent colors, for neon panel glows —
+     dialed toward muted sage / coral / warm gold rather than pure neon,
+     so the glow reads as premium-vintage instead of arcade-bright */
+  --add-glow: #6EC496;
+  --subtract-glow: #E0806A;
+  --transfer-glow: #E0B96E;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -118,6 +120,7 @@ h1, h2, h3 {
   background: transparent;
   cursor: pointer;
   transition: transform 0.2s ease;
+  position: relative;
 }
 .btn-icon:hover { transform: scale(1.1); }
 .btn-icon.spin svg { transform: rotate(45deg); }
@@ -604,54 +607,54 @@ input[type="number"]::-webkit-outer-spin-button {
 .panel-add {
   border-left: 4px solid var(--add-glow);
   box-shadow:
-    0 0 8px rgba(127, 227, 154, 0.5),
-    0 0 20px rgba(127, 227, 154, 0.3),
-    0 0 40px rgba(127, 227, 154, 0.15),
+    0 0 6px rgba(110, 196, 150, 0.36),
+    0 0 15px rgba(110, 196, 150, 0.22),
+    0 0 32px rgba(110, 196, 150, 0.1),
     0 6px 22px rgba(0,0,0,0.25);
   transition: box-shadow 0.3s ease;
 }
 .panel-add:hover,
 .panel-add:focus-within {
   box-shadow:
-    0 0 12px rgba(127, 227, 154, 0.7),
-    0 0 30px rgba(127, 227, 154, 0.45),
-    0 0 60px rgba(127, 227, 154, 0.22),
+    0 0 9px rgba(110, 196, 150, 0.5),
+    0 0 22px rgba(110, 196, 150, 0.32),
+    0 0 46px rgba(110, 196, 150, 0.16),
     0 6px 22px rgba(0,0,0,0.25);
 }
 
 .panel-subtract {
   border-left: 4px solid var(--subtract-glow);
   box-shadow:
-    0 0 8px rgba(255, 111, 94, 0.5),
-    0 0 20px rgba(255, 111, 94, 0.3),
-    0 0 40px rgba(255, 111, 94, 0.15),
+    0 0 6px rgba(224, 128, 106, 0.36),
+    0 0 15px rgba(224, 128, 106, 0.22),
+    0 0 32px rgba(224, 128, 106, 0.1),
     0 6px 22px rgba(0,0,0,0.25);
   transition: box-shadow 0.3s ease;
 }
 .panel-subtract:hover,
 .panel-subtract:focus-within {
   box-shadow:
-    0 0 12px rgba(255, 111, 94, 0.7),
-    0 0 30px rgba(255, 111, 94, 0.45),
-    0 0 60px rgba(255, 111, 94, 0.22),
+    0 0 9px rgba(224, 128, 106, 0.5),
+    0 0 22px rgba(224, 128, 106, 0.32),
+    0 0 46px rgba(224, 128, 106, 0.16),
     0 6px 22px rgba(0,0,0,0.25);
 }
 
 .panel-transfer {
   border-left: 4px solid var(--transfer-glow);
   box-shadow:
-    0 0 8px rgba(240, 200, 96, 0.5),
-    0 0 20px rgba(240, 200, 96, 0.3),
-    0 0 40px rgba(240, 200, 96, 0.15),
+    0 0 6px rgba(224, 185, 110, 0.36),
+    0 0 15px rgba(224, 185, 110, 0.22),
+    0 0 32px rgba(224, 185, 110, 0.1),
     0 6px 22px rgba(0,0,0,0.25);
   transition: box-shadow 0.3s ease;
 }
 .panel-transfer:hover,
 .panel-transfer:focus-within {
   box-shadow:
-    0 0 12px rgba(240, 200, 96, 0.7),
-    0 0 30px rgba(240, 200, 96, 0.45),
-    0 0 60px rgba(240, 200, 96, 0.22),
+    0 0 9px rgba(224, 185, 110, 0.5),
+    0 0 22px rgba(224, 185, 110, 0.32),
+    0 0 46px rgba(224, 185, 110, 0.16),
     0 6px 22px rgba(0,0,0,0.25);
 }
 
@@ -741,10 +744,13 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 /* ==========================================================================
-   BUDGET PLANNER MENU BUTTON — brass "ledger" trigger, shared across pages.
-   Deliberately different from the settings gear: it always carries the
-   brass accent (a "premium feature lives here" signal) and pops with a
-   quick seal-stamp animation instead of the gear's slow spin.
+   PREMIUM FEATURE MENU — brass "ledger" trigger + tool list.
+   This is the single entry point for every premium tool (Dashboard, Budget
+   Planner, and anything added later). It is deliberately unlike the Settings
+   dropdown: brass instead of silver chrome, a wax-seal flap instead of a
+   speech-bubble notch, a seal-stamp trigger animation instead of a slow gear
+   spin, and a staggered card reveal instead of a flat fade — so opening it
+   feels like unlocking a distinct, premium space rather than a menu.
    ========================================================================== */
 
 .btn-icon.btn-ledger svg { stroke: #C9A227; }
@@ -776,17 +782,17 @@ input[type="number"]::-webkit-outer-spin-button {
   position: absolute;
   top: 46px;
   right: 0;
-  width: 270px;
+  width: 302px;
   background: linear-gradient(180deg, #1D1608, #171106);
   border: 1px solid #6E5B21;
-  border-radius: 4px 4px 12px 12px;
+  border-radius: 4px 4px 14px 14px;
   z-index: 20;
   opacity: 0;
   visibility: hidden;
   transform-origin: top right;
   transform: scaleY(0.1) translateY(-8px);
   transition: transform 0.4s cubic-bezier(.22,.9,.24,1.2), opacity 0.22s ease, visibility 0.4s;
-  box-shadow: 0 16px 38px rgba(0,0,0,0.5);
+  box-shadow: 0 16px 38px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,162,39,0.04);
   overflow: hidden;
 }
 .ledger-dropdown::before {
@@ -802,19 +808,140 @@ input[type="number"]::-webkit-outer-spin-button {
   visibility: visible;
   transform: scaleY(1) translateY(0);
 }
-.ledger-dropdown-inner { padding: 20px 16px 14px; }
+.ledger-dropdown-inner { padding: 20px 14px 14px; }
 .ledger-heading {
   font-family: 'Fraunces', serif;
   font-size: 0.95rem;
   color: #E7C766;
+  letter-spacing: 0.01em;
   margin-bottom: 4px;
+  padding: 0 6px;
 }
 .ledger-sub {
-  font-size: 0.72rem;
+  font-size: 0.71rem;
   color: var(--silver-dim);
   margin-bottom: 14px;
   line-height: 1.5;
+  padding: 0 6px;
 }
+
+/* ---- data-driven premium tool list (Dashboard, Budget Planner, future tools) ---- */
+.ledger-tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ledger-tool-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 10px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: rgba(201,162,39,0.05);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateX(-8px);
+  animation: ledgerItemIn 0.32s cubic-bezier(.2,.8,.3,1) forwards;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+.ledger-tool-item:hover {
+  background: rgba(201,162,39,0.14);
+  border-color: rgba(201,162,39,0.38);
+  transform: translateX(2px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+}
+.ledger-tool-item:active { transform: translateX(2px) scale(0.99); }
+.ledger-tool-item.current {
+  background: rgba(201,162,39,0.16);
+  border-color: #6E5B21;
+  cursor: default;
+}
+.ledger-tool-item.current:hover { transform: none; box-shadow: none; }
+
+/* locked (unpaid) preview rows animate in dimmed rather than full-strength,
+   so the list still reads as a temptation rather than a fully usable menu */
+.ledger-tool-item.locked-preview { animation-name: ledgerItemInLocked; }
+.ledger-tool-item.locked-preview:hover { opacity: 0.9; }
+
+@keyframes ledgerItemIn {
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes ledgerItemInLocked {
+  to { opacity: 0.58; transform: translateX(0); }
+}
+
+.ledger-tool-icon {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(155deg, rgba(201,162,39,0.2), rgba(201,162,39,0.05));
+  border: 1px solid rgba(201,162,39,0.28);
+  transition: transform 0.3s cubic-bezier(.22,.9,.3,1.4), background 0.2s ease;
+}
+.ledger-tool-item:hover .ledger-tool-icon {
+  transform: scale(1.08) rotate(-4deg);
+  background: linear-gradient(155deg, rgba(201,162,39,0.32), rgba(201,162,39,0.08));
+}
+.ledger-tool-icon svg { width: 17px; height: 17px; stroke: #E7C766; }
+
+/* Dashboard gets its own unique identity within the list: cool slate-blue
+   instead of brass, and a soft pulse on hover instead of the shared rotate,
+   so it reads as its own kind of tool rather than a re-skinned list item. */
+.ledger-tool-icon.icon-dashboard {
+  background: linear-gradient(155deg, rgba(110,143,163,0.24), rgba(110,143,163,0.05));
+  border-color: rgba(110,143,163,0.32);
+}
+.ledger-tool-icon.icon-dashboard svg { stroke: #9FC1D6; }
+.ledger-tool-item:hover .ledger-tool-icon.icon-dashboard {
+  background: linear-gradient(155deg, rgba(110,143,163,0.36), rgba(110,143,163,0.08));
+  transform: scale(1.08) rotate(0deg);
+}
+.ledger-tool-item:hover .icon-dashboard svg { animation: dashPulse 1.15s ease infinite; }
+@keyframes dashPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.ledger-tool-text { flex: 1; min-width: 0; }
+.ledger-tool-title {
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: var(--tan);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ledger-tool-title .current-pill {
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #E7C766;
+  border: 1px solid #6E5B21;
+  padding: 1px 6px;
+  border-radius: 20px;
+  font-weight: 700;
+}
+.ledger-tool-desc {
+  font-size: 0.68rem;
+  color: var(--silver-dim);
+  margin-top: 1px;
+  line-height: 1.3;
+}
+.ledger-tool-arrow {
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.ledger-tool-item:hover .ledger-tool-arrow { opacity: 1; transform: translateX(0); }
+.ledger-tool-arrow svg { width: 14px; height: 14px; stroke: #E7C766; }
+
 .ledger-link-item {
   display: flex; align-items: center; justify-content: space-between;
   width: 100%; text-align: left;
@@ -831,8 +958,9 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .ledger-link-item:last-child { margin-bottom: 0; }
 .ledger-link-item:hover { background: rgba(201,162,39,0.15); padding-left: 14px; }
+
 .ledger-lock-cta {
-  margin-top: 6px;
+  margin-top: 2px;
   width: 100%;
   padding: 11px;
   border: none;
@@ -843,6 +971,45 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 0.83rem;
   cursor: pointer;
   letter-spacing: 0.02em;
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
-.ledger-lock-cta:hover { background: #E7C766; transform: translateY(-1px); }
+.ledger-lock-cta:hover { background: #E7C766; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(201,162,39,0.25); }
+.ledger-lock-cta:active { transform: translateY(0); }
+
+.ledger-future-hint {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(201,162,39,0.25);
+  font-size: 0.64rem;
+  color: var(--silver-dim);
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+/* ============= KEYBOARD FOCUS (quality floor — never rely on hover alone) ============= */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+.chip:focus-within,
+.log-check:focus-within .check-box {
+  outline: 2px solid var(--vintage-blue-light);
+  outline-offset: 2px;
+}
+.btn-ledger:focus-visible,
+.ledger-tool-item:focus-visible,
+.ledger-link-item:focus-visible,
+.ledger-lock-cta:focus-visible {
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 2px;
+}
+
+/* ============= REDUCED MOTION ============= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

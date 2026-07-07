@@ -88,6 +88,30 @@
         <div class="cashflow-grid" id="cashflow-grid"></div>
       </section>
 
+      <section class="charts-card">
+        <h2>Charts</h2>
+        <div class="charts-grid">
+          <div class="chart-box">
+            <span class="chart-box-title">Where it went (Actual)</span>
+            <div class="chart-canvas-wrap">
+              <canvas id="chart-breakdown"></canvas>
+              <div class="chart-empty-note" id="chart-breakdown-empty">Log some actuals to see this breakdown.</div>
+            </div>
+          </div>
+          <div class="chart-box">
+            <span class="chart-box-title">Budget vs. Actual</span>
+            <div class="chart-canvas-wrap"><canvas id="chart-budget-vs-actual"></canvas></div>
+          </div>
+          <div class="chart-box chart-wide">
+            <span class="chart-box-title">Left over time</span>
+            <div class="chart-canvas-wrap chart-canvas-wide">
+              <canvas id="chart-trend"></canvas>
+              <div class="chart-empty-note" id="chart-trend-empty">Create a couple of periods to see your trend over time.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="category-panel" id="panel-income" data-cat="income">
         <div class="category-panel-head">
           <h2>Income</h2>
@@ -152,6 +176,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
@@ -300,6 +325,28 @@
       return { totals, leftBudget, leftActual };
     }
 
+    // ---- rollover chain: each period's Rollover = the prior period's own
+    // (rollover-inclusive) Left. Computed on the fly from `periods`, so
+    // there's no new column and nothing extra to save or keep in sync. ----
+    function computeRolloverChain() {
+      const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
+      const map = {};
+      let carry = 0;
+      sorted.forEach(p => {
+        const catTotals = {};
+        CATS.forEach(c => {
+          const lines = (p.categories && p.categories[c.key]) || [];
+          catTotals[c.key] = round2(lines.reduce((s, l) => s + (Number(l.actual) || 0), 0));
+        });
+        const baseLeftActual = round2(CATS.reduce((s, c) => s + SIGN[c.key] * catTotals[c.key], 0));
+        const rollover = carry;
+        const leftWithRollover = round2(baseLeftActual + rollover);
+        map[p.id] = { rollover, leftWithRollover };
+        carry = leftWithRollover;
+      });
+      return map;
+    }
+
     function renderAll() {
       // title + dates
       const isCalendarMonth = current.start_date === firstOfMonthISO(current.start_date) && current.end_date === lastOfMonthISO(current.start_date);
@@ -329,14 +376,45 @@
       const checkboxCell = c.checkbox
         ? `<label class="log-check"><input type="checkbox" class="row-input" data-field="done" ${line.done ? 'checked' : ''} ${locked ? 'disabled' : ''} /><span class="check-box"></span></label>`
         : '';
-      return `
+      const rowHtml = `
         <div class="ledger-row" data-id="${line.id}">
           <input type="text" class="row-input" data-field="name" value="${line.name.replace(/"/g,'&quot;')}" placeholder="Name" ${locked ? 'disabled' : ''} />
-          <input type="number" class="row-input" data-field="budget" value="${line.budget}" step="0.01" ${locked ? 'disabled' : ''} />
-          <input type="number" class="row-input" data-field="actual" value="${line.actual}" step="0.01" ${locked ? 'disabled' : ''} />
+          <input type="number" class="row-input" data-field="budget" value="${line.budget ? line.budget : ''}" placeholder="0.00" step="0.01" ${locked ? 'disabled' : ''} />
+          <input type="number" class="row-input" data-field="actual" value="${line.actual ? line.actual : ''}" placeholder="0.00" step="0.01" ${locked ? 'disabled' : ''} />
           <div class="row-check-cell">${checkboxCell}</div>
           <button type="button" class="row-delete" ${locked ? 'disabled style="visibility:hidden"' : ''} title="Delete line">×</button>
         </div>`;
+
+      if (cat !== 'expenses') return rowHtml;
+
+      const entries = line.entries || [];
+      const expenseExtra = `
+        <div class="expense-log-wrap" data-id="${line.id}">
+          <div class="expense-log-actions">
+            <button type="button" class="expense-log-toggle" data-id="${line.id}" ${locked ? 'disabled' : ''}>
+              + Log expense${entries.length ? `<span class="expense-log-count">${entries.length}</span>` : ''}
+            </button>
+          </div>
+          <div class="expense-log-form" id="expense-form-${line.id}" style="display:none;">
+            <input type="number" class="expense-log-amount" placeholder="0.00" step="0.01" />
+            <input type="text" class="expense-log-note" placeholder="What was it? (optional)" />
+            <button type="button" class="expense-log-submit" data-id="${line.id}">Add</button>
+            <button type="button" class="expense-log-cancel" data-id="${line.id}">Cancel</button>
+          </div>
+          ${entries.length ? `
+          <div class="expense-log-list">
+            ${entries.slice().reverse().map(e => `
+              <div class="expense-log-entry" data-entry-id="${e.id}">
+                <span class="expense-entry-date">${fmtDate(e.date)}</span>
+                <span class="expense-entry-note">${e.note ? e.note.replace(/</g,'&lt;') : '—'}</span>
+                <span class="expense-entry-amount">${money(e.amount)}</span>
+                <button type="button" class="expense-entry-delete" data-id="${line.id}" data-entry-id="${e.id}" ${locked ? 'disabled style="visibility:hidden"' : ''} title="Remove entry">×</button>
+              </div>
+            `).join('')}
+          </div>` : ''}
+        </div>`;
+
+      return rowHtml + expenseExtra;
     }
 
     function renderCategoryPanel(cat) {
@@ -356,8 +434,22 @@
             if (!line) return;
             const field = input.dataset.field;
             if (field === 'name') line.name = input.value;
-            else if (field === 'done') line.done = input.checked;
-            else line[field] = parseFloat(input.value) || 0;
+            else if (field === 'done') {
+              line.done = input.checked;
+              // Bills/Debt: checking Paid auto-fills Actual with Budget.
+              if (c_hasAutoFill(cat) && line.done) {
+                line.actual = Number(line.budget) || 0;
+                renderCategoryPanel(cat);
+              }
+            }
+            else {
+              line[field] = parseFloat(input.value) || 0;
+              // Bills/Debt: manually typing an Actual amount auto-checks Paid.
+              if (field === 'actual' && c_hasAutoFill(cat) && (parseFloat(input.value) || 0) > 0 && !line.done) {
+                line.done = true;
+                renderCategoryPanel(cat);
+              }
+            }
             recalcSummary();
             queueSave();
           });
@@ -377,6 +469,80 @@
         renderCategoryPanel(cat);
         queueSave();
       };
+
+      if (cat === 'expenses') {
+        container.querySelectorAll('.expense-log-toggle').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (isLocked()) return;
+            const form = document.getElementById('expense-form-' + btn.dataset.id);
+            if (!form) return;
+            const opening = form.style.display === 'none';
+            container.querySelectorAll('.expense-log-form').forEach(f => f.style.display = 'none');
+            if (opening) {
+              form.style.display = 'flex';
+              const amountInput = form.querySelector('.expense-log-amount');
+              if (amountInput) amountInput.focus();
+            }
+          });
+        });
+
+        container.querySelectorAll('.expense-log-cancel').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const form = document.getElementById('expense-form-' + btn.dataset.id);
+            if (!form) return;
+            form.style.display = 'none';
+            form.querySelector('.expense-log-amount').value = '';
+            form.querySelector('.expense-log-note').value = '';
+          });
+        });
+
+        container.querySelectorAll('.expense-log-submit').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (isLocked()) return;
+            const id = btn.dataset.id;
+            const form = document.getElementById('expense-form-' + id);
+            if (!form) return;
+            const amountInput = form.querySelector('.expense-log-amount');
+            const noteInput = form.querySelector('.expense-log-note');
+            const amount = round2(parseFloat(amountInput.value) || 0);
+            if (amount <= 0) { amountInput.focus(); return; }
+
+            const line = current.categories.expenses.find(l => l.id === id);
+            if (!line) return;
+            if (!Array.isArray(line.entries)) line.entries = [];
+            line.entries.push({ id: uid(), amount, note: noteInput.value.trim(), date: todayISO() });
+            line.actual = round2((Number(line.actual) || 0) + amount);
+
+            renderCategoryPanel('expenses');
+            recalcSummary();
+            queueSave();
+          });
+        });
+
+        container.querySelectorAll('.expense-entry-delete').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (isLocked()) return;
+            const id = btn.dataset.id;
+            const entryId = btn.dataset.entryId;
+            const line = current.categories.expenses.find(l => l.id === id);
+            if (!line || !Array.isArray(line.entries)) return;
+            const entry = line.entries.find(e => e.id === entryId);
+            if (!entry) return;
+            if (!confirm(`Remove this ${money(entry.amount)} entry${entry.note ? ' ("' + entry.note + '")' : ''}?`)) return;
+            line.entries = line.entries.filter(e => e.id !== entryId);
+            line.actual = Math.max(0, round2((Number(line.actual) || 0) - entry.amount));
+
+            renderCategoryPanel('expenses');
+            recalcSummary();
+            queueSave();
+          });
+        });
+      }
+    }
+
+    function c_hasAutoFill(cat) {
+      const c = CATS.find(x => x.key === cat);
+      return !!(c && c.checkbox === 'Paid');
     }
 
     function recalcSummary() {
@@ -388,8 +554,16 @@
         if (a) a.textContent = money(totals[c.key].actual);
       });
 
+      const rolloverMap = computeRolloverChain();
+      const rolloverInfo = rolloverMap[current.id] || { rollover: 0, leftWithRollover: leftActual };
+
       const grid = document.getElementById('cashflow-grid');
-      grid.innerHTML = CATS.map(c => `
+      grid.innerHTML = `
+        <div class="cashflow-item cf-rollover">
+          <span class="cf-label">Rollover (+)</span>
+          <span class="cf-value ${rolloverInfo.rollover >= 0 ? 'positive' : 'negative'}">${money(rolloverInfo.rollover)}</span>
+        </div>
+      ` + CATS.map(c => `
         <div class="cashflow-item">
           <span class="cf-label">${c.label}${SIGN[c.key] < 0 ? ' (–)' : ' (+)'}</span>
           <span class="cf-value">${money(totals[c.key].actual)}</span>
@@ -397,9 +571,155 @@
       `).join('') + `
         <div class="cashflow-item cf-left">
           <span class="cf-label">Left</span>
-          <span class="cf-value ${leftActual >= 0 ? 'positive' : 'negative'}">${money(leftActual)}</span>
+          <span class="cf-value ${rolloverInfo.leftWithRollover >= 0 ? 'positive' : 'negative'}">${money(rolloverInfo.leftWithRollover)}</span>
+          <span class="cf-sub-hint">budgeted: ${money(leftBudget)}</span>
         </div>
       `;
+
+      renderCharts();
+    }
+
+    // ================= CHARTS =================
+    let breakdownChart = null;
+    let budgetVsActualChart = null;
+    let trendChart = null;
+
+    const CHART_COLORS = {
+      income: '#5C8A6B',
+      bills: '#A65048',
+      expenses: '#BC9A4A',
+      savings: '#6E8FA3',
+      debt: '#B8934A',
+      brassBright: '#D8BC7A',
+      gridLine: 'rgba(232,225,211,0.08)',
+      tickColor: '#7C8489',
+      legendColor: '#B3B6B9',
+    };
+
+    function chartFont() { return { family: "'Public Sans', sans-serif", size: 11 }; }
+
+    function renderCharts() {
+      if (typeof Chart === 'undefined') return; // CDN blocked/not yet loaded — fail quietly, rest of the app still works
+      const { totals } = computeTotals();
+      renderBreakdownChart(totals);
+      renderBudgetVsActualChart(totals);
+      renderTrendChart();
+    }
+
+    function renderBreakdownChart(totals) {
+      const canvas = document.getElementById('chart-breakdown');
+      const emptyNote = document.getElementById('chart-breakdown-empty');
+      if (!canvas) return;
+
+      const keys = ['bills', 'expenses', 'savings', 'debt'];
+      const labels = ['Bills', 'Expenses', 'Savings', 'Debt'];
+      const data = keys.map(k => Math.max(0, totals[k].actual));
+      const hasData = data.some(v => v > 0);
+
+      if (breakdownChart) { breakdownChart.destroy(); breakdownChart = null; }
+      canvas.style.display = hasData ? 'block' : 'none';
+      if (emptyNote) emptyNote.style.display = hasData ? 'none' : 'flex';
+      if (!hasData) return;
+
+      breakdownChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data, backgroundColor: keys.map(k => CHART_COLORS[k]), borderColor: '#171208', borderWidth: 2 }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: { position: 'bottom', labels: { color: CHART_COLORS.legendColor, font: chartFont(), boxWidth: 10, padding: 12 } },
+            tooltip: { callbacks: { label: (item) => `${item.label}: ${money(item.parsed)}` } }
+          }
+        }
+      });
+    }
+
+    function renderBudgetVsActualChart(totals) {
+      const canvas = document.getElementById('chart-budget-vs-actual');
+      if (!canvas) return;
+
+      const labels = CATS.map(c => c.label);
+      const budgetData = CATS.map(c => totals[c.key].budget);
+      const actualData = CATS.map(c => totals[c.key].actual);
+
+      if (budgetVsActualChart) { budgetVsActualChart.destroy(); budgetVsActualChart = null; }
+
+      budgetVsActualChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Budget', data: budgetData, backgroundColor: 'rgba(184,147,74,0.32)', borderColor: '#5C4A22', borderWidth: 1, borderRadius: 4, maxBarThickness: 26 },
+            { label: 'Actual', data: actualData, backgroundColor: '#B8934A', borderRadius: 4, maxBarThickness: 26 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { color: CHART_COLORS.tickColor, font: chartFont() }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { color: CHART_COLORS.tickColor, font: chartFont(), callback: (v) => '$' + v }, grid: { color: CHART_COLORS.gridLine } }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: CHART_COLORS.legendColor, font: chartFont(), boxWidth: 10, padding: 12 } },
+            tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${money(item.parsed.y)}` } }
+          }
+        }
+      });
+    }
+
+    function renderTrendChart() {
+      const canvas = document.getElementById('chart-trend');
+      const emptyNote = document.getElementById('chart-trend-empty');
+      if (!canvas) return;
+
+      const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
+      const hasEnoughData = sorted.length >= 2;
+
+      if (trendChart) { trendChart.destroy(); trendChart = null; }
+      canvas.style.display = hasEnoughData ? 'block' : 'none';
+      if (emptyNote) emptyNote.style.display = hasEnoughData ? 'none' : 'flex';
+      if (!hasEnoughData) return;
+
+      const rolloverMap = computeRolloverChain();
+      const labels = sorted.map(p => {
+        const isCal = p.start_date === firstOfMonthISO(p.start_date) && p.end_date === lastOfMonthISO(p.start_date);
+        return isCal
+          ? new Date(p.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+          : fmtDate(p.start_date);
+      });
+      const data = sorted.map(p => (rolloverMap[p.id] ? rolloverMap[p.id].leftWithRollover : 0));
+
+      trendChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Left',
+            data,
+            borderColor: CHART_COLORS.brassBright,
+            backgroundColor: 'rgba(216,188,122,0.12)',
+            pointBackgroundColor: CHART_COLORS.brassBright,
+            pointRadius: 3,
+            tension: 0.25,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { color: CHART_COLORS.tickColor, font: chartFont() }, grid: { display: false } },
+            y: { ticks: { color: CHART_COLORS.tickColor, font: chartFont(), callback: (v) => '$' + v }, grid: { color: CHART_COLORS.gridLine } }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (item) => `Left: ${money(item.parsed.y)}` } }
+          }
+        }
+      });
     }
 
     function queueSave() {
@@ -445,7 +765,7 @@
             tab.classList.add('active');
           }
         });
-      }, { rootMargin: '-30% 0px -55% 0px' });
+      }, { rootMargin: '-30% 0px -55% 0px', threshold: 0 });
       CATS.forEach(c => railObserver.observe(document.getElementById('panel-' + c.key)));
 
       document.getElementById('save-default-btn').addEventListener('click', async () => {
