@@ -295,6 +295,14 @@
     ];
     const SIGN = { income: 1, bills: -1, expenses: -1, savings: -1, debt: -1 };
 
+    // Categories that get the per-line transaction log ("+ Log …" / "+ From
+    // log") widget, with a label tailored to what that category represents.
+    const LOG_LABELS = {
+      income: 'income',
+      bills: 'payment',
+      expenses: 'expense',
+    };
+
     const SEED = {
       income:   ['Paycheck', 'Business', 'Side Hustle', 'Interest Income', 'Dividends'],
       bills:    ['Rent', 'Electricity', 'Mobile', 'Gym', 'Health Insurance', 'Subscriptions'],
@@ -486,16 +494,17 @@
           <button type="button" class="row-delete" ${locked ? 'disabled style="visibility:hidden"' : ''} title="Delete line">×</button>
         </div>`;
 
-      if (cat !== 'expenses') return rowHtml;
+      if (!LOG_LABELS[cat]) return rowHtml;
 
+      const noun = LOG_LABELS[cat];
       const entries = line.entries || [];
       const expenseExtra = `
         <div class="expense-log-wrap" data-id="${line.id}">
           <div class="expense-log-actions">
             <button type="button" class="expense-log-toggle" data-id="${line.id}" ${locked ? 'disabled' : ''}>
-              + Log expense${entries.length ? `<span class="expense-log-count">${entries.length}</span>` : ''}
+              + Log ${noun}${entries.length ? `<span class="expense-log-count">${entries.length}</span>` : ''}
             </button>
-            <button type="button" class="expense-log-fromlog" data-id="${line.id}" data-name="${(line.name || '').replace(/"/g,'&quot;')}" ${locked ? 'disabled' : ''}>
+            <button type="button" class="expense-log-fromlog" data-id="${line.id}" data-cat="${cat}" data-name="${(line.name || '').replace(/"/g,'&quot;')}" ${locked ? 'disabled' : ''}>
               + From log
             </button>
           </div>
@@ -583,11 +592,11 @@
         updateScrollSpy();
       };
 
-      if (cat === 'expenses') {
+      if (LOG_LABELS[cat]) {
         container.querySelectorAll('.expense-log-fromlog').forEach(btn => {
           btn.addEventListener('click', () => {
             if (isLocked()) return;
-            openLogMirrorOverlay(btn.dataset.id, btn.dataset.name);
+            openLogMirrorOverlay(btn.dataset.cat, btn.dataset.id, btn.dataset.name);
           });
         });
 
@@ -627,13 +636,14 @@
             const amount = round2(parseFloat(amountInput.value) || 0);
             if (amount <= 0) { amountInput.focus(); return; }
 
-            const line = current.categories.expenses.find(l => l.id === id);
+            const line = current.categories[cat].find(l => l.id === id);
             if (!line) return;
             if (!Array.isArray(line.entries)) line.entries = [];
             line.entries.push({ id: uid(), amount, note: noteInput.value.trim(), date: todayISO() });
             line.actual = round2((Number(line.actual) || 0) + amount);
+            if (c_hasAutoFill(cat) && line.actual > 0) line.done = true;
 
-            renderCategoryPanel('expenses');
+            renderCategoryPanel(cat);
             recalcSummary();
             queueSave();
             updateScrollSpy();
@@ -645,7 +655,7 @@
             if (isLocked()) return;
             const id = btn.dataset.id;
             const entryId = btn.dataset.entryId;
-            const line = current.categories.expenses.find(l => l.id === id);
+            const line = current.categories[cat].find(l => l.id === id);
             if (!line || !Array.isArray(line.entries)) return;
             const entry = line.entries.find(e => e.id === entryId);
             if (!entry) return;
@@ -653,7 +663,7 @@
             line.entries = line.entries.filter(e => e.id !== entryId);
             line.actual = Math.max(0, round2((Number(line.actual) || 0) - entry.amount));
 
-            renderCategoryPanel('expenses');
+            renderCategoryPanel(cat);
             recalcSummary();
             queueSave();
             updateScrollSpy();
@@ -1077,7 +1087,9 @@
     // Renders finance_log using the exact same table structure and CSS
     // classes as the dashboard's log.html, so it looks like that page
     // itself appeared inside the planner. Clicking any row adds it straight
-    // to whichever Expense line opened the picker — single click, done.
+    // to whichever line (Income, Bills, or Expenses) opened the picker —
+    // single click, done.
+    let logMirrorTargetCat = null;
     let logMirrorTargetLineId = null;
 
     const logMirrorRowClass = { add: 'log-row-add', subtract: 'log-row-subtract', transfer: 'log-row-transfer' };
@@ -1089,7 +1101,20 @@
       return d.split('-')[2] === '01';
     }
 
-    async function openLogMirrorOverlay(lineId, lineName) {
+    // Only "Expenses" maps onto one specific finance_log column (the
+    // "expenses" split). Income and Bills have no dedicated column in the
+    // log, so they fall back to the entry's overall amount — still a
+    // sensible default, and always editable in the "+ Log …" form if it's
+    // reused there later.
+    function logMirrorDefaultAmount(row, cat) {
+      if (cat === 'expenses' && row.expenses && Number(row.expenses) !== 0) {
+        return round2(Math.abs(Number(row.expenses)));
+      }
+      return round2(Math.abs(Number(row.amount) || 0));
+    }
+
+    async function openLogMirrorOverlay(cat, lineId, lineName) {
+      logMirrorTargetCat = cat;
       logMirrorTargetLineId = lineId;
       document.getElementById('logmirror-sub').textContent = `Click an entry to add it to "${lineName || '(unnamed line)'}".`;
       document.getElementById('logmirror-body').innerHTML = '<tr><td colspan="8" class="loading-message">Loading...</td></tr>';
@@ -1122,24 +1147,24 @@
       tbody.querySelectorAll('.logmirror-row').forEach(rowEl => {
         rowEl.addEventListener('click', () => {
           const row = rows.find(r => r.id === rowEl.dataset.logId);
-          if (row) addLogRowToExpenseLine(row);
+          if (row) addLogRowToTargetLine(row);
         });
       });
     }
 
     function closeLogMirrorOverlay() {
       document.getElementById('logmirror-overlay').classList.remove('open');
+      logMirrorTargetCat = null;
       logMirrorTargetLineId = null;
     }
 
-    function addLogRowToExpenseLine(row) {
-      const line = (current.categories.expenses || []).find(l => l.id === logMirrorTargetLineId);
+    function addLogRowToTargetLine(row) {
+      const cat = logMirrorTargetCat;
+      const lines = cat && current.categories[cat];
+      const line = lines && lines.find(l => l.id === logMirrorTargetLineId);
       if (!line) { closeLogMirrorOverlay(); return; }
 
-      const amount = row.expenses && Number(row.expenses) !== 0
-        ? round2(Math.abs(Number(row.expenses)))
-        : round2(Math.abs(Number(row.amount) || 0));
-
+      const amount = logMirrorDefaultAmount(row, cat);
       if (amount <= 0) {
         alert('This entry has no dollar amount to add.');
         return;
@@ -1148,8 +1173,9 @@
       if (!Array.isArray(line.entries)) line.entries = [];
       line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date });
       line.actual = round2((Number(line.actual) || 0) + amount);
+      if (c_hasAutoFill(cat) && line.actual > 0) line.done = true;
 
-      renderCategoryPanel('expenses');
+      renderCategoryPanel(cat);
       recalcSummary();
       queueSave();
       updateScrollSpy();
