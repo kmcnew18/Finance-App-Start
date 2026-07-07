@@ -719,60 +719,74 @@
 .logmirror-actions { display: flex; gap: 10px; padding: 0 20px 20px; }
 
 /* Inline picker shown only for deposits that touched more than one
-   category, and only once that row is selected. Styled as a small distinct
-   card so it reads as an aside, not just another table row. */
+   category, and only once that row is selected. Condensed to a single row:
+   label, chip toggles, select-all — no wasted vertical space. */
 .logmirror-split-row td { background: transparent; border-top: none; padding: 6px 10px 12px; }
 .logmirror-split-picker {
-  background: rgba(184,147,74,0.08);
-  border: 1px solid rgba(184,147,74,0.3);
-  border-radius: 9px;
-  padding: 10px 14px;
-}
-.logmirror-split-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 8px;
+  background: rgba(184,147,74,0.07);
+  border: 1px solid rgba(184,147,74,0.25);
+  border-radius: 20px;
+  padding: 6px 8px 6px 14px;
 }
 .logmirror-split-label {
-  font-size: 0.74rem;
-  color: var(--brass-bright);
-  font-weight: 600;
-}
-.logmirror-split-selectall {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--silver-dim);
-  font-weight: 600;
-  cursor: pointer;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
 }
-.logmirror-split-selectall input[type="checkbox"] { accent-color: var(--brass); cursor: pointer; }
 .logmirror-split-options {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 .logmirror-split-option {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  background: rgba(255,255,255,0.03);
+  gap: 6px;
+  background: transparent;
   border: 1px solid var(--ledger-line);
-  border-radius: 7px;
-  padding: 6px 12px;
-  color: var(--tan);
+  border-radius: 20px;
+  padding: 4px 11px;
+  color: var(--silver-dim);
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.78rem;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  font-size: 0.73rem;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
-.logmirror-split-option:hover { border-color: var(--brass-dim); background: rgba(184,147,74,0.08); }
-.logmirror-split-option input[type="checkbox"] { accent-color: var(--brass); cursor: pointer; }
+.logmirror-split-option:hover { border-color: var(--brass-dim); color: var(--tan); }
+.logmirror-split-option { position: relative; }
+.logmirror-split-option input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+.logmirror-split-option.chip-active {
+  background: var(--brass);
+  border-color: var(--brass);
+  color: #171106;
+}
+.logmirror-split-option.chip-active .logmirror-split-amount { color: #171106; }
 .logmirror-split-amount { color: var(--brass-bright); font-family: 'IBM Plex Mono', monospace; font-weight: 700; }
+.logmirror-split-selectall {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.66rem;
+  color: var(--silver-dim);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding-left: 6px;
+  border-left: 1px solid var(--ledger-line);
+}
+.logmirror-split-selectall input[type="checkbox"] { accent-color: var(--brass); cursor: pointer; }
 
 /* ---------- default-template hint ---------- */
 .default-hint {

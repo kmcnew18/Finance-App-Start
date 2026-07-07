@@ -1296,7 +1296,7 @@
           const defaultKey = exactMatch ? exactMatch.key : splits.slice().sort((a, b) => b.amount - a.amount)[0].key;
           logMirrorSplitChoice[r.id] = new Set([defaultKey]);
           const optionsHtml = splits.map(s => `
-            <label class="logmirror-split-option">
+            <label class="logmirror-split-option${s.key === defaultKey ? ' chip-active' : ''}">
               <input type="checkbox" class="logmirror-split-checkbox" data-row-id="${r.id}" data-key="${s.key}" ${s.key === defaultKey ? 'checked' : ''} />
               ${s.label} <span class="logmirror-split-amount">${money(s.amount)}</span>
             </label>
@@ -1306,14 +1306,12 @@
           <td></td>
           <td colspan="7">
             <div class="logmirror-split-picker">
-              <div class="logmirror-split-header">
-                <span class="logmirror-split-label">This deposit touched multiple categories — include:</span>
-                <label class="logmirror-split-selectall">
-                  <input type="checkbox" class="logmirror-split-selectall-cb" data-row-id="${r.id}" />
-                  Select all
-                </label>
-              </div>
+              <span class="logmirror-split-label">Split:</span>
               <div class="logmirror-split-options">${optionsHtml}</div>
+              <label class="logmirror-split-selectall">
+                <input type="checkbox" class="logmirror-split-selectall-cb" data-row-id="${r.id}" />
+                All
+              </label>
             </div>
           </td>
         </tr>`;
@@ -1343,6 +1341,7 @@
           if (!logMirrorSplitChoice[rowId]) logMirrorSplitChoice[rowId] = new Set();
           if (cb.checked) logMirrorSplitChoice[rowId].add(cb.dataset.key);
           else logMirrorSplitChoice[rowId].delete(cb.dataset.key);
+          cb.closest('.logmirror-split-option').classList.toggle('chip-active', cb.checked);
 
           const rowChecks = tbody.querySelectorAll(`.logmirror-split-checkbox[data-row-id="${rowId}"]`);
           const selectAllCb = tbody.querySelector(`.logmirror-split-selectall-cb[data-row-id="${rowId}"]`);
@@ -1354,7 +1353,10 @@
         cb.addEventListener('change', () => {
           const rowId = cb.dataset.rowId;
           const rowChecks = tbody.querySelectorAll(`.logmirror-split-checkbox[data-row-id="${rowId}"]`);
-          rowChecks.forEach(x => x.checked = cb.checked);
+          rowChecks.forEach(x => {
+            x.checked = cb.checked;
+            x.closest('.logmirror-split-option').classList.toggle('chip-active', cb.checked);
+          });
           logMirrorSplitChoice[rowId] = new Set(cb.checked ? Array.from(rowChecks).map(x => x.dataset.key) : []);
         });
       });
