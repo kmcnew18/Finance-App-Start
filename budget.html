@@ -1162,20 +1162,38 @@
       return d.split('-')[2] === '01';
     }
 
-    // Only "Expenses" maps onto one specific finance_log column (the
-    // "expenses" split). Income and Bills have no dedicated column in the
-    // log, so they fall back to the entry's overall amount — still a
-    // sensible default, and always editable in the "+ Log …" form if it's
-    // reused there later.
-    function logMirrorDefaultAmount(row, cat) {
-      if (cat === 'expenses' && row.expenses && Number(row.expenses) !== 0) {
-        return round2(Math.abs(Number(row.expenses)));
-      }
-      if (row.action_type === 'transfer') {
-        return round2(Math.abs(Number(row.amount) || 0));
+    // Only "Expenses" and "Savings" map onto a specific finance_log column.
+    // Income, Bills, and Debt have no dedicated column, so they fall back to
+    // the entry's overall amount — still a sensible default, and always
+    // editable in the "+ Log …" form if it's reused there later.
+    const SPLIT_COLUMN_BY_CAT = { savings: 'savings', expenses: 'expenses' };
+
+    // A single "deposit" (add) entry can carry money into multiple
+    // non-income categories at once (e.g. $50 to Savings AND $30 to
+    // Expenses in the same transaction). This finds which of those splits
+    // actually have money on this row, so the picker only appears when
+    // there's genuine ambiguity to resolve.
+    function logMirrorSplitOptions(row) {
+      return Object.entries(SPLIT_COLUMN_BY_CAT)
+        .map(([cat, col]) => ({ cat, amount: round2(Math.abs(Number(row[col]) || 0)) }))
+        .filter(s => s.amount > 0);
+    }
+
+    // Always returns a positive figure — a transfer's "from" side is stored
+    // as a negative column value in the log, and this makes sure that never
+    // gets carried into the budget as a negative amount.
+    function logMirrorDefaultAmount(row, cat, chosenCat) {
+      const useCat = chosenCat || cat;
+      const col = SPLIT_COLUMN_BY_CAT[useCat];
+      if (col && row[col] && Number(row[col]) !== 0) {
+        return round2(Math.abs(Number(row[col])));
       }
       return round2(Math.abs(Number(row.amount) || 0));
     }
+
+    // rowId -> chosen split category, for ambiguous deposit rows. Reset
+    // each time the picker opens.
+    let logMirrorSplitChoice = {};
 
     function updateLogMirrorActions() {
       const count = document.querySelectorAll('.logmirror-select:checked').length;
@@ -1192,6 +1210,7 @@
     async function openLogMirrorOverlay(cat, lineId, lineName) {
       logMirrorTargetCat = cat;
       logMirrorTargetLineId = lineId;
+      logMirrorSplitChoice = {};
       document.getElementById('logmirror-sub').textContent = `Select entries to add to "${lineName || '(unnamed line)'}".`;
       document.getElementById('logmirror-body').innerHTML = '<tr><td colspan="8" class="loading-message">Loading...</td></tr>';
       document.getElementById('logmirror-actions').style.display = 'none';
@@ -1210,7 +1229,8 @@
       if (error) { console.error(error); tbody.innerHTML = '<tr><td colspan="8">Could not load your log.</td></tr>'; return; }
       if (!logMirrorRows.length) { tbody.innerHTML = '<tr><td colspan="8">No entries yet — add some from the Dashboard first.</td></tr>'; return; }
 
-      tbody.innerHTML = logMirrorRows.map(r => `
+      tbody.innerHTML = logMirrorRows.map(r => {
+        const mainRow = `
         <tr class="${logMirrorRowClass[r.action_type] || ''} logmirror-row" data-log-id="${r.id}">
           <td><label class="log-check" onclick="event.stopPropagation();"><input type="checkbox" class="logmirror-select" data-log-id="${r.id}" /><span class="check-box"></span></label></td>
           <td class="${logMirrorIsFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${logMirrorFormatDate(r.entry_date)}</td>
@@ -1220,22 +1240,65 @@
           <td class="num-cell">${money(r.expenses)}</td>
           <td class="num-cell">${money(r.checking)}</td>
           <td class="notes-cell">${r.notes ? r.notes.replace(/</g, '&lt;') : ''}</td>
-        </tr>
-      `).join('');
+        </tr>`;
+
+        // Deposits can fund more than one non-income category at once.
+        // When that's genuinely ambiguous for this row, add a small inline
+        // picker (hidden until the row is selected) instead of forcing a
+        // single guessed column — keeps everything else a plain one-click add.
+        const splits = r.action_type === 'add' ? logMirrorSplitOptions(r) : [];
+        if (splits.length > 1) {
+          const defaultChoice = splits.find(s => s.cat === logMirrorTargetCat) ? logMirrorTargetCat : splits[0].cat;
+          logMirrorSplitChoice[r.id] = defaultChoice;
+          const optionsHtml = splits.map(s => `
+            <label class="logmirror-split-option">
+              <input type="radio" name="split-${r.id}" value="${s.cat}" ${s.cat === defaultChoice ? 'checked' : ''} />
+              ${s.cat === 'savings' ? 'Savings' : 'Expenses'} (${money(s.amount)})
+            </label>
+          `).join('');
+          const splitRow = `
+        <tr class="logmirror-split-row" id="logmirror-split-${r.id}" style="display:none;">
+          <td></td>
+          <td colspan="7">
+            <div class="logmirror-split-picker">
+              <span class="logmirror-split-label">This deposit touched more than one category — add as:</span>
+              ${optionsHtml}
+            </div>
+          </td>
+        </tr>`;
+          return mainRow + splitRow;
+        }
+        return mainRow;
+      }).join('');
 
       // Clicking anywhere on a row toggles its checkbox — the checkbox's
       // own label already stops propagation above so it doesn't double-toggle.
       tbody.querySelectorAll('.logmirror-row').forEach(rowEl => {
         rowEl.addEventListener('click', () => {
           const cb = rowEl.querySelector('.logmirror-select');
-          if (cb) { cb.checked = !cb.checked; updateLogMirrorActions(); }
+          if (cb) { cb.checked = !cb.checked; syncLogMirrorSplitRow(rowEl.dataset.logId, cb.checked); updateLogMirrorActions(); }
         });
       });
       tbody.querySelectorAll('.logmirror-select').forEach(cb => {
-        cb.addEventListener('change', updateLogMirrorActions);
+        cb.addEventListener('change', () => {
+          syncLogMirrorSplitRow(cb.dataset.logId, cb.checked);
+          updateLogMirrorActions();
+        });
+      });
+      tbody.querySelectorAll('.logmirror-split-picker input[type="radio"]').forEach(radio => {
+        radio.addEventListener('click', (e) => e.stopPropagation());
+        radio.addEventListener('change', (e) => {
+          const rowId = e.target.name.replace('split-', '');
+          logMirrorSplitChoice[rowId] = e.target.value;
+        });
       });
 
       updateLogMirrorActions();
+    }
+
+    function syncLogMirrorSplitRow(rowId, visible) {
+      const splitRow = document.getElementById('logmirror-split-' + rowId);
+      if (splitRow) splitRow.style.display = visible ? 'table-row' : 'none';
     }
 
     function closeLogMirrorOverlay() {
@@ -1243,6 +1306,7 @@
       logMirrorTargetCat = null;
       logMirrorTargetLineId = null;
       logMirrorRows = [];
+      logMirrorSplitChoice = {};
     }
 
     function addSelectedLogRowsToTargetLine() {
@@ -1260,7 +1324,7 @@
       ids.forEach(id => {
         const row = logMirrorRows.find(r => r.id === id);
         if (!row) return;
-        const amount = logMirrorDefaultAmount(row, cat);
+        const amount = logMirrorDefaultAmount(row, cat, logMirrorSplitChoice[id]);
         if (amount <= 0) return;
         line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date, action_type: row.action_type });
         line.entries.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
@@ -1288,7 +1352,10 @@
         if (e.target.id === 'logmirror-overlay') closeLogMirrorOverlay();
       });
       document.getElementById('logmirror-select-all').addEventListener('change', (e) => {
-        document.querySelectorAll('.logmirror-select').forEach(cb => cb.checked = e.target.checked);
+        document.querySelectorAll('.logmirror-select').forEach(cb => {
+          cb.checked = e.target.checked;
+          syncLogMirrorSplitRow(cb.dataset.logId, cb.checked);
+        });
         updateLogMirrorActions();
       });
       document.getElementById('logmirror-add-selected').addEventListener('click', addSelectedLogRowsToTargetLine);

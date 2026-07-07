@@ -669,6 +669,27 @@
 .logmirror-row { cursor: pointer; }
 .logmirror-actions { display: flex; gap: 10px; padding: 0 20px 20px; }
 
+/* Inline picker shown only for deposits that touched more than one
+   non-income category, and only once that row is selected. */
+.logmirror-split-row td { background: rgba(184,147,74,0.06); border-top: none; padding-top: 6px; padding-bottom: 10px; }
+.logmirror-split-picker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+}
+.logmirror-split-label { color: var(--silver-dim); }
+.logmirror-split-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tan);
+  cursor: pointer;
+  font-weight: 600;
+}
+.logmirror-split-option input[type="radio"] { accent-color: var(--brass); cursor: pointer; }
+
 /* ---------- default-template hint ---------- */
 .default-hint {
   font-size: 0.78rem;
