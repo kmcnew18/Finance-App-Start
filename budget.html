@@ -140,7 +140,7 @@
         <h2>Charts</h2>
         <div class="charts-grid">
           <div class="chart-box">
-            <span class="chart-box-title">Where it went (Actual)</span>
+            <span class="chart-box-title">Income breakdown (Actual)</span>
             <div class="chart-canvas-wrap">
               <canvas id="chart-breakdown"></canvas>
               <div class="chart-empty-note" id="chart-breakdown-empty">Log some actuals to see this breakdown.</div>
@@ -317,7 +317,7 @@
     // expand. Keeps category panels from growing tall just because one line
     // has a long history, so getting to the next category never means
     // scrolling past someone's entire transaction log.
-    const VISIBLE_LOG_ENTRIES = 5;
+    const VISIBLE_LOG_ENTRIES = 3;
     const expandedLogLines = new Set();
 
     const SEED = {
@@ -756,10 +756,11 @@
 
     const CHART_COLORS = {
       income: '#5C8A6B',
-      bills: '#A65048',
-      expenses: '#BC9A4A',
-      savings: '#6E8FA3',
-      debt: '#B8934A',
+      bills: '#E0806A',
+      expenses: '#E0B96E',
+      savings: '#6E96C4',
+      debt: '#B27AC4',
+      leftover: 'rgba(92,138,107,0.28)',
       brassBright: '#D8BC7A',
       gridLine: 'rgba(232,225,211,0.08)',
       tickColor: '#7C8489',
@@ -783,7 +784,22 @@
 
       const keys = ['bills', 'expenses', 'savings', 'debt'];
       const labels = ['Bills', 'Expenses', 'Savings', 'Debt'];
+      const colors = keys.map(k => CHART_COLORS[k]);
       const data = keys.map(k => Math.max(0, totals[k].actual));
+
+      // If actual income exceeds what's gone out so far, show the remainder
+      // as a translucent "Unspent" slice — same size scale as everything
+      // else, so you can visually see how much of your paycheck is still
+      // just sitting there, uncommitted, next to where the rest went.
+      const outflow = data.reduce((s, v) => s + v, 0);
+      const incomeActual = Math.max(0, totals.income.actual);
+      const leftover = round2(incomeActual - outflow);
+      if (leftover > 0) {
+        labels.push('Unspent (still yours)');
+        data.push(leftover);
+        colors.push(CHART_COLORS.leftover);
+      }
+
       const hasData = data.some(v => v > 0);
 
       if (breakdownChart) { breakdownChart.destroy(); breakdownChart = null; }
@@ -793,7 +809,7 @@
 
       breakdownChart = new Chart(canvas, {
         type: 'doughnut',
-        data: { labels, datasets: [{ data, backgroundColor: keys.map(k => CHART_COLORS[k]), borderColor: '#171208', borderWidth: 2 }] },
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#171208', borderWidth: 2 }] },
         options: {
           responsive: true,
           maintainAspectRatio: false,
