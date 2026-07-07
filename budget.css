@@ -241,6 +241,42 @@
   color: var(--silver-dim);
   margin-bottom: 10px;
 }
+.chart-box-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.chart-box-head .chart-box-title { margin-bottom: 0; }
+.chart-toggle {
+  display: inline-flex;
+  background: var(--dark-vintage);
+  border: 1px solid var(--ledger-line);
+  border-radius: 20px;
+  padding: 2px;
+  gap: 2px;
+}
+.chart-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--silver-dim);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 5px 11px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.chart-toggle-btn:hover { color: var(--tan); }
+.chart-toggle-btn.active {
+  background: var(--brass);
+  color: #171106;
+  box-shadow: 0 0 8px rgba(184,147,74,0.35);
+}
 .chart-canvas-wrap { position: relative; height: 220px; }
 .chart-canvas-wrap.chart-canvas-wide { height: 200px; }
 .chart-empty-note {
@@ -662,33 +698,81 @@
 .history-empty { padding: 30px 20px; text-align: center; color: var(--silver-dim); font-size: 0.85rem; }
 
 /* ---------- "+ From log" overlay ---------- */
-.logmirror-panel { max-width: 780px; }
+.logmirror-panel { max-width: min(94vw, 980px); width: 980px; }
 .logmirror-sub { padding: 4px 20px 10px; font-size: 0.82rem; color: var(--silver-dim); }
 .logmirror-toolbar { padding: 0 20px 10px; margin-bottom: 0; }
 .logmirror-table-wrap { margin: 0 20px 16px; max-height: 46vh; }
 .logmirror-row { cursor: pointer; }
+
+/* Tighter cell padding just inside this picker (not the real log page) so
+   more columns fit without scrolling sideways on typical screens. */
+#logmirror-table th, #logmirror-table td { padding: 9px 10px; }
+
+/* Give each category its own left-edge stripe and a divider whenever the
+   type changes between consecutive rows, so Add/Subtract/Transfer entries
+   read as distinct groups instead of blending together. Scoped to this
+   picker's table id only — the dashboard's own log page is untouched. */
+#logmirror-table tbody tr.log-row-add td:first-child { border-left: 3px solid var(--add-accent); }
+#logmirror-table tbody tr.log-row-subtract td:first-child { border-left: 3px solid var(--subtract-accent); }
+#logmirror-table tbody tr.log-row-transfer td:first-child { border-left: 3px solid var(--transfer-accent); }
+#logmirror-table tbody tr.logmirror-group-start td { border-top: 1px solid rgba(255,255,255,0.1); }
 .logmirror-actions { display: flex; gap: 10px; padding: 0 20px 20px; }
 
 /* Inline picker shown only for deposits that touched more than one
-   non-income category, and only once that row is selected. */
-.logmirror-split-row td { background: rgba(184,147,74,0.06); border-top: none; padding-top: 6px; padding-bottom: 10px; }
+   category, and only once that row is selected. Styled as a small distinct
+   card so it reads as an aside, not just another table row. */
+.logmirror-split-row td { background: transparent; border-top: none; padding: 6px 10px 12px; }
 .logmirror-split-picker {
+  background: rgba(184,147,74,0.08);
+  border: 1px solid rgba(184,147,74,0.3);
+  border-radius: 9px;
+  padding: 10px 14px;
+}
+.logmirror-split-header {
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: space-between;
+  gap: 12px;
   flex-wrap: wrap;
-  font-size: 0.76rem;
+  margin-bottom: 8px;
 }
-.logmirror-split-label { color: var(--silver-dim); }
-.logmirror-split-option {
+.logmirror-split-label {
+  font-size: 0.74rem;
+  color: var(--brass-bright);
+  font-weight: 600;
+}
+.logmirror-split-selectall {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-size: 0.7rem;
+  color: var(--silver-dim);
+  font-weight: 600;
+  cursor: pointer;
+}
+.logmirror-split-selectall input[type="checkbox"] { accent-color: var(--brass); cursor: pointer; }
+.logmirror-split-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.logmirror-split-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--ledger-line);
+  border-radius: 7px;
+  padding: 6px 12px;
   color: var(--tan);
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.78rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
-.logmirror-split-option input[type="radio"] { accent-color: var(--brass); cursor: pointer; }
+.logmirror-split-option:hover { border-color: var(--brass-dim); background: rgba(184,147,74,0.08); }
+.logmirror-split-option input[type="checkbox"] { accent-color: var(--brass); cursor: pointer; }
+.logmirror-split-amount { color: var(--brass-bright); font-family: 'IBM Plex Mono', monospace; font-weight: 700; }
 
 /* ---------- default-template hint ---------- */
 .default-hint {

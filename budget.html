@@ -140,7 +140,13 @@
         <h2>Charts</h2>
         <div class="charts-grid">
           <div class="chart-box">
-            <span class="chart-box-title">Income breakdown (Actual)</span>
+            <div class="chart-box-head">
+              <span class="chart-box-title">Income breakdown</span>
+              <div class="chart-toggle" id="breakdown-toggle">
+                <button type="button" class="chart-toggle-btn active" data-mode="actual">Actual</button>
+                <button type="button" class="chart-toggle-btn" data-mode="budget">Budgeted</button>
+              </div>
+            </div>
             <div class="chart-canvas-wrap">
               <canvas id="chart-breakdown"></canvas>
               <div class="chart-empty-note" id="chart-breakdown-empty">Log some actuals to see this breakdown.</div>
@@ -759,6 +765,7 @@
     let breakdownChart = null;
     let budgetVsActualChart = null;
     let trendChart = null;
+    let breakdownChartMode = 'actual'; // 'actual' | 'budget' — toggled by the chart-box's own pill switch
 
     const CHART_COLORS = {
       income: '#5C8A6B',
@@ -788,20 +795,21 @@
       const emptyNote = document.getElementById('chart-breakdown-empty');
       if (!canvas) return;
 
+      const field = breakdownChartMode; // 'actual' or 'budget'
       const keys = ['bills', 'expenses', 'savings', 'debt'];
       const labels = ['Bills', 'Expenses', 'Savings', 'Debt'];
       const colors = keys.map(k => CHART_COLORS[k]);
-      const data = keys.map(k => Math.max(0, totals[k].actual));
+      const data = keys.map(k => Math.max(0, totals[k][field]));
 
-      // If actual income exceeds what's gone out so far, show the remainder
-      // as a translucent "Unspent" slice — same size scale as everything
-      // else, so you can visually see how much of your paycheck is still
-      // just sitting there, uncommitted, next to where the rest went.
+      // If income exceeds what's gone out (or been budgeted) so far, show
+      // the remainder as a translucent slice — same size scale as
+      // everything else, so you can visually see how much is still
+      // uncommitted, next to where the rest went/is planned to go.
       const outflow = data.reduce((s, v) => s + v, 0);
-      const incomeActual = Math.max(0, totals.income.actual);
-      const leftover = round2(incomeActual - outflow);
+      const incomeField = Math.max(0, totals.income[field]);
+      const leftover = round2(incomeField - outflow);
       if (leftover > 0) {
-        labels.push('Unspent');
+        labels.push(field === 'actual' ? 'Unspent' : 'Unbudgeted');
         data.push(leftover);
         colors.push(CHART_COLORS.leftover);
       }
@@ -810,7 +818,12 @@
 
       if (breakdownChart) { breakdownChart.destroy(); breakdownChart = null; }
       canvas.style.display = hasData ? 'block' : 'none';
-      if (emptyNote) emptyNote.style.display = hasData ? 'none' : 'flex';
+      if (emptyNote) {
+        emptyNote.textContent = field === 'actual'
+          ? 'Log some actuals to see this breakdown.'
+          : 'Set some budget amounts to see this breakdown.';
+        emptyNote.style.display = hasData ? 'none' : 'flex';
+      }
       if (!hasData) return;
 
       breakdownChart = new Chart(canvas, {
@@ -911,6 +924,18 @@
             tooltip: { callbacks: { label: (item) => `Left: ${money(item.parsed.y)}` } }
           }
         }
+      });
+    }
+
+    function setupBreakdownToggle() {
+      document.querySelectorAll('.chart-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (btn.classList.contains('active')) return;
+          breakdownChartMode = btn.dataset.mode;
+          document.querySelectorAll('.chart-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+          const { totals } = computeTotals();
+          renderBreakdownChart(totals);
+        });
       });
     }
 
@@ -1162,37 +1187,51 @@
       return d.split('-')[2] === '01';
     }
 
-    // Only "Expenses" and "Savings" map onto a specific finance_log column.
-    // Income, Bills, and Debt have no dedicated column, so they fall back to
-    // the entry's overall amount — still a sensible default, and always
-    // editable in the "+ Log …" form if it's reused there later.
+    // Every finance_log column that can carry a portion of a deposit. Used
+    // to build the picker options. "Savings" and "Expenses" also double as
+    // the exact-match column for their matching Budget Planner category —
+    // everything else has no direct category equivalent, so it only shows
+    // up as a pickable option, never as a silent default.
+    const LOG_SPLIT_COLUMNS = [
+      { key: 'savings', label: 'Savings', col: 'savings' },
+      { key: 'investment', label: 'Investment', col: 'investment' },
+      { key: 'expenses', label: 'Expenses', col: 'expenses' },
+      { key: 'checking', label: 'Checking', col: 'checking' },
+    ];
     const SPLIT_COLUMN_BY_CAT = { savings: 'savings', expenses: 'expenses' };
 
-    // A single "deposit" (add) entry can carry money into multiple
-    // non-income categories at once (e.g. $50 to Savings AND $30 to
-    // Expenses in the same transaction). This finds which of those splits
-    // actually have money on this row, so the picker only appears when
-    // there's genuine ambiguity to resolve.
+    // A single "deposit" (add) entry can carry money into several columns
+    // at once (e.g. $50 to Savings AND $30 to Expenses in the same
+    // transaction). This finds which columns actually have money on this
+    // row, so the picker only appears when there's genuine ambiguity to
+    // resolve — never for Income, which has no per-column split anyway.
     function logMirrorSplitOptions(row) {
-      return Object.entries(SPLIT_COLUMN_BY_CAT)
-        .map(([cat, col]) => ({ cat, amount: round2(Math.abs(Number(row[col]) || 0)) }))
+      return LOG_SPLIT_COLUMNS
+        .map(c => ({ key: c.key, label: c.label, amount: round2(Math.abs(Number(row[c.col]) || 0)) }))
         .filter(s => s.amount > 0);
     }
 
-    // Always returns a positive figure — a transfer's "from" side is stored
-    // as a negative column value in the log, and this makes sure that never
-    // gets carried into the budget as a negative amount.
-    function logMirrorDefaultAmount(row, cat, chosenCat) {
-      const useCat = chosenCat || cat;
-      const col = SPLIT_COLUMN_BY_CAT[useCat];
+    // Sums whichever columns were checked in the picker for this row. If no
+    // picker was ever shown for it (unambiguous row, or an Income target),
+    // falls back to the matching category column, then the row's total —
+    // always positive, since a transfer's "from" side is stored negative.
+    function logMirrorRowAmount(row, cat) {
+      const chosen = logMirrorSplitChoice[row.id];
+      if (chosen && chosen.size > 0) {
+        const sum = LOG_SPLIT_COLUMNS
+          .filter(c => chosen.has(c.key))
+          .reduce((s, c) => s + Math.abs(Number(row[c.col]) || 0), 0);
+        return round2(sum);
+      }
+      const col = SPLIT_COLUMN_BY_CAT[cat];
       if (col && row[col] && Number(row[col]) !== 0) {
         return round2(Math.abs(Number(row[col])));
       }
       return round2(Math.abs(Number(row.amount) || 0));
     }
 
-    // rowId -> chosen split category, for ambiguous deposit rows. Reset
-    // each time the picker opens.
+    // rowId -> Set of chosen split-column keys, for ambiguous deposit rows.
+    // Reset each time the picker opens.
     let logMirrorSplitChoice = {};
 
     function updateLogMirrorActions() {
@@ -1229,9 +1268,12 @@
       if (error) { console.error(error); tbody.innerHTML = '<tr><td colspan="8">Could not load your log.</td></tr>'; return; }
       if (!logMirrorRows.length) { tbody.innerHTML = '<tr><td colspan="8">No entries yet — add some from the Dashboard first.</td></tr>'; return; }
 
+      let prevActionType = null;
       tbody.innerHTML = logMirrorRows.map(r => {
+        const isGroupStart = r.action_type !== prevActionType;
+        prevActionType = r.action_type;
         const mainRow = `
-        <tr class="${logMirrorRowClass[r.action_type] || ''} logmirror-row" data-log-id="${r.id}">
+        <tr class="${logMirrorRowClass[r.action_type] || ''} logmirror-row${isGroupStart ? ' logmirror-group-start' : ''}" data-log-id="${r.id}">
           <td><label class="log-check" onclick="event.stopPropagation();"><input type="checkbox" class="logmirror-select" data-log-id="${r.id}" /><span class="check-box"></span></label></td>
           <td class="${logMirrorIsFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${logMirrorFormatDate(r.entry_date)}</td>
           <td class="num-cell">${money(r.amount)}</td>
@@ -1242,18 +1284,21 @@
           <td class="notes-cell">${r.notes ? r.notes.replace(/</g, '&lt;') : ''}</td>
         </tr>`;
 
-        // Deposits can fund more than one non-income category at once.
-        // When that's genuinely ambiguous for this row, add a small inline
-        // picker (hidden until the row is selected) instead of forcing a
-        // single guessed column — keeps everything else a plain one-click add.
-        const splits = r.action_type === 'add' ? logMirrorSplitOptions(r) : [];
+        // Deposits can fund more than one category at once. When that's
+        // genuinely ambiguous for this row, add a small inline picker
+        // (hidden until the row is selected) instead of forcing a single
+        // guessed column — keeps everything else a plain one-click add.
+        // Income has no per-column split at all, so it always skips this
+        // and just uses the deposit's full amount, one click, no picker.
+        const splits = (r.action_type === 'add' && logMirrorTargetCat !== 'income') ? logMirrorSplitOptions(r) : [];
         if (splits.length > 1) {
-          const defaultChoice = splits.find(s => s.cat === logMirrorTargetCat) ? logMirrorTargetCat : splits[0].cat;
-          logMirrorSplitChoice[r.id] = defaultChoice;
+          const exactMatch = splits.find(s => s.key === logMirrorTargetCat);
+          const defaultKey = exactMatch ? exactMatch.key : splits.slice().sort((a, b) => b.amount - a.amount)[0].key;
+          logMirrorSplitChoice[r.id] = new Set([defaultKey]);
           const optionsHtml = splits.map(s => `
             <label class="logmirror-split-option">
-              <input type="radio" name="split-${r.id}" value="${s.cat}" ${s.cat === defaultChoice ? 'checked' : ''} />
-              ${s.cat === 'savings' ? 'Savings' : 'Expenses'} (${money(s.amount)})
+              <input type="checkbox" class="logmirror-split-checkbox" data-row-id="${r.id}" data-key="${s.key}" ${s.key === defaultKey ? 'checked' : ''} />
+              ${s.label} <span class="logmirror-split-amount">${money(s.amount)}</span>
             </label>
           `).join('');
           const splitRow = `
@@ -1261,8 +1306,14 @@
           <td></td>
           <td colspan="7">
             <div class="logmirror-split-picker">
-              <span class="logmirror-split-label">This deposit touched more than one category — add as:</span>
-              ${optionsHtml}
+              <div class="logmirror-split-header">
+                <span class="logmirror-split-label">This deposit touched multiple categories — include:</span>
+                <label class="logmirror-split-selectall">
+                  <input type="checkbox" class="logmirror-split-selectall-cb" data-row-id="${r.id}" />
+                  Select all
+                </label>
+              </div>
+              <div class="logmirror-split-options">${optionsHtml}</div>
             </div>
           </td>
         </tr>`;
@@ -1285,11 +1336,26 @@
           updateLogMirrorActions();
         });
       });
-      tbody.querySelectorAll('.logmirror-split-picker input[type="radio"]').forEach(radio => {
-        radio.addEventListener('click', (e) => e.stopPropagation());
-        radio.addEventListener('change', (e) => {
-          const rowId = e.target.name.replace('split-', '');
-          logMirrorSplitChoice[rowId] = e.target.value;
+      tbody.querySelectorAll('.logmirror-split-checkbox').forEach(cb => {
+        cb.addEventListener('click', (e) => e.stopPropagation());
+        cb.addEventListener('change', () => {
+          const rowId = cb.dataset.rowId;
+          if (!logMirrorSplitChoice[rowId]) logMirrorSplitChoice[rowId] = new Set();
+          if (cb.checked) logMirrorSplitChoice[rowId].add(cb.dataset.key);
+          else logMirrorSplitChoice[rowId].delete(cb.dataset.key);
+
+          const rowChecks = tbody.querySelectorAll(`.logmirror-split-checkbox[data-row-id="${rowId}"]`);
+          const selectAllCb = tbody.querySelector(`.logmirror-split-selectall-cb[data-row-id="${rowId}"]`);
+          if (selectAllCb) selectAllCb.checked = Array.from(rowChecks).every(x => x.checked);
+        });
+      });
+      tbody.querySelectorAll('.logmirror-split-selectall-cb').forEach(cb => {
+        cb.addEventListener('click', (e) => e.stopPropagation());
+        cb.addEventListener('change', () => {
+          const rowId = cb.dataset.rowId;
+          const rowChecks = tbody.querySelectorAll(`.logmirror-split-checkbox[data-row-id="${rowId}"]`);
+          rowChecks.forEach(x => x.checked = cb.checked);
+          logMirrorSplitChoice[rowId] = new Set(cb.checked ? Array.from(rowChecks).map(x => x.dataset.key) : []);
         });
       });
 
@@ -1324,7 +1390,7 @@
       ids.forEach(id => {
         const row = logMirrorRows.find(r => r.id === id);
         if (!row) return;
-        const amount = logMirrorDefaultAmount(row, cat, logMirrorSplitChoice[id]);
+        const amount = logMirrorRowAmount(row, cat);
         if (amount <= 0) return;
         line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date, action_type: row.action_type });
         line.entries.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
@@ -1371,6 +1437,7 @@
       setupLedgerMenu();
       setupArchivesOverlay();
       setupLogMirrorOverlay();
+      setupBreakdownToggle();
 
       document.getElementById('start-date-input').addEventListener('change', (e) => {
         current.start_date = e.target.value;
