@@ -588,6 +588,12 @@ input[type="number"]::-webkit-outer-spin-button {
   letter-spacing: -0.01em;
   font-size: 0.85rem;
 }
+.log-table td.log-amount-cell {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #F4EEDE;
+  text-shadow: 0 0 8px rgba(244,238,222,0.45), 0 0 18px rgba(244,238,222,0.18);
+}
 .log-table td.notes-cell {
   font-family: 'Fraunces', serif;
   font-style: italic;

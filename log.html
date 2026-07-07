@@ -175,7 +175,7 @@
         <tr class="${rowClassByType[r.action_type] || ''}${isGroupStart ? ' log-group-start' : ''}">
           <td><label class="log-check"><input type="checkbox" class="row-select" data-id="${r.id}" /><span class="check-box"></span></label></td>
           <td class="${isFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${formatDate(r.entry_date)}</td>
-          <td class="num-cell">${money(r.amount)}</td>
+          <td class="num-cell log-amount-cell">${money(r.amount)}</td>
           <td class="num-cell">${money(r.savings)}</td>
           <td class="num-cell">${money(r.investment)}</td>
           <td class="num-cell">${money(r.expenses)}</td>

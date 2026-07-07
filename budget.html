@@ -1276,7 +1276,7 @@
         <tr class="${logMirrorRowClass[r.action_type] || ''} logmirror-row${isGroupStart ? ' log-group-start' : ''}" data-log-id="${r.id}">
           <td><label class="log-check" onclick="event.stopPropagation();"><input type="checkbox" class="logmirror-select" data-log-id="${r.id}" /><span class="check-box"></span></label></td>
           <td class="${logMirrorIsFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${logMirrorFormatDate(r.entry_date)}</td>
-          <td class="num-cell">${money(r.amount)}</td>
+          <td class="num-cell log-amount-cell">${money(r.amount)}</td>
           <td class="num-cell">${money(r.savings)}</td>
           <td class="num-cell">${money(r.investment)}</td>
           <td class="num-cell">${money(r.expenses)}</td>
