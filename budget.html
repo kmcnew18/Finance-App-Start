@@ -253,7 +253,13 @@
         <h2>Add from Log</h2>
         <button type="button" class="history-close" id="logmirror-close">×</button>
       </div>
-      <p class="logmirror-sub" id="logmirror-sub">Click an entry to add it.</p>
+      <p class="logmirror-sub" id="logmirror-sub">Select entries to add them.</p>
+      <div class="log-toolbar logmirror-toolbar">
+        <label class="log-check-label">
+          <span class="log-check"><input type="checkbox" id="logmirror-select-all" /><span class="check-box"></span></span>
+          Select all
+        </label>
+      </div>
       <div class="log-table-wrap logmirror-table-wrap">
         <table class="log-table" id="logmirror-table">
           <thead>
@@ -272,6 +278,9 @@
             <tr><td colspan="8" class="loading-message">Loading...</td></tr>
           </tbody>
         </table>
+      </div>
+      <div class="logmirror-actions" id="logmirror-actions" style="display:none;">
+        <button type="button" id="logmirror-add-selected" class="btn-brass-solid">Add selected</button>
       </div>
     </div>
   </div>
@@ -1115,11 +1124,12 @@
     // ================= "+ FROM LOG" (log mirror) =================
     // Renders finance_log using the exact same table structure and CSS
     // classes as the dashboard's log.html, so it looks like that page
-    // itself appeared inside the planner. Clicking any row adds it straight
-    // to whichever line (Income, Bills, or Expenses) opened the picker —
-    // single click, done.
+    // itself appeared inside the planner. Checkboxes are real selection
+    // here (not decorative) — pick as many as you want, then add them all
+    // at once to whichever line (Income, Bills, or Expenses) opened it.
     let logMirrorTargetCat = null;
     let logMirrorTargetLineId = null;
+    let logMirrorRows = [];
 
     const logMirrorRowClass = { add: 'log-row-add', subtract: 'log-row-subtract', transfer: 'log-row-transfer' };
 
@@ -1142,11 +1152,25 @@
       return round2(Math.abs(Number(row.amount) || 0));
     }
 
+    function updateLogMirrorActions() {
+      const count = document.querySelectorAll('.logmirror-select:checked').length;
+      const actions = document.getElementById('logmirror-actions');
+      const addBtn = document.getElementById('logmirror-add-selected');
+      actions.style.display = count > 0 ? 'flex' : 'none';
+      if (count > 0) addBtn.textContent = `Add ${count} selected`;
+
+      const total = document.querySelectorAll('.logmirror-select').length;
+      const selectAll = document.getElementById('logmirror-select-all');
+      if (selectAll) selectAll.checked = total > 0 && count === total;
+    }
+
     async function openLogMirrorOverlay(cat, lineId, lineName) {
       logMirrorTargetCat = cat;
       logMirrorTargetLineId = lineId;
-      document.getElementById('logmirror-sub').textContent = `Click an entry to add it to "${lineName || '(unnamed line)'}".`;
+      document.getElementById('logmirror-sub').textContent = `Select entries to add to "${lineName || '(unnamed line)'}".`;
       document.getElementById('logmirror-body').innerHTML = '<tr><td colspan="8" class="loading-message">Loading...</td></tr>';
+      document.getElementById('logmirror-actions').style.display = 'none';
+      document.getElementById('logmirror-select-all').checked = false;
       document.getElementById('logmirror-overlay').classList.add('open');
 
       const { data: rows, error } = await supabaseClient
@@ -1156,13 +1180,14 @@
         .order('created_at', { ascending: false })
         .limit(150);
 
+      logMirrorRows = rows || [];
       const tbody = document.getElementById('logmirror-body');
       if (error) { console.error(error); tbody.innerHTML = '<tr><td colspan="8">Could not load your log.</td></tr>'; return; }
-      if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="8">No entries yet — add some from the Dashboard first.</td></tr>'; return; }
+      if (!logMirrorRows.length) { tbody.innerHTML = '<tr><td colspan="8">No entries yet — add some from the Dashboard first.</td></tr>'; return; }
 
-      tbody.innerHTML = rows.map(r => `
+      tbody.innerHTML = logMirrorRows.map(r => `
         <tr class="${logMirrorRowClass[r.action_type] || ''} logmirror-row" data-log-id="${r.id}">
-          <td><label class="log-check"><input type="checkbox" tabindex="-1" /><span class="check-box"></span></label></td>
+          <td><label class="log-check" onclick="event.stopPropagation();"><input type="checkbox" class="logmirror-select" data-log-id="${r.id}" /><span class="check-box"></span></label></td>
           <td class="${logMirrorIsFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${logMirrorFormatDate(r.entry_date)}</td>
           <td class="num-cell">${money(r.amount)}</td>
           <td class="num-cell">${money(r.savings)}</td>
@@ -1173,35 +1198,55 @@
         </tr>
       `).join('');
 
+      // Clicking anywhere on a row toggles its checkbox — the checkbox's
+      // own label already stops propagation above so it doesn't double-toggle.
       tbody.querySelectorAll('.logmirror-row').forEach(rowEl => {
         rowEl.addEventListener('click', () => {
-          const row = rows.find(r => r.id === rowEl.dataset.logId);
-          if (row) addLogRowToTargetLine(row);
+          const cb = rowEl.querySelector('.logmirror-select');
+          if (cb) { cb.checked = !cb.checked; updateLogMirrorActions(); }
         });
       });
+      tbody.querySelectorAll('.logmirror-select').forEach(cb => {
+        cb.addEventListener('change', updateLogMirrorActions);
+      });
+
+      updateLogMirrorActions();
     }
 
     function closeLogMirrorOverlay() {
       document.getElementById('logmirror-overlay').classList.remove('open');
       logMirrorTargetCat = null;
       logMirrorTargetLineId = null;
+      logMirrorRows = [];
     }
 
-    function addLogRowToTargetLine(row) {
+    function addSelectedLogRowsToTargetLine() {
       const cat = logMirrorTargetCat;
       const lines = cat && current.categories[cat];
       const line = lines && lines.find(l => l.id === logMirrorTargetLineId);
       if (!line) { closeLogMirrorOverlay(); return; }
 
-      const amount = logMirrorDefaultAmount(row, cat);
-      if (amount <= 0) {
-        alert('This entry has no dollar amount to add.');
+      const ids = Array.from(document.querySelectorAll('.logmirror-select:checked')).map(cb => cb.dataset.logId);
+      if (ids.length === 0) return;
+
+      if (!Array.isArray(line.entries)) line.entries = [];
+      let addedCount = 0;
+
+      ids.forEach(id => {
+        const row = logMirrorRows.find(r => r.id === id);
+        if (!row) return;
+        const amount = logMirrorDefaultAmount(row, cat);
+        if (amount <= 0) return;
+        line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date });
+        line.actual = round2((Number(line.actual) || 0) + amount);
+        addedCount++;
+      });
+
+      if (addedCount === 0) {
+        alert('None of the selected entries have a dollar amount to add.');
         return;
       }
 
-      if (!Array.isArray(line.entries)) line.entries = [];
-      line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date });
-      line.actual = round2((Number(line.actual) || 0) + amount);
       if (c_hasAutoFill(cat) && line.actual > 0) line.done = true;
 
       renderCategoryPanel(cat);
@@ -1216,6 +1261,11 @@
       document.getElementById('logmirror-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'logmirror-overlay') closeLogMirrorOverlay();
       });
+      document.getElementById('logmirror-select-all').addEventListener('change', (e) => {
+        document.querySelectorAll('.logmirror-select').forEach(cb => cb.checked = e.target.checked);
+        updateLogMirrorActions();
+      });
+      document.getElementById('logmirror-add-selected').addEventListener('click', addSelectedLogRowsToTargetLine);
     }
 
     function setupStaticListeners() {

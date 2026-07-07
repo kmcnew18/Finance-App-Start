@@ -663,9 +663,11 @@
 
 /* ---------- "+ From log" overlay ---------- */
 .logmirror-panel { max-width: 780px; }
-.logmirror-sub { padding: 4px 20px 14px; font-size: 0.82rem; color: var(--silver-dim); }
-.logmirror-table-wrap { margin: 0 20px 20px; max-height: 50vh; }
+.logmirror-sub { padding: 4px 20px 10px; font-size: 0.82rem; color: var(--silver-dim); }
+.logmirror-toolbar { padding: 0 20px 10px; margin-bottom: 0; }
+.logmirror-table-wrap { margin: 0 20px 16px; max-height: 46vh; }
 .logmirror-row { cursor: pointer; }
+.logmirror-actions { display: flex; gap: 10px; padding: 0 20px 20px; }
 
 /* ---------- default-template hint ---------- */
 .default-hint {
