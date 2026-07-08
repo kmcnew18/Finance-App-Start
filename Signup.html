@@ -113,27 +113,34 @@
       gap: 10px;
       margin-bottom: -4px;
     }
-    .consent-checkbox {
+    /* .auth-form input.consent-checkbox (not just .consent-checkbox) —
+       signup.css has a broad ".auth-form input" rule (width:100%, padding,
+       background) that otherwise wins on specificity and stretches this
+       into a full-width bar instead of a small checkbox. */
+    .auth-form input.consent-checkbox {
       appearance: none;
       -webkit-appearance: none;
       width: 18px;
       height: 18px;
       min-width: 18px;
+      max-width: 18px;
+      padding: 0;
       margin-top: 2px;
       border: 1px solid var(--line);
       border-radius: 5px;
       background: rgba(255,255,255,0.03);
       cursor: pointer;
       position: relative;
+      flex-shrink: 0;
       transition: background 0.15s ease, border-color 0.15s ease;
     }
-    .consent-checkbox:hover { border-color: var(--brown-hover); }
-    .consent-checkbox:checked {
+    .auth-form input.consent-checkbox:hover { border-color: var(--brown-hover); }
+    .auth-form input.consent-checkbox:checked {
       background: var(--brown);
       border-color: var(--brown);
     }
-    .consent-checkbox:checked:hover { background: var(--brown-hover); border-color: var(--brown-hover); }
-    .consent-checkbox:checked::after {
+    .auth-form input.consent-checkbox:checked:hover { background: var(--brown-hover); border-color: var(--brown-hover); }
+    .auth-form input.consent-checkbox:checked::after {
       content: "";
       position: absolute;
       left: 5px; top: 1px;
@@ -142,7 +149,7 @@
       border-width: 0 2px 2px 0;
       transform: rotate(45deg);
     }
-    .consent-checkbox:focus-visible {
+    .auth-form input.consent-checkbox:focus-visible {
       outline: 2px solid var(--brown-hover);
       outline-offset: 2px;
     }
