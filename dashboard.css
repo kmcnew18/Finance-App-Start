@@ -1135,13 +1135,24 @@ textarea:focus-visible,
   line-height: 0; /* collapses whitespace so the frame hugs the image tightly */
 }
 .mfa-qr-inner img { display: block; width: 168px; height: 168px; border-radius: 4px; }
-.mfa-qr-secret {
-  font-size: 0.68rem; color: var(--silver-dim); text-align: center;
-  white-space: nowrap; overflow-x: auto; max-width: 280px; padding-bottom: 2px;
+.mfa-qr-secret-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 100%; max-width: 280px;
 }
-.mfa-qr-secret code {
-  font-family: 'IBM Plex Mono', monospace; color: var(--tan); background: rgba(255,255,255,0.05);
-  padding: 1px 5px; border-radius: 4px;
+.mfa-qr-secret-label {
+  font-size: 0.66rem; color: var(--silver-dim);
+}
+.mfa-qr-secret-code {
+  display: block;
+  width: 100%;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; letter-spacing: 0.02em;
+  color: var(--tan); background: rgba(255,255,255,0.05);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  text-align: center;
+  white-space: nowrap; overflow-x: auto; /* stays one line; scrolls sideways if it's ever too long to fit */
+  cursor: text;
 }
 
 .mfa-factor-list { display: flex; flex-direction: column; gap: 2px; }

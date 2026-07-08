@@ -301,14 +301,21 @@
     }
 
     function mfaQrFrameHtml(qrSvg, secret) {
-      // qrSvg is a data: URI from Supabase — render it as an actual image,
-      // not raw text. The image already carries its own light modules, so
-      // no separate white box is needed around it.
+      // Supabase returns qr_code as raw SVG *markup*, not a ready image URL
+      // — it must be percent-encoded into a proper data URI before it can
+      // be used as an <img> src. Using the raw markup directly breaks the
+      // HTML, since the SVG's own quotes prematurely close the src
+      // attribute (this was the actual cause of the broken-image icon and
+      // garbled leftover text).
+      const qrDataUri = 'data:image/svg+xml;utf8,' + encodeURIComponent(qrSvg);
       return `
         <div class="mfa-qr-frame">
           <span class="mfa-qr-label">Scan with your authenticator app</span>
-          <div class="mfa-qr-inner"><img src="${qrSvg}" alt="Two-factor authentication QR code" /></div>
-          <span class="mfa-qr-secret">Can't scan it? Enter manually: <code>${secret}</code></span>
+          <div class="mfa-qr-inner"><img src="${qrDataUri}" alt="Two-factor authentication QR code" /></div>
+          <div class="mfa-qr-secret-wrap">
+            <span class="mfa-qr-secret-label">Can't scan it? Enter manually</span>
+            <code class="mfa-qr-secret-code">${secret}</code>
+          </div>
         </div>`;
     }
 
