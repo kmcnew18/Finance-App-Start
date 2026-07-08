@@ -105,6 +105,59 @@
       border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px;
       text-align: center; white-space: nowrap; overflow-x: auto;
     }
+
+    /* ================= CONSENT CHECKBOX ================= */
+    .consent-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: -4px;
+    }
+    .consent-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      margin-top: 2px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: rgba(255,255,255,0.03);
+      cursor: pointer;
+      position: relative;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .consent-checkbox:hover { border-color: var(--brown-hover); }
+    .consent-checkbox:checked {
+      background: var(--brown);
+      border-color: var(--brown);
+    }
+    .consent-checkbox:checked:hover { background: var(--brown-hover); border-color: var(--brown-hover); }
+    .consent-checkbox:checked::after {
+      content: "";
+      position: absolute;
+      left: 5px; top: 1px;
+      width: 5px; height: 9px;
+      border: solid var(--tan);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    .consent-checkbox:focus-visible {
+      outline: 2px solid var(--brown-hover);
+      outline-offset: 2px;
+    }
+    .consent-text {
+      font-size: 0.82rem;
+      color: #D8D2C4;
+      line-height: 1.45;
+      padding-top: 1px;
+    }
+    .consent-text a {
+      color: var(--tan);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .consent-text a:hover { color: var(--tan-hover); }
   </style>
 </head>
 <body>
@@ -130,10 +183,10 @@
         <label for="password">Password</label>
         <input type="password" id="password" name="password" placeholder="••••••••" required minlength="8" />
 
-        <label class="consent-row" style="flex-direction: row; align-items: flex-start; gap: 9px; font-weight: 400; margin-bottom: -4px;">
-          <input type="checkbox" id="privacy-consent" required style="width: 16px; height: 16px; margin-top: 2px; accent-color: var(--brown);" />
-          <span style="font-size: 0.82rem; color: #D8D2C4; line-height: 1.4;">
-            I agree to Arko's <a href="privacy-policy.html" target="_blank" rel="noopener" style="color: var(--tan); text-decoration: underline;">Privacy Policy</a>, including how my financial data is collected and used when I connect accounts via Plaid.
+        <label class="consent-row" for="privacy-consent">
+          <input type="checkbox" id="privacy-consent" class="consent-checkbox" required />
+          <span class="consent-text">
+            I agree to Arko's <a href="privacy-policy.html" target="_blank" rel="noopener" onclick="event.stopPropagation()">Privacy Policy</a>, including how my financial data is collected and used when I connect accounts via Plaid.
           </span>
         </label>
 
