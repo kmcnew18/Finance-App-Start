@@ -460,11 +460,20 @@
 
     function mfaQrDataUri(qrRaw) {
       if (!qrRaw) return '';
-      // Handle either shape Supabase might hand back: already a ready
-      // data: URI (some SDK versions), or raw SVG markup that still needs
-      // encoding (others). Guessing wrong either way breaks the image, so
-      // check rather than assume.
-      if (qrRaw.startsWith('data:')) return qrRaw;
+      // Handle either shape Supabase might hand back, and don't just trust
+      // a "data:" prefix blindly — some versions return a data: URI whose
+      // payload is still raw, unescaped SVG markup (literal quotes and
+      // angle brackets), which corrupts the surrounding HTML exactly like
+      // unencoded raw SVG does. Check the actual payload, not just the
+      // prefix, and re-encode it if it isn't actually safe.
+      if (qrRaw.startsWith('data:')) {
+        const commaIndex = qrRaw.indexOf(',');
+        const payload = commaIndex >= 0 ? qrRaw.slice(commaIndex + 1) : '';
+        if (payload.includes('<') || payload.includes('"')) {
+          return 'data:image/svg+xml;utf-8,' + encodeURIComponent(payload);
+        }
+        return qrRaw; // genuinely already safe (percent-encoded or base64)
+      }
       return 'data:image/svg+xml;utf-8,' + encodeURIComponent(qrRaw);
     }
 

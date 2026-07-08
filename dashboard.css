@@ -1131,10 +1131,11 @@ textarea:focus-visible,
 .mfa-verify-btn:hover { background: var(--vintage-blue-light); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
 .mfa-verify-btn:active { transform: translateY(0); }
 
-/* QR code — shown plain, transparent background, no decorative box around
-   it. Just centered and sized consistently. */
+/* QR code — clean white rounded card behind it (QR codes need light
+   contrast to scan reliably anyway), sitting on the dark modal like a
+   printed card, no extra clutter around it. */
 .mfa-qr-frame {
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
   background: transparent;
   margin: 4px auto;
   width: fit-content;
@@ -1143,10 +1144,13 @@ textarea:focus-visible,
   font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--silver-dim);
 }
 .mfa-qr-inner {
-  background: transparent;
-  line-height: 0; /* collapses whitespace so the frame hugs the image tightly */
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.4);
+  line-height: 0; /* collapses whitespace so the card hugs the image tightly */
 }
-.mfa-qr-inner img { display: block; width: 168px; height: 168px; background: transparent; }
+.mfa-qr-inner img { display: block; width: 168px; height: 168px; }
 .mfa-qr-secret-wrap {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   width: 100%; max-width: 280px;

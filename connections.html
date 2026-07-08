@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Budget Planner · Arko</title>
+  <title>Connections · Arko</title>
   <link rel="icon" href="favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -12,29 +12,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="dashboard.css" />
-  <link rel="stylesheet" href="budget.css" />
+  <link rel="stylesheet" href="connections.css" />
   <style>
     .wip-banner{
       text-align:center; padding:5px 20px; background:transparent;
       border-bottom:1px solid rgba(139,111,71,0.25);
       font-family:'Public Sans', sans-serif; font-size:11px; color:#b3ae9f; letter-spacing:.15px;
-    }
-
-    /* Identical to the dashboard log page's own style, so the mirrored log
-       table in the "+ From log" picker looks pixel-for-pixel the same. */
-    .log-date-firstofmonth{
-      color:#b5822a;
-      font-weight:600;
-      position:relative;
-    }
-    .log-date-firstofmonth::after{
-      content:'';
-      position:absolute;
-      left:0; right:0; bottom:-2px;
-      height:1px;
-      background:#b5822a;
-      box-shadow:0 0 6px rgba(197,146,58,0.65), 0 0 2px rgba(197,146,58,0.5);
-      opacity:.8;
     }
   </style>
 </head>
@@ -44,7 +27,6 @@
     <nav class="nav">
       <a href="dashboard.html" class="wordmark" style="text-decoration:none;"><span class="wordmark-brand">Arko</span> | Early Access</a>
       <div class="nav-auth">
-        <button type="button" id="history-button" class="btn-ghost">Archive</button>
 
         <!-- ================= PREMIUM FEATURE MENU ================= -->
         <div class="settings-wrap">
@@ -74,7 +56,9 @@
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
             <div class="dropdown-divider"></div>
-            <button type="button" id="clear-archives-btn" class="dropdown-item danger">Clear budget archives</button>
+            <button type="button" id="sync-all-btn" class="dropdown-item">Sync all accounts</button>
+            <div class="dropdown-divider"></div>
+            <button type="button" id="remove-all-btn" class="dropdown-item danger">Remove all accounts</button>
           </div>
         </div>
 
@@ -85,143 +69,140 @@
 
   <div class="wip-banner">Early development · some features may not be live</div>
 
-  <div id="loading-message" class="loading-message">Loading your budget planner...</div>
+  <div id="loading-message" class="loading-message">Loading your accounts...</div>
 
-  <main class="budget-shell" id="budget-shell" style="display:none;">
+  <main class="vault-shell" id="vault-shell" style="display:none;">
 
-    <aside class="ledger-rail" id="ledger-rail">
-      <div class="rail-tab" data-target="panel-income">Income</div>
-      <div class="rail-tab" data-target="panel-bills">Bills</div>
-      <div class="rail-tab" data-target="panel-expenses">Expenses</div>
-      <div class="rail-tab" data-target="panel-savings">Savings</div>
-      <div class="rail-tab" data-target="panel-debt">Debt</div>
-    </aside>
-
-    <div class="budget-main">
-
-      <div class="budget-title-row">
-        <div>
-          <span class="budget-eyebrow">Budget Planner</span>
-          <h1 id="period-title">This period</h1>
-        </div>
-        <span class="default-hint" id="default-hint" style="display:none;">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
-          Filled in from your saved default layout
-        </span>
+    <div class="vault-title-row">
+      <div>
+        <span class="vault-eyebrow">Connections</span>
+        <h1>All your money, one place</h1>
       </div>
-
-      <div class="period-bar">
-        <div class="field">
-          <label for="start-date-input">Start date</label>
-          <input type="date" id="start-date-input" />
-        </div>
-        <div class="field">
-          <label for="end-date-input">End date</label>
-          <input type="date" id="end-date-input" />
-        </div>
-        <span class="period-status-pill" id="status-pill">active</span>
-        <div class="period-bar-actions">
-          <button type="button" id="save-default-btn" class="btn-brass">Save as default layout</button>
-          <button type="button" id="new-period-btn" class="btn-brass">New period</button>
-          <button type="button" id="unlock-btn" class="btn-brass" style="display:none;">Unlock to edit</button>
-          <button type="button" id="reopen-btn" class="btn-brass" style="display:none;">Reopen period</button>
-          <button type="button" id="finalize-btn" class="btn-brass-solid">Finalize period</button>
-        </div>
+      <div class="connect-actions">
+        <button type="button" id="open-connect-btn" class="btn-vault-solid">+ Connect account</button>
       </div>
-
-      <div class="finalized-banner" id="finalized-banner" style="display:none;">
-        <span><b>This period is finalized.</b> It's archived, but you can still pull it up or unlock it to make edits.</span>
-      </div>
-
-      <section class="cashflow-card">
-        <h2>Cash Flow Summary</h2>
-        <div class="cashflow-grid" id="cashflow-grid"></div>
-      </section>
-
-      <section class="charts-card">
-        <h2>Charts</h2>
-        <div class="charts-grid">
-          <div class="chart-box">
-            <div class="chart-box-head">
-              <span class="chart-box-title">Income breakdown</span>
-              <div class="chart-toggle" id="breakdown-toggle">
-                <button type="button" class="chart-toggle-btn active" data-mode="actual">Actual</button>
-                <button type="button" class="chart-toggle-btn" data-mode="budget">Budgeted</button>
-              </div>
-            </div>
-            <div class="chart-canvas-wrap">
-              <canvas id="chart-breakdown"></canvas>
-              <div class="chart-empty-note" id="chart-breakdown-empty">Log some actuals to see this breakdown.</div>
-            </div>
-          </div>
-          <div class="chart-box">
-            <span class="chart-box-title">Budget vs. Actual</span>
-            <div class="chart-canvas-wrap"><canvas id="chart-budget-vs-actual"></canvas></div>
-          </div>
-          <div class="chart-box chart-wide">
-            <span class="chart-box-title">Left over time</span>
-            <div class="chart-canvas-wrap chart-canvas-wide">
-              <canvas id="chart-trend"></canvas>
-              <div class="chart-empty-note" id="chart-trend-empty">Create a couple of periods to see your trend over time.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="category-panel accent-income" id="panel-income" data-cat="income">
-        <div class="category-panel-head">
-          <h2>Income</h2>
-          <span class="cat-subtotal">Budget <b id="income-sub-budget">$0.00</b> · Actual <b id="income-sub-actual">$0.00</b></span>
-        </div>
-        <div class="ledger-col-heads"><span>Source</span><span>Budget</span><span>Actual</span><span></span><span></span></div>
-        <div class="ledger-rows" id="rows-income"></div>
-        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="income">+ Add line</button></div>
-      </section>
-
-      <section class="category-panel accent-bills" id="panel-bills" data-cat="bills">
-        <div class="category-panel-head">
-          <h2>Bills</h2>
-          <span class="cat-subtotal">Budget <b id="bills-sub-budget">$0.00</b> · Actual <b id="bills-sub-actual">$0.00</b></span>
-        </div>
-        <div class="ledger-col-heads"><span>Bill</span><span>Budget</span><span>Actual</span><span>Paid</span><span></span></div>
-        <div class="ledger-rows" id="rows-bills"></div>
-        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="bills">+ Add line</button></div>
-      </section>
-
-      <section class="category-panel accent-expenses" id="panel-expenses" data-cat="expenses">
-        <div class="category-panel-head">
-          <h2>Expenses</h2>
-          <span class="cat-subtotal">Budget <b id="expenses-sub-budget">$0.00</b> · Actual <b id="expenses-sub-actual">$0.00</b></span>
-        </div>
-        <div class="ledger-col-heads"><span>Category</span><span>Budget</span><span>Actual</span><span></span><span></span></div>
-        <div class="ledger-rows" id="rows-expenses"></div>
-        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="expenses">+ Add line</button></div>
-      </section>
-
-      <section class="category-panel accent-savings" id="panel-savings" data-cat="savings">
-        <div class="category-panel-head">
-          <h2>Savings</h2>
-          <span class="cat-subtotal">Budget <b id="savings-sub-budget">$0.00</b> · Actual <b id="savings-sub-actual">$0.00</b></span>
-        </div>
-        <div class="ledger-col-heads"><span>Goal</span><span>Budget</span><span>Actual</span><span></span><span></span></div>
-        <div class="ledger-rows" id="rows-savings"></div>
-        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="savings">+ Add line</button></div>
-      </section>
-
-      <section class="category-panel accent-debt" id="panel-debt" data-cat="debt">
-        <div class="category-panel-head">
-          <h2>Debt</h2>
-          <span class="cat-subtotal">Budget <b id="debt-sub-budget">$0.00</b> · Actual <b id="debt-sub-actual">$0.00</b></span>
-        </div>
-        <div class="ledger-col-heads"><span>Debt</span><span>Budget</span><span>Actual</span><span>Paid</span><span></span></div>
-        <div class="ledger-rows" id="rows-debt"></div>
-        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="debt">+ Add line</button></div>
-      </section>
-
     </div>
+
+    <section class="networth-card">
+      <div class="networth-main">
+        <span class="networth-label">Net worth</span>
+        <span class="networth-value" id="networth-value">$0.00</span>
+      </div>
+      <div class="networth-breakdown">
+        <div class="networth-stat assets">
+          <span class="nw-label">Assets</span>
+          <span class="nw-value" id="assets-total">$0.00</span>
+        </div>
+        <div class="networth-stat liabilities">
+          <span class="nw-label">Liabilities</span>
+          <span class="nw-value" id="liabilities-total">$0.00</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="vault-charts-card" id="vault-charts-card" style="display:none;">
+      <h2>Charts</h2>
+      <div class="vault-charts-grid">
+        <div class="vault-chart-box">
+          <span class="vault-chart-box-title">Asset allocation</span>
+          <div class="vault-chart-canvas-wrap">
+            <canvas id="chart-allocation"></canvas>
+            <div class="vault-chart-empty-note" id="chart-allocation-empty">Connect an asset account to see this.</div>
+          </div>
+        </div>
+        <div class="vault-chart-box">
+          <span class="vault-chart-box-title">Assets vs. liabilities</span>
+          <div class="vault-chart-canvas-wrap">
+            <canvas id="chart-assets-liabilities"></canvas>
+            <div class="vault-chart-empty-note" id="chart-assets-liabilities-empty">Connect an account to see this.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="accounts-empty" class="vault-empty" style="display:none;">
+      <b>No accounts connected yet.</b><br>
+      Connect a bank, broker, or card above — or add one manually — to start seeing your full net worth in one place.
+    </div>
+
+    <div id="account-groups" class="account-group" style="display:flex; flex-direction:column; gap:28px;"></div>
+
+    <section class="recurring-section" id="recurring-section" style="display:none;">
+      <div class="recurring-head">
+        <div>
+          <h2>Recurring Transactions</h2>
+          <p class="recurring-sub">Detected automatically. Nothing is added to your budget until you approve it below.</p>
+        </div>
+        <button type="button" id="refresh-recurring-btn" class="btn-vault">Refresh</button>
+      </div>
+
+      <div id="pending-reviews-wrap" style="display:none;">
+        <h3 class="recurring-subhead">Pending review</h3>
+        <div id="pending-reviews-list" class="recurring-list"></div>
+      </div>
+
+      <h3 class="recurring-subhead">Detected streams</h3>
+      <div id="recurring-streams-list" class="recurring-list"></div>
+    </section>
+
   </main>
 
-  <!-- ================= TWO-FACTOR AUTHENTICATION OVERLAY ================= -->
+  <!-- ================= CONNECT / ADD ACCOUNT OVERLAY ================= -->
+  <div class="vault-overlay" id="connect-overlay">
+    <div class="vault-panel-modal">
+      <div class="vault-modal-head">
+        <h2 id="connect-modal-title">Connect an account</h2>
+        <button type="button" class="vault-modal-close" id="connect-close">×</button>
+      </div>
+      <div class="vault-modal-body">
+        <p class="vault-modal-sub" id="connect-modal-sub">Link instantly with Plaid, or add an account by hand if it's not supported.</p>
+
+        <button type="button" id="plaid-connect-btn" class="plaid-connect-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 10h18"></path><path d="M7 15h4"></path></svg>
+          Connect with Plaid
+        </button>
+
+        <div class="vault-divider">or add manually</div>
+
+        <form id="manual-account-form">
+          <div class="vault-field">
+            <label for="acct-institution">Institution</label>
+            <input type="text" id="acct-institution" placeholder="e.g. Chase, Fidelity, Coinbase" required />
+          </div>
+          <div class="vault-field" style="margin-top:12px;">
+            <label for="acct-nickname">Nickname (optional)</label>
+            <input type="text" id="acct-nickname" placeholder="e.g. Everyday checking" />
+          </div>
+          <div class="vault-field" style="margin-top:12px;">
+            <label for="acct-type">Account type</label>
+            <select id="acct-type">
+              <option value="checking">Checking</option>
+              <option value="savings">Savings</option>
+              <option value="investment">Investment / Broker</option>
+              <option value="credit_card">Credit card</option>
+              <option value="loan">Loan</option>
+              <option value="crypto">Crypto</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="vault-field" style="margin-top:12px;">
+            <label for="acct-balance" id="acct-balance-label">Balance</label>
+            <input type="number" id="acct-balance" step="0.01" placeholder="0.00" required />
+          </div>
+        </form>
+      </div>
+      <div class="vault-modal-actions">
+        <button type="button" id="manual-save-btn" class="btn-vault-solid">Save account</button>
+        <button type="button" id="connect-cancel-btn" class="btn-vault">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TWO-FACTOR AUTHENTICATION OVERLAY =================
+       This is a shared component (styles live in dashboard.css, loaded on
+       every page) so Dashboard, Log, Budget, and Connections all present
+       an identical MFA flow. Entry to this page is gated on it — see
+       requireMfaVerified(true) awaited at the top of init() below. -->
   <div class="mfa-overlay" id="mfa-overlay">
     <div class="mfa-modal">
       <div class="mfa-modal-head">
@@ -237,746 +218,821 @@
     </div>
   </div>
 
-  <!-- ================= HISTORY / ARCHIVE OVERLAY ================= -->
-  <div class="history-overlay" id="history-overlay">
-    <div class="history-panel">
-      <div class="history-head">
-        <h2>Budget history</h2>
-        <button type="button" class="history-close" id="history-close">×</button>
-      </div>
-      <div class="history-list" id="history-list"></div>
-    </div>
-  </div>
-
-  <!-- ================= CLEAR ARCHIVES OVERLAY ================= -->
-  <div class="history-overlay" id="archives-overlay">
-    <div class="history-panel">
-      <div class="history-head">
-        <h2>Clear budget archives</h2>
-        <button type="button" class="history-close" id="archives-close">×</button>
-      </div>
-      <div class="log-toolbar archives-toolbar">
-        <label class="log-check-label">
-          <span class="log-check"><input type="checkbox" id="archives-select-all" /><span class="check-box"></span></span>
-          Select all
-        </label>
-        <button type="button" id="archives-delete-selected" class="btn-danger">Delete selected</button>
-      </div>
-      <div class="history-list" id="archives-list"></div>
-    </div>
-  </div>
-
-  <!-- ================= "+ FROM LOG" OVERLAY =================
-       Deliberately reuses the exact same table markup/classes as the
-       dashboard's log.html (log-table-wrap, log-table, log-row-add/
-       subtract/transfer, log-date-firstofmonth) so it renders visually
-       identical — like the log itself appeared inside the planner. -->
-  <div class="history-overlay" id="logmirror-overlay">
-    <div class="history-panel logmirror-panel">
-      <div class="history-head">
-        <h2>Add from Log</h2>
-        <button type="button" class="history-close" id="logmirror-close">×</button>
-      </div>
-      <p class="logmirror-sub" id="logmirror-sub">Select entries to add them.</p>
-      <div class="log-toolbar logmirror-toolbar">
-        <label class="log-check-label">
-          <span class="log-check"><input type="checkbox" id="logmirror-select-all" /><span class="check-box"></span></span>
-          Select all
-        </label>
-      </div>
-      <div class="log-table-wrap logmirror-table-wrap">
-        <table class="log-table" id="logmirror-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Date</th>
-              <th>Amount</th>
-              <th>Savings</th>
-              <th>Investment</th>
-              <th>Expenses</th>
-              <th>Checking</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody id="logmirror-body">
-            <tr><td colspan="8" class="loading-message">Loading...</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="logmirror-actions" id="logmirror-actions" style="display:none;">
-        <button type="button" id="logmirror-add-selected" class="btn-brass-solid">Add selected</button>
-      </div>
-    </div>
-  </div>
-
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const APP_TIMEZONE = 'America/Chicago';
     let currentUserId = null;
+    let accounts = [];
+    let editingAccountId = null; // set when the modal is being used to edit, not create
 
-    const CATS = [
-      { key: 'income',   label: 'Income',   checkbox: null },
-      { key: 'bills',    label: 'Bills',    checkbox: 'Paid' },
-      { key: 'expenses', label: 'Expenses', checkbox: null },
-      { key: 'savings',  label: 'Savings',  checkbox: null },
-      { key: 'debt',     label: 'Debt',     checkbox: 'Paid' },
+    // ================= ACCOUNT TYPE CONFIG =================
+    const ACCOUNT_TYPES = [
+      { key: 'checking',    label: 'Checking',            isLiability: false, dot: '#6EC4E0' },
+      { key: 'savings',     label: 'Savings',             isLiability: false, dot: '#63D9AA' },
+      { key: 'investment',  label: 'Investment / Broker', isLiability: false, dot: '#E0B96E' },
+      { key: 'credit_card', label: 'Credit Cards',        isLiability: true,  dot: '#E0806A' },
+      { key: 'loan',        label: 'Loans',               isLiability: true,  dot: '#B27AC4' },
+      { key: 'crypto',      label: 'Crypto',               isLiability: false, dot: '#D97FC4' },
+      { key: 'other',       label: 'Other',                isLiability: false, dot: '#B3B6B9' },
     ];
-    const SIGN = { income: 1, bills: -1, expenses: -1, savings: -1, debt: -1 };
+    function typeConfig(key) { return ACCOUNT_TYPES.find(t => t.key === key) || ACCOUNT_TYPES[ACCOUNT_TYPES.length - 1]; }
 
-    // Categories that get the per-line transaction log ("+ Log …" / "+ From
-    // log") widget, with a label tailored to what that category represents.
-    const LOG_LABELS = {
-      income: 'income',
-      bills: 'payment',
-      expenses: 'expense',
-      savings: 'savings',
-      debt: 'payment',
-    };
-
-    // Each line's logged history shows only its most recent 5 entries by
-    // default — capped and predictable — with a "+ Show N more" toggle to
-    // expand. Keeps category panels from growing tall just because one line
-    // has a long history, so getting to the next category never means
-    // scrolling past someone's entire transaction log.
-    const VISIBLE_LOG_ENTRIES = 3;
-    const expandedLogLines = new Set();
-
-    const SEED = {
-      income:   ['Paycheck', 'Business', 'Side Hustle', 'Interest Income', 'Dividends'],
-      bills:    ['Rent', 'Electricity', 'Mobile', 'Gym', 'Health Insurance', 'Subscriptions'],
-      expenses: ['Food', 'Personal', 'Transportation', 'Household', 'Education', 'Health', 'Beauty', 'Gifts', 'Self-Development', 'Dining Out'],
-      savings:  ['Emergency Fund', 'Investments', 'Vacation'],
-      debt:     ['Student Loan', 'Credit Card'],
-    };
-
-    function uid() { return (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2)); }
     function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
     function money(n) {
       const num = Number(n || 0);
       const sign = num < 0 ? '-' : '';
       return sign + '$' + Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-    function todayISO() { return new Date().toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE }); }
-    function firstOfMonthISO(d) { const dt = new Date(d + 'T00:00:00'); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-01`; }
-    function lastOfMonthISO(d) { const dt = new Date(d + 'T00:00:00'); const last = new Date(dt.getFullYear(), dt.getMonth()+1, 0); return `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`; }
-    function fmtDate(d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 
-    function blankCategories(seedNames) {
-      const out = {};
-      CATS.forEach(c => {
-        out[c.key] = (seedNames ? seedNames[c.key] : []).map(name => ({
-          id: uid(), name, budget: 0, actual: 0, done: false
-        }));
-      });
-      return out;
+    // Fire-and-forget audit trail write. Never blocks or fails the action
+    // it's logging — an audit log that could break the feature it watches
+    // isn't one you actually want in production.
+    function logAuditEvent(eventType, detail) {
+      supabaseClient.from('audit_log').insert({ user_id: currentUserId, event_type: eventType, detail: detail || {} })
+        .then(({ error }) => { if (error) console.error('Audit log write failed:', error); });
     }
 
-    function cloneTemplateForNewPeriod(templateCategories) {
-      const out = {};
-      CATS.forEach(c => {
-        const lines = (templateCategories && templateCategories[c.key]) || [];
-        out[c.key] = lines.map(l => ({ id: uid(), name: l.name, budget: l.budget || 0, actual: 0, done: false }));
-      });
-      return out;
-    }
-
-    // ================= STATE =================
-    let periods = [];       // all periods for this user, newest first
-    let current = null;     // currently loaded period row
-    let unlocked = false;   // manual unlock for a finalized period
-    let saveTimer = null;
-    let updateScrollSpy = () => {}; // assigned once the rail listeners are set up
-
-    async function loadBillingAndGate() {
+    // ================= INIT / GATE =================
+    async function init() {
       const { data: { session } } = await supabaseClient.auth.getSession();
-      if (!session) { window.location.href = 'login.html'; return false; }
+      if (!session) { window.location.href = 'login.html'; return; }
       currentUserId = session.user.id;
 
       const { data: billing } = await supabaseClient
         .from('user_billing').select('is_paid').eq('user_id', currentUserId).maybeSingle();
+      if (!billing || !billing.is_paid) { window.location.href = 'paywall.html'; return; }
 
-      if (!billing || !billing.is_paid) {
-        window.location.href = 'paywall.html';
-        return false;
-      }
-      return true;
-    }
+      setupLedgerMenu();
+      setupSettingsGear();
+      setupConnectOverlay();
+      setupRecurringSection();
+      setupMfaOverlay();
 
-    async function fetchDefaultTemplate() {
-      const { data, error } = await supabaseClient
-        .from('budget_defaults').select('categories').eq('user_id', currentUserId).maybeSingle();
-      if (error) { console.error(error); return null; }
-      return data ? data.categories : null;
-    }
+      // Blocks here until the user has enrolled AND verified a second
+      // factor for this session — the rest of the page (accounts, net
+      // worth, everything) does not load until this resolves. Cancelling
+      // out sends them back to Dashboard rather than leaving them stuck
+      // staring at a blocked, empty Connections page.
+      document.getElementById('loading-message').textContent = 'Checking two-factor authentication…';
+      const verified = await requireMfaVerified(true);
+      if (!verified) { window.location.href = 'dashboard.html'; return; }
 
-    async function fetchPeriods() {
-      const { data, error } = await supabaseClient
-        .from('budget_periods').select('*').eq('user_id', currentUserId)
-        .order('start_date', { ascending: false });
-      if (error) { console.error(error); return []; }
-      return data || [];
-    }
+      document.getElementById('loading-message').textContent = 'Loading your accounts...';
+      await loadAccounts();
+      await loadRecurringData();
 
-    async function createPeriod(startISO, endISO) {
-      const template = await fetchDefaultTemplate();
-      const categories = template ? cloneTemplateForNewPeriod(template) : blankCategories(SEED);
-      const { data, error } = await supabaseClient
-        .from('budget_periods')
-        .insert({ user_id: currentUserId, start_date: startISO, end_date: endISO, status: 'active', categories })
-        .select().single();
-      if (error) { console.error(error); alert('Could not create a new period: ' + error.message); return null; }
-      return data;
-    }
-
-    async function init() {
-      const ok = await loadBillingAndGate();
-      if (!ok) return;
-
-      periods = await fetchPeriods();
-
-      const today = todayISO();
-      current = periods.find(p => p.status === 'active' && p.start_date <= today && p.end_date >= today)
-             || periods.find(p => p.status === 'active')
-             || null;
-
-      if (!current) {
-        current = await createPeriod(firstOfMonthISO(today), lastOfMonthISO(today));
-        if (current) periods.unshift(current);
-      }
-
-      unlocked = false;
       document.getElementById('loading-message').style.display = 'none';
-      document.getElementById('budget-shell').style.display = 'flex';
-      renderAll();
-      setupStaticListeners();
+      document.getElementById('vault-shell').style.display = 'flex';
+    }
 
-      if (new URLSearchParams(window.location.search).get('history') === '1') {
-        document.getElementById('history-button').click();
-      }
+    async function loadAccounts() {
+      const { data, error } = await supabaseClient
+        .from('linked_accounts')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: true });
+      if (error) { console.error(error); accounts = []; return; }
+      accounts = data || [];
+      renderAll();
     }
 
     // ================= RENDER =================
-    function isLocked() { return current.status === 'finalized' && !unlocked; }
-
-    function computeTotals() {
-      const totals = {};
-      CATS.forEach(c => {
-        const lines = current.categories[c.key] || [];
-        totals[c.key] = {
-          budget: round2(lines.reduce((s, l) => s + (Number(l.budget) || 0), 0)),
-          actual: round2(lines.reduce((s, l) => s + (Number(l.actual) || 0), 0)),
-        };
-      });
-      const leftBudget = round2(CATS.reduce((s, c) => s + SIGN[c.key] * totals[c.key].budget, 0));
-      const leftActual = round2(CATS.reduce((s, c) => s + SIGN[c.key] * totals[c.key].actual, 0));
-      return { totals, leftBudget, leftActual };
-    }
-
-    // ---- rollover chain: each period's Rollover = the prior period's own
-    // (rollover-inclusive) Left. Computed on the fly from `periods`, so
-    // there's no new column and nothing extra to save or keep in sync. ----
-    function computeRolloverChain() {
-      const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
-      const map = {};
-      let carry = 0;
-      sorted.forEach(p => {
-        const catTotals = {};
-        CATS.forEach(c => {
-          const lines = (p.categories && p.categories[c.key]) || [];
-          catTotals[c.key] = round2(lines.reduce((s, l) => s + (Number(l.actual) || 0), 0));
-        });
-        const baseLeftActual = round2(CATS.reduce((s, c) => s + SIGN[c.key] * catTotals[c.key], 0));
-        const rollover = carry;
-        const leftWithRollover = round2(baseLeftActual + rollover);
-        map[p.id] = { rollover, leftWithRollover };
-        carry = leftWithRollover;
-      });
-      return map;
-    }
-
     function renderAll() {
-      // title + dates
-      const isCalendarMonth = current.start_date === firstOfMonthISO(current.start_date) && current.end_date === lastOfMonthISO(current.start_date);
-      document.getElementById('period-title').textContent = isCalendarMonth
-        ? new Date(current.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-        : `${fmtDate(current.start_date)} – ${fmtDate(current.end_date)}`;
-
-      document.getElementById('start-date-input').value = current.start_date;
-      document.getElementById('end-date-input').value = current.end_date;
-
-      const pill = document.getElementById('status-pill');
-      pill.textContent = current.status;
-      pill.className = 'period-status-pill ' + current.status;
-
-      const finalized = current.status === 'finalized';
-      document.getElementById('finalized-banner').style.display = finalized ? 'flex' : 'none';
-      document.getElementById('unlock-btn').style.display = finalized && !unlocked ? 'inline-block' : 'none';
-      document.getElementById('reopen-btn').style.display = finalized ? 'inline-block' : 'none';
-      document.getElementById('finalize-btn').style.display = finalized ? 'none' : 'inline-block';
-
-      CATS.forEach(c => renderCategoryPanel(c.key));
-      recalcSummary();
-    }
-
-    function rowTemplate(cat, line, locked) {
-      const c = CATS.find(x => x.key === cat);
-      const checkboxCell = c.checkbox
-        ? `<label class="log-check"><input type="checkbox" class="row-input" data-field="done" ${line.done ? 'checked' : ''} ${locked ? 'disabled' : ''} /><span class="check-box"></span></label>`
-        : '';
-      const rowHtml = `
-        <div class="ledger-row" data-id="${line.id}">
-          <input type="text" class="row-input" data-field="name" value="${line.name.replace(/"/g,'&quot;')}" placeholder="Name" ${locked ? 'disabled' : ''} />
-          <input type="number" class="row-input" data-field="budget" value="${line.budget ? line.budget : ''}" placeholder="0.00" step="0.01" ${locked ? 'disabled' : ''} />
-          <input type="number" class="row-input" data-field="actual" value="${line.actual ? line.actual : ''}" placeholder="0.00" step="0.01" ${locked ? 'disabled' : ''} />
-          <div class="row-check-cell">${checkboxCell}</div>
-          <button type="button" class="row-delete" ${locked ? 'disabled style="visibility:hidden"' : ''} title="Delete line">×</button>
-        </div>`;
-
-      if (!LOG_LABELS[cat]) return rowHtml;
-
-      const noun = LOG_LABELS[cat];
-      const entries = line.entries || [];
-      const allEntriesDesc = entries.slice().sort((a,b) => (b.date || '').localeCompare(a.date || '')); // newest first
-      const isExpanded = expandedLogLines.has(line.id);
-      const visibleEntries = isExpanded ? allEntriesDesc : allEntriesDesc.slice(0, VISIBLE_LOG_ENTRIES);
-      const hiddenCount = allEntriesDesc.length - visibleEntries.length;
-      const toggleHtml = allEntriesDesc.length > VISIBLE_LOG_ENTRIES
-        ? (isExpanded
-            ? `<button type="button" class="expense-log-showtoggle" data-id="${line.id}" data-action="less">Show less</button>`
-            : `<button type="button" class="expense-log-showtoggle" data-id="${line.id}" data-action="more">+ Show ${hiddenCount} more</button>`)
-        : '';
-      const expenseExtra = `
-        <div class="expense-log-wrap" data-id="${line.id}">
-          <div class="expense-log-actions">
-            <button type="button" class="expense-log-toggle" data-id="${line.id}" ${locked ? 'disabled' : ''}>
-              + Log ${noun}${entries.length ? `<span class="expense-log-count">${entries.length}</span>` : ''}
-            </button>
-            <button type="button" class="expense-log-fromlog" data-id="${line.id}" data-cat="${cat}" data-name="${(line.name || '').replace(/"/g,'&quot;')}" ${locked ? 'disabled' : ''}>
-              + From log
-            </button>
-          </div>
-          <div class="expense-log-form" id="expense-form-${line.id}" style="display:none;">
-            <input type="number" class="expense-log-amount" placeholder="0.00" step="0.01" />
-            <input type="text" class="expense-log-note" placeholder="What was it? (optional)" />
-            <button type="button" class="expense-log-submit" data-id="${line.id}">Add</button>
-            <button type="button" class="expense-log-cancel" data-id="${line.id}">Cancel</button>
-          </div>
-          ${entries.length ? `
-          <div class="expense-log-list">
-            ${visibleEntries.map(e => `
-              <div class="expense-log-entry" data-entry-id="${e.id}">
-                <span class="expense-entry-date">${fmtDate(e.date)}</span>
-                <span class="expense-entry-note">${e.note ? e.note.replace(/</g,'&lt;') : '—'}</span>
-                <span class="expense-entry-amount">${money(e.amount)}</span>
-                <button type="button" class="expense-entry-delete" data-id="${line.id}" data-entry-id="${e.id}" ${locked ? 'disabled style="visibility:hidden"' : ''} title="Remove entry">×</button>
-              </div>
-            `).join('')}
-          </div>
-          ${toggleHtml}` : ''}
-        </div>`;
-
-      return rowHtml + expenseExtra;
-    }
-
-    function renderCategoryPanel(cat) {
-      const locked = isLocked();
-      const panel = document.getElementById('panel-' + cat);
-      panel.classList.toggle('locked', locked);
-      const container = document.getElementById('rows-' + cat);
-      const lines = current.categories[cat] || [];
-      container.innerHTML = lines.map(l => rowTemplate(cat, l, locked)).join('');
-
-      container.querySelectorAll('.ledger-row').forEach(rowEl => {
-        const id = rowEl.dataset.id;
-        rowEl.querySelectorAll('.row-input').forEach(input => {
-          const evt = input.type === 'checkbox' ? 'change' : 'input';
-          input.addEventListener(evt, () => {
-            const line = current.categories[cat].find(l => l.id === id);
-            if (!line) return;
-            const field = input.dataset.field;
-            if (field === 'name') {
-              line.name = input.value;
-            } else if (field === 'done') {
-              line.done = input.checked;
-              // Bills/Debt: checking Paid auto-fills Actual with Budget.
-              // Update the sibling Actual input directly — no re-render, so
-              // nothing else on the row loses focus or state.
-              if (c_hasAutoFill(cat) && line.done) {
-                line.actual = Number(line.budget) || 0;
-                const actualInput = rowEl.querySelector('input[data-field="actual"]');
-                if (actualInput) actualInput.value = line.actual ? line.actual : '';
-              }
-            } else {
-              line[field] = parseFloat(input.value) || 0;
-              // Bills/Debt: manually typing an Actual amount auto-checks Paid.
-              // Flip the checkbox directly instead of re-rendering the row —
-              // re-rendering here was what destroyed focus on this exact
-              // input after the first keystroke, blocking further typing.
-              if (field === 'actual' && c_shouldMarkPaid(cat, line) && !line.done) {
-                line.done = true;
-                const doneInput = rowEl.querySelector('input[data-field="done"]');
-                if (doneInput) doneInput.checked = true;
-              }
-            }
-            recalcSummary();
-            queueSave();
-          });
-        });
-        const delBtn = rowEl.querySelector('.row-delete');
-        delBtn.addEventListener('click', () => {
-          current.categories[cat] = current.categories[cat].filter(l => l.id !== id);
-          expandedLogLines.delete(id);
-          renderCategoryPanel(cat);
-          recalcSummary();
-          queueSave();
-          updateScrollSpy();
-        });
-      });
-
-      panel.querySelector('.add-line-btn').onclick = () => {
-        if (isLocked()) return;
-        current.categories[cat].push({ id: uid(), name: '', budget: 0, actual: 0, done: false });
-        renderCategoryPanel(cat);
-        queueSave();
-        updateScrollSpy();
-      };
-
-      if (LOG_LABELS[cat]) {
-        container.querySelectorAll('.expense-log-showtoggle').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const id = btn.dataset.id;
-            if (btn.dataset.action === 'more') expandedLogLines.add(id);
-            else expandedLogLines.delete(id);
-            renderCategoryPanel(cat);
-            updateScrollSpy();
-          });
-        });
-
-        container.querySelectorAll('.expense-log-fromlog').forEach(btn => {
-          btn.addEventListener('click', () => {
-            if (isLocked()) return;
-            openLogMirrorOverlay(btn.dataset.cat, btn.dataset.id, btn.dataset.name);
-          });
-        });
-
-        container.querySelectorAll('.expense-log-toggle').forEach(btn => {
-          btn.addEventListener('click', () => {
-            if (isLocked()) return;
-            const form = document.getElementById('expense-form-' + btn.dataset.id);
-            if (!form) return;
-            const opening = form.style.display === 'none';
-            container.querySelectorAll('.expense-log-form').forEach(f => f.style.display = 'none');
-            if (opening) {
-              form.style.display = 'flex';
-              const amountInput = form.querySelector('.expense-log-amount');
-              if (amountInput) amountInput.focus();
-            }
-          });
-        });
-
-        container.querySelectorAll('.expense-log-cancel').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const form = document.getElementById('expense-form-' + btn.dataset.id);
-            if (!form) return;
-            form.style.display = 'none';
-            form.querySelector('.expense-log-amount').value = '';
-            form.querySelector('.expense-log-note').value = '';
-          });
-        });
-
-        container.querySelectorAll('.expense-log-submit').forEach(btn => {
-          btn.addEventListener('click', () => {
-            if (isLocked()) return;
-            const id = btn.dataset.id;
-            const form = document.getElementById('expense-form-' + id);
-            if (!form) return;
-            const amountInput = form.querySelector('.expense-log-amount');
-            const noteInput = form.querySelector('.expense-log-note');
-            const amount = round2(parseFloat(amountInput.value) || 0);
-            if (amount <= 0) { amountInput.focus(); return; }
-
-            const line = current.categories[cat].find(l => l.id === id);
-            if (!line) return;
-            if (!Array.isArray(line.entries)) line.entries = [];
-            line.entries.push({ id: uid(), amount, note: noteInput.value.trim(), date: todayISO() });
-            line.actual = round2((Number(line.actual) || 0) + amount);
-            if (c_shouldMarkPaid(cat, line)) line.done = true;
-
-            renderCategoryPanel(cat);
-            recalcSummary();
-            queueSave();
-            updateScrollSpy();
-          });
-        });
-
-        container.querySelectorAll('.expense-entry-delete').forEach(btn => {
-          btn.addEventListener('click', () => {
-            if (isLocked()) return;
-            const id = btn.dataset.id;
-            const entryId = btn.dataset.entryId;
-            const line = current.categories[cat].find(l => l.id === id);
-            if (!line || !Array.isArray(line.entries)) return;
-            const entry = line.entries.find(e => e.id === entryId);
-            if (!entry) return;
-            if (!confirm(`Remove this ${money(entry.amount)} entry${entry.note ? ' ("' + entry.note + '")' : ''}?`)) return;
-            line.entries = line.entries.filter(e => e.id !== entryId);
-            line.actual = Math.max(0, round2((Number(line.actual) || 0) - entry.amount));
-
-            renderCategoryPanel(cat);
-            recalcSummary();
-            queueSave();
-            updateScrollSpy();
-          });
-        });
-      }
-    }
-
-    function c_hasAutoFill(cat) {
-      const c = CATS.find(x => x.key === cat);
-      return !!(c && c.checkbox === 'Paid');
-    }
-
-    function c_shouldMarkPaid(cat, line) {
-      return c_hasAutoFill(cat) && (Number(line.actual) || 0) >= (Number(line.budget) || 0) && (Number(line.budget) || 0) > 0;
-    }
-
-    function recalcSummary() {
-      const { totals, leftBudget, leftActual } = computeTotals();
-      CATS.forEach(c => {
-        const b = document.getElementById(c.key + '-sub-budget');
-        const a = document.getElementById(c.key + '-sub-actual');
-        if (b) b.textContent = money(totals[c.key].budget);
-        if (a) a.textContent = money(totals[c.key].actual);
-      });
-
-      const rolloverMap = computeRolloverChain();
-      const rolloverInfo = rolloverMap[current.id] || { rollover: 0, leftWithRollover: leftActual };
-
-      const grid = document.getElementById('cashflow-grid');
-      grid.innerHTML = `
-        <div class="cashflow-item cf-rollover">
-          <span class="cf-label">Rollover (+)</span>
-          <span class="cf-value ${rolloverInfo.rollover >= 0 ? 'positive' : 'negative'}">${money(rolloverInfo.rollover)}</span>
-        </div>
-      ` + CATS.map(c => `
-        <div class="cashflow-item">
-          <span class="cf-label">${c.label}${SIGN[c.key] < 0 ? ' (–)' : ' (+)'}</span>
-          <span class="cf-value">${money(totals[c.key].actual)}</span>
-        </div>
-      `).join('') + `
-        <div class="cashflow-item cf-left">
-          <span class="cf-label">Left</span>
-          <span class="cf-value ${rolloverInfo.leftWithRollover >= 0 ? 'positive' : 'negative'}">${money(rolloverInfo.leftWithRollover)}</span>
-          <span class="cf-sub-hint">budgeted: ${money(leftBudget)}</span>
-        </div>
-      `;
-
+      renderNetWorth();
+      renderAccountGroups();
       renderCharts();
     }
 
-    // ================= CHARTS =================
-    let breakdownChart = null;
-    let budgetVsActualChart = null;
-    let trendChart = null;
-    let breakdownChartMode = 'actual'; // 'actual' | 'budget' — toggled by the chart-box's own pill switch
+    function renderNetWorth() {
+      let assets = 0, liabilities = 0;
+      accounts.forEach(a => {
+        const bal = round2(Number(a.balance) || 0);
+        if (typeConfig(a.account_type).isLiability) liabilities += bal;
+        else assets += bal;
+      });
+      const netWorth = round2(assets - liabilities);
 
-    const CHART_COLORS = {
-      income: '#5C8A6B',
-      bills: '#E0806A',
-      expenses: '#E0B96E',
-      savings: '#6E96C4',
-      debt: '#B27AC4',
-      leftover: 'rgba(92,138,107,0.28)',
-      brassBright: '#D8BC7A',
-      gridLine: 'rgba(232,225,211,0.08)',
-      tickColor: '#7C8489',
-      legendColor: '#B3B6B9',
-    };
+      const nwEl = document.getElementById('networth-value');
+      nwEl.textContent = money(netWorth);
+      nwEl.classList.toggle('negative', netWorth < 0);
+      document.getElementById('assets-total').textContent = money(assets);
+      document.getElementById('liabilities-total').textContent = money(liabilities);
+    }
+
+    function renderAccountGroups() {
+      const container = document.getElementById('account-groups');
+      const emptyState = document.getElementById('accounts-empty');
+      const chartsCard = document.getElementById('vault-charts-card');
+
+      if (!accounts.length) {
+        container.innerHTML = '';
+        emptyState.style.display = 'block';
+        chartsCard.style.display = 'none';
+        return;
+      }
+      emptyState.style.display = 'none';
+      chartsCard.style.display = 'block';
+
+      container.innerHTML = ACCOUNT_TYPES.map(t => {
+        const group = accounts.filter(a => a.account_type === t.key);
+        if (!group.length) return '';
+        const total = round2(group.reduce((s, a) => s + (Number(a.balance) || 0), 0));
+        const cardsHtml = group.map(a => accountCardHtml(a, t)).join('');
+        return `
+          <div>
+            <div class="account-group-head">
+              <span class="account-group-title"><span class="account-group-dot" style="background:${t.dot}; box-shadow:0 0 8px ${t.dot};"></span>${t.label}</span>
+              <span class="account-group-total">Total <b>${money(total)}</b></span>
+            </div>
+            <div class="account-cards">${cardsHtml}</div>
+          </div>`;
+      }).join('');
+
+      container.querySelectorAll('.account-edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => openEditModal(btn.dataset.id));
+      });
+      container.querySelectorAll('.account-delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => deleteAccount(btn.dataset.id));
+      });
+    }
+
+    function accountCardHtml(a, t) {
+      const synced = a.source === 'plaid'
+        ? `<span class="account-card-live-badge"><span class="dot"></span>Synced via Plaid</span>`
+        : `<span class="account-card-synced">Added manually</span>`;
+      return `
+        <div class="account-card type-${a.account_type}">
+          <div class="account-card-head">
+            <div>
+              <div class="account-card-institution">${(a.institution_name || '').replace(/</g,'&lt;')}</div>
+              ${a.nickname ? `<div class="account-card-nickname">${a.nickname.replace(/</g,'&lt;')}</div>` : ''}
+            </div>
+            <span class="account-card-type-pill">${t.isLiability ? 'Owed' : 'Balance'}</span>
+          </div>
+          <div class="account-card-balance">${money(a.balance)}</div>
+          ${synced}
+          <div class="account-card-actions" style="margin-top:10px;">
+            <button type="button" class="account-edit-btn" data-id="${a.id}">Edit</button>
+            <button type="button" class="account-delete-btn danger" data-id="${a.id}">Remove</button>
+          </div>
+        </div>`;
+    }
+
+    // ================= CHARTS =================
+    let allocationChart = null;
+    let assetsLiabilitiesChart = null;
 
     function chartFont() { return { family: "'Public Sans', sans-serif", size: 11 }; }
 
     function renderCharts() {
-      if (typeof Chart === 'undefined') return; // CDN blocked/not yet loaded — fail quietly, rest of the app still works
-      const { totals } = computeTotals();
-      renderBreakdownChart(totals);
-      renderBudgetVsActualChart(totals);
-      renderTrendChart();
+      if (typeof Chart === 'undefined') return;
+      renderAllocationChart();
+      renderAssetsLiabilitiesChart();
     }
 
-    function renderBreakdownChart(totals) {
-      const canvas = document.getElementById('chart-breakdown');
-      const emptyNote = document.getElementById('chart-breakdown-empty');
+    function renderAllocationChart() {
+      const canvas = document.getElementById('chart-allocation');
+      const emptyNote = document.getElementById('chart-allocation-empty');
       if (!canvas) return;
 
-      const field = breakdownChartMode; // 'actual' or 'budget'
-      const keys = ['bills', 'expenses', 'savings', 'debt'];
-      const labels = ['Bills', 'Expenses', 'Savings', 'Debt'];
-      const colors = keys.map(k => CHART_COLORS[k]);
-      const data = keys.map(k => Math.max(0, totals[k][field]));
+      const assetTypes = ACCOUNT_TYPES.filter(t => !t.isLiability);
+      const labels = [];
+      const data = [];
+      const colors = [];
+      assetTypes.forEach(t => {
+        const total = round2(accounts.filter(a => a.account_type === t.key).reduce((s, a) => s + (Number(a.balance) || 0), 0));
+        if (total > 0) { labels.push(t.label); data.push(total); colors.push(t.dot); }
+      });
 
-      // If income exceeds what's gone out (or been budgeted) so far, show
-      // the remainder as a translucent slice — same size scale as
-      // everything else, so you can visually see how much is still
-      // uncommitted, next to where the rest went/is planned to go.
-      const outflow = data.reduce((s, v) => s + v, 0);
-      const incomeField = Math.max(0, totals.income[field]);
-      const leftover = round2(incomeField - outflow);
-      if (leftover > 0) {
-        labels.push(field === 'actual' ? 'Unspent' : 'Unbudgeted');
-        data.push(leftover);
-        colors.push(CHART_COLORS.leftover);
-      }
-
-      const hasData = data.some(v => v > 0);
-
-      if (breakdownChart) { breakdownChart.destroy(); breakdownChart = null; }
+      const hasData = data.length > 0;
+      if (allocationChart) { allocationChart.destroy(); allocationChart = null; }
       canvas.style.display = hasData ? 'block' : 'none';
-      if (emptyNote) {
-        emptyNote.textContent = field === 'actual'
-          ? 'Log some actuals to see this breakdown.'
-          : 'Set some budget amounts to see this breakdown.';
-        emptyNote.style.display = hasData ? 'none' : 'flex';
-      }
+      emptyNote.style.display = hasData ? 'none' : 'flex';
       if (!hasData) return;
 
-      breakdownChart = new Chart(canvas, {
+      allocationChart = new Chart(canvas, {
         type: 'doughnut',
-        data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#171208', borderWidth: 2 }] },
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#0E1613', borderWidth: 2 }] },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '62%',
+          responsive: true, maintainAspectRatio: false, cutout: '62%',
           plugins: {
-            legend: { position: 'bottom', labels: { color: CHART_COLORS.legendColor, font: chartFont(), boxWidth: 10, padding: 12 } },
+            legend: { position: 'bottom', labels: { color: '#B3B6B9', font: chartFont(), boxWidth: 10, padding: 12 } },
             tooltip: { callbacks: { label: (item) => `${item.label}: ${money(item.parsed)}` } }
           }
         }
       });
     }
 
-    function renderBudgetVsActualChart(totals) {
-      const canvas = document.getElementById('chart-budget-vs-actual');
+    function renderAssetsLiabilitiesChart() {
+      const canvas = document.getElementById('chart-assets-liabilities');
+      const emptyNote = document.getElementById('chart-assets-liabilities-empty');
       if (!canvas) return;
 
-      const labels = CATS.map(c => c.label);
-      const budgetData = CATS.map(c => totals[c.key].budget);
-      const actualData = CATS.map(c => totals[c.key].actual);
+      let assets = 0, liabilities = 0;
+      accounts.forEach(a => {
+        if (typeConfig(a.account_type).isLiability) liabilities += Number(a.balance) || 0;
+        else assets += Number(a.balance) || 0;
+      });
 
-      if (budgetVsActualChart) { budgetVsActualChart.destroy(); budgetVsActualChart = null; }
+      const hasData = (assets > 0 || liabilities > 0);
+      if (assetsLiabilitiesChart) { assetsLiabilitiesChart.destroy(); assetsLiabilitiesChart = null; }
+      canvas.style.display = hasData ? 'block' : 'none';
+      emptyNote.style.display = hasData ? 'none' : 'flex';
+      if (!hasData) return;
 
-      budgetVsActualChart = new Chart(canvas, {
+      assetsLiabilitiesChart = new Chart(canvas, {
         type: 'bar',
         data: {
-          labels,
-          datasets: [
-            { label: 'Budget', data: budgetData, backgroundColor: 'rgba(184,147,74,0.32)', borderColor: '#5C4A22', borderWidth: 1, borderRadius: 4, maxBarThickness: 26 },
-            { label: 'Actual', data: actualData, backgroundColor: '#B8934A', borderRadius: 4, maxBarThickness: 26 }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: { ticks: { color: CHART_COLORS.tickColor, font: chartFont() }, grid: { display: false } },
-            y: { beginAtZero: true, ticks: { color: CHART_COLORS.tickColor, font: chartFont(), callback: (v) => '$' + v }, grid: { color: CHART_COLORS.gridLine } }
-          },
-          plugins: {
-            legend: { position: 'bottom', labels: { color: CHART_COLORS.legendColor, font: chartFont(), boxWidth: 10, padding: 12 } },
-            tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${money(item.parsed.y)}` } }
-          }
-        }
-      });
-    }
-
-    function renderTrendChart() {
-      const canvas = document.getElementById('chart-trend');
-      const emptyNote = document.getElementById('chart-trend-empty');
-      if (!canvas) return;
-
-      const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
-      const hasEnoughData = sorted.length >= 2;
-
-      if (trendChart) { trendChart.destroy(); trendChart = null; }
-      canvas.style.display = hasEnoughData ? 'block' : 'none';
-      if (emptyNote) emptyNote.style.display = hasEnoughData ? 'none' : 'flex';
-      if (!hasEnoughData) return;
-
-      const rolloverMap = computeRolloverChain();
-      const labels = sorted.map(p => {
-        const isCal = p.start_date === firstOfMonthISO(p.start_date) && p.end_date === lastOfMonthISO(p.start_date);
-        return isCal
-          ? new Date(p.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-          : fmtDate(p.start_date);
-      });
-      const data = sorted.map(p => (rolloverMap[p.id] ? rolloverMap[p.id].leftWithRollover : 0));
-
-      trendChart = new Chart(canvas, {
-        type: 'line',
-        data: {
-          labels,
+          labels: ['Assets', 'Liabilities'],
           datasets: [{
-            label: 'Left',
-            data,
-            borderColor: CHART_COLORS.brassBright,
-            backgroundColor: 'rgba(216,188,122,0.12)',
-            pointBackgroundColor: CHART_COLORS.brassBright,
-            pointRadius: 3,
-            tension: 0.25,
-            fill: true
+            data: [round2(assets), round2(liabilities)],
+            backgroundColor: ['#63D9AA', '#E0806A'],
+            borderRadius: 6,
+            maxBarThickness: 60
           }]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          responsive: true, maintainAspectRatio: false,
           scales: {
-            x: { ticks: { color: CHART_COLORS.tickColor, font: chartFont() }, grid: { display: false } },
-            y: { ticks: { color: CHART_COLORS.tickColor, font: chartFont(), callback: (v) => '$' + v }, grid: { color: CHART_COLORS.gridLine } }
+            x: { ticks: { color: '#7C8489', font: chartFont() }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { color: '#7C8489', font: chartFont(), callback: (v) => '$' + v }, grid: { color: 'rgba(232,225,211,0.08)' } }
           },
           plugins: {
             legend: { display: false },
-            tooltip: { callbacks: { label: (item) => `Left: ${money(item.parsed.y)}` } }
+            tooltip: { callbacks: { label: (item) => money(item.parsed.y) } }
           }
         }
       });
     }
 
-    function setupBreakdownToggle() {
-      document.querySelectorAll('.chart-toggle-btn').forEach(btn => {
+    // ================= MANUAL ADD / EDIT =================
+    function openAddModal() {
+      editingAccountId = null;
+      document.getElementById('connect-modal-title').textContent = 'Connect an account';
+      document.getElementById('connect-modal-sub').textContent = "Link instantly with Plaid, or add an account by hand if it's not supported.";
+      document.getElementById('plaid-connect-btn').style.display = 'flex';
+      document.querySelector('.vault-divider').style.display = 'flex';
+      document.getElementById('manual-save-btn').textContent = 'Save account';
+      document.getElementById('acct-institution').value = '';
+      document.getElementById('acct-nickname').value = '';
+      document.getElementById('acct-type').value = 'checking';
+      document.getElementById('acct-balance').value = '';
+      document.getElementById('connect-overlay').classList.add('open');
+    }
+
+    function openEditModal(id) {
+      const acct = accounts.find(a => a.id === id);
+      if (!acct) return;
+      editingAccountId = id;
+      document.getElementById('connect-modal-title').textContent = 'Edit account';
+      document.getElementById('connect-modal-sub').textContent = acct.source === 'plaid'
+        ? 'This account syncs automatically via Plaid — you can still rename it or adjust the balance if needed.'
+        : 'Update this account\'s details.';
+      document.getElementById('plaid-connect-btn').style.display = 'none';
+      document.querySelector('.vault-divider').style.display = 'none';
+      document.getElementById('manual-save-btn').textContent = 'Save changes';
+      document.getElementById('acct-institution').value = acct.institution_name || '';
+      document.getElementById('acct-nickname').value = acct.nickname || '';
+      document.getElementById('acct-type').value = acct.account_type || 'checking';
+      document.getElementById('acct-balance').value = acct.balance || '';
+      document.getElementById('connect-overlay').classList.add('open');
+    }
+
+    function closeConnectModal() {
+      document.getElementById('connect-overlay').classList.remove('open');
+      editingAccountId = null;
+    }
+
+    async function saveManualAccount() {
+      const institution = document.getElementById('acct-institution').value.trim();
+      const nickname = document.getElementById('acct-nickname').value.trim();
+      const type = document.getElementById('acct-type').value;
+      const balance = round2(Math.abs(parseFloat(document.getElementById('acct-balance').value) || 0));
+
+      if (!institution) { document.getElementById('acct-institution').focus(); return; }
+
+      if (editingAccountId) {
+        const { error } = await supabaseClient
+          .from('linked_accounts')
+          .update({ institution_name: institution, nickname, account_type: type, balance, updated_at: new Date().toISOString() })
+          .eq('id', editingAccountId);
+        if (error) { console.error(error); alert('Could not save changes: ' + error.message); return; }
+      } else {
+        const { error } = await supabaseClient
+          .from('linked_accounts')
+          .insert({ user_id: currentUserId, institution_name: institution, nickname, account_type: type, balance, source: 'manual' });
+        if (error) { console.error(error); alert('Could not add this account: ' + error.message); return; }
+      }
+
+      closeConnectModal();
+      await loadAccounts();
+    }
+
+    async function deleteAccount(id) {
+      const acct = accounts.find(a => a.id === id);
+      if (!acct) return;
+      if (!confirm(`Remove ${acct.institution_name}${acct.nickname ? ' — ' + acct.nickname : ''}? This cannot be undone.`)) return;
+      const { error } = await supabaseClient.from('linked_accounts').delete().eq('id', id);
+      if (error) { console.error(error); alert('Could not remove this account: ' + error.message); return; }
+      logAuditEvent('linked_account_removed', { institution_name: acct.institution_name, account_type: acct.account_type, source: acct.source });
+      await loadAccounts();
+    }
+
+    function setupConnectOverlay() {
+      document.getElementById('open-connect-btn').addEventListener('click', openAddModal);
+      document.getElementById('connect-close').addEventListener('click', closeConnectModal);
+      document.getElementById('connect-cancel-btn').addEventListener('click', closeConnectModal);
+      document.getElementById('connect-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'connect-overlay') closeConnectModal();
+      });
+      document.getElementById('manual-save-btn').addEventListener('click', saveManualAccount);
+      document.getElementById('plaid-connect-btn').addEventListener('click', startPlaidLink);
+    }
+
+    // ================= PLAID LINK =================
+    // Requires backend endpoints (see /api/plaid-create-link-token,
+    // /api/plaid-exchange-token) — see setup notes for what to deploy.
+    async function startPlaidLink() {
+      // No MFA check needed here — the whole page is gated at entry in
+      // init(), so reaching this point already means the session is AAL2.
+      const btn = document.getElementById('plaid-connect-btn');
+      btn.disabled = true;
+      const originalText = btn.innerHTML;
+      btn.innerHTML = 'Connecting…';
+
+      try {
+        const res = await fetch('/api/plaid-create-link-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId })
+        });
+        if (!res.ok) throw new Error('Could not start Plaid Link (' + res.status + ')');
+        const { link_token } = await res.json();
+        if (!link_token) throw new Error('No link_token returned from server');
+
+        const handler = Plaid.create({
+          token: link_token,
+          onSuccess: async (public_token, metadata) => {
+            btn.innerHTML = 'Finishing up…';
+            try {
+              const exRes = await fetch('/api/plaid-exchange-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, publicToken: public_token, institutionName: metadata?.institution?.name || 'Bank' })
+              });
+              if (!exRes.ok) throw new Error('Could not finish linking this account (' + exRes.status + ')');
+              closeConnectModal();
+              await loadAccounts();
+            } catch (err) {
+              console.error(err);
+              alert(err.message || 'Something went wrong finishing this connection.');
+            } finally {
+              btn.disabled = false;
+              btn.innerHTML = originalText;
+            }
+          },
+          onExit: (err) => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            if (err) console.error('Plaid Link exit error:', err);
+          },
+        });
+        handler.open();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Could not start Plaid Link. Make sure the backend endpoints are deployed — see setup notes.');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    async function syncAllPlaidAccounts() {
+      const syncBtn = document.getElementById('sync-all-btn');
+      syncBtn.textContent = 'Syncing…';
+      try {
+        const res = await fetch('/api/plaid-sync-accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId })
+        });
+        if (!res.ok) throw new Error('Sync failed (' + res.status + ')');
+        await loadAccounts();
+
+        // Best-effort — balances syncing successfully is the important part,
+        // so a recurring-refresh hiccup here shouldn't surface as an error.
+        try {
+          await fetch('/api/plaid-sync-recurring', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUserId })
+          });
+          await loadRecurringData();
+        } catch (recurringErr) {
+          console.error('Recurring refresh failed during full sync:', recurringErr);
+        }
+
+        alert('Your linked accounts are up to date.');
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Could not sync accounts right now.');
+      } finally {
+        syncBtn.textContent = 'Sync all accounts';
+      }
+    }
+
+    // ================= SETTINGS GEAR =================
+    function setupSettingsGear() {
+      const gearBtn = document.getElementById('settings-gear');
+      const gearDropdown = document.getElementById('settings-dropdown');
+
+      gearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeLedgerMenu();
+        gearDropdown.classList.toggle('open');
+        gearBtn.classList.toggle('spin');
+      });
+      document.addEventListener('click', () => {
+        gearDropdown.classList.remove('open');
+        gearBtn.classList.remove('spin');
+        closeLedgerMenu();
+      });
+      gearDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+      document.getElementById('sync-all-btn').addEventListener('click', () => {
+        gearDropdown.classList.remove('open');
+        syncAllPlaidAccounts();
+      });
+
+      document.getElementById('remove-all-btn').addEventListener('click', async () => {
+        gearDropdown.classList.remove('open');
+        if (!accounts.length) { alert('No accounts to remove.'); return; }
+        if (!confirm('Remove every connected account? This cannot be undone. (Manually added and Plaid-linked accounts are both removed — this only clears them from Arko, it does not close any real account.)')) return;
+        const { error } = await supabaseClient.from('linked_accounts').delete().eq('user_id', currentUserId);
+        if (error) { console.error(error); alert('Could not remove your accounts: ' + error.message); return; }
+        logAuditEvent('all_linked_accounts_removed', { count: accounts.length });
+        await loadAccounts();
+      });
+    }
+
+    document.getElementById('logout-button').addEventListener('click', async () => {
+      await supabaseClient.auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    // ================= PREMIUM FEATURE MENU =================
+    const PREMIUM_TOOLS = [
+      {
+        id: 'dashboard',
+        label: 'Dashboard',
+        desc: 'Your accounts, at a glance.',
+        href: 'dashboard.html',
+        iconClass: 'icon-dashboard',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>'
+      },
+      {
+        id: 'budget',
+        label: 'Budget Planner',
+        desc: 'Plan, track, and archive monthly budgets.',
+        href: 'budget.html',
+        iconClass: 'icon-ledger',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><line x1="8.5" y1="7" x2="15.5" y2="7"></line><line x1="8.5" y1="11" x2="15.5" y2="11"></line></svg>'
+      },
+      {
+        id: 'connections',
+        label: 'Connections',
+        desc: 'Every account, one net worth.',
+        href: 'connections.html',
+        iconClass: 'icon-connections',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
+      }
+    ];
+
+    function renderLedgerMenu() {
+      const inner = document.getElementById('ledger-dropdown-inner');
+      const lockBadge = document.getElementById('ledger-lock-badge');
+      lockBadge.style.display = 'none';
+
+      const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
+        const isCurrent = tool.href === 'connections.html';
+        return `
+          <button type="button" class="ledger-tool-item ${isCurrent ? 'current' : ''}" data-href="${tool.href}"
+                  style="animation-delay:${i * 55}ms" ${isCurrent ? 'disabled' : ''}>
+            <span class="ledger-tool-icon ${tool.iconClass}">${tool.icon}</span>
+            <span class="ledger-tool-text">
+              <span class="ledger-tool-title">${tool.label}${isCurrent ? ' <span class="current-pill">current</span>' : ''}</span>
+              <span class="ledger-tool-desc">${tool.desc}</span>
+            </span>
+            <span class="ledger-tool-arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span>
+          </button>`;
+      }).join('');
+
+      inner.innerHTML = `
+        <div class="ledger-heading">Premium Tools</div>
+        <p class="ledger-sub">Your unlocked workspace for deeper financial planning.</p>
+        <div class="ledger-tool-list">${itemsHtml}</div>
+        <div class="ledger-future-hint">More premium tools are on the way</div>
+      `;
+
+      inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
         btn.addEventListener('click', () => {
-          if (btn.classList.contains('active')) return;
-          breakdownChartMode = btn.dataset.mode;
-          document.querySelectorAll('.chart-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
-          const { totals } = computeTotals();
-          renderBreakdownChart(totals);
+          if (btn.disabled) return;
+          window.location.href = btn.dataset.href;
         });
       });
     }
 
-    function queueSave() {
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(saveCurrentPeriod, 500);
+    function closeLedgerMenu() {
+      const dd = document.getElementById('ledger-dropdown');
+      const btn = document.getElementById('ledger-menu-btn');
+      if (dd) dd.classList.remove('open');
+      if (btn) btn.classList.remove('stamp');
     }
 
-    async function saveCurrentPeriod() {
-      if (!current) return;
-      const { error } = await supabaseClient
+    function setupLedgerMenu() {
+      const btn = document.getElementById('ledger-menu-btn');
+      const dd = document.getElementById('ledger-dropdown');
+      const gearBtn = document.getElementById('settings-gear');
+      const gearDropdown = document.getElementById('settings-dropdown');
+
+      renderLedgerMenu();
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        gearDropdown.classList.remove('open');
+        gearBtn.classList.remove('spin');
+        const opening = !dd.classList.contains('open');
+        dd.classList.toggle('open', opening);
+        if (opening) {
+          renderLedgerMenu();
+          btn.classList.remove('stamp');
+          void btn.offsetWidth;
+          btn.classList.add('stamp');
+        }
+      });
+
+      dd.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    // ================= RECURRING TRANSACTIONS =================
+    // Detection is fully automatic (webhook -> sync -> match). Writing into
+    // your Bills/Income budget lines is not — every match sits in
+    // pending_transaction_reviews until you click Approve here.
+    let recurringStreams = [];
+    let pendingReviews = [];
+    let activeBudgetPeriod = null;
+
+    async function fetchActiveBudgetPeriod() {
+      const { data } = await supabaseClient
         .from('budget_periods')
-        .update({ categories: current.categories, start_date: current.start_date, end_date: current.end_date, updated_at: new Date().toISOString() })
-        .eq('id', current.id);
-      if (error) console.error('Save error:', error);
+        .select('*')
+        .eq('user_id', currentUserId)
+        .eq('status', 'active')
+        .order('start_date', { ascending: false });
+      if (!data || !data.length) return null;
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+      return data.find(p => p.start_date <= today && p.end_date >= today) || data[0];
+    }
+
+    async function loadRecurringData() {
+      const [{ data: streams }, { data: reviews }] = await Promise.all([
+        supabaseClient.from('recurring_streams').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false }),
+        supabaseClient.from('pending_transaction_reviews').select('*').eq('user_id', currentUserId).eq('status', 'pending').order('created_at', { ascending: false }),
+      ]);
+      recurringStreams = streams || [];
+      pendingReviews = reviews || [];
+      activeBudgetPeriod = await fetchActiveBudgetPeriod();
+      renderRecurringSection();
+    }
+
+    function renderRecurringSection() {
+      const section = document.getElementById('recurring-section');
+      if (!recurringStreams.length && !pendingReviews.length) {
+        section.style.display = 'none';
+        return;
+      }
+      section.style.display = 'block';
+
+      const pendingWrap = document.getElementById('pending-reviews-wrap');
+      pendingWrap.style.display = pendingReviews.length ? 'block' : 'none';
+      document.getElementById('pending-reviews-list').innerHTML = pendingReviews.map(reviewCardHtml).join('');
+
+      document.getElementById('recurring-streams-list').innerHTML = recurringStreams.length
+        ? recurringStreams.map(streamCardHtml).join('')
+        : '<p class="recurring-empty-note">No recurring transactions detected yet — they show up here automatically once enough history is available.</p>';
+
+      wireRecurringEvents();
+    }
+
+    function reviewCardHtml(r) {
+      return `
+        <div class="recurring-card review-card" data-id="${r.id}">
+          <div class="recurring-card-main">
+            <div>
+              <div class="recurring-card-desc">${(r.merchant_name || 'Transaction').replace(/</g,'&lt;')}</div>
+              <div class="recurring-card-meta">${r.txn_date} · ${money(r.amount)} → ${r.mapped_line_name || r.mapped_cat}</div>
+            </div>
+          </div>
+          <div class="recurring-card-actions">
+            <button type="button" class="recurring-approve-btn" data-id="${r.id}">Approve</button>
+            <button type="button" class="recurring-dismiss-btn" data-id="${r.id}">Dismiss</button>
+          </div>
+        </div>`;
+    }
+
+    function streamCardHtml(s) {
+      const isMapped = !!s.mapped_cat;
+      const dirLabel = s.direction === 'inflow' ? 'Income' : 'Expense';
+      const amt = money(s.last_amount || s.average_amount || 0);
+      return `
+        <div class="recurring-card" data-id="${s.id}">
+          <div class="recurring-card-main">
+            <div>
+              <div class="recurring-card-desc">${(s.description || s.merchant_name || 'Recurring transaction').replace(/</g,'&lt;')}</div>
+              <div class="recurring-card-meta">${dirLabel} · ${s.frequency ? s.frequency.toLowerCase() : 'unknown frequency'} · ${amt}</div>
+            </div>
+            ${isMapped ? `<span class="recurring-mapped-pill">→ ${(s.mapped_line_name || s.mapped_cat).replace(/</g,'&lt;')}</span>` : (s.ignored ? '<span class="recurring-ignored-pill">Ignored</span>' : '')}
+          </div>
+          <div class="recurring-card-actions">
+            ${isMapped
+              ? `<button type="button" class="recurring-unmap-btn" data-id="${s.id}">Unmap</button>`
+              : s.ignored
+                ? `<button type="button" class="recurring-unignore-btn" data-id="${s.id}">Un-ignore</button>`
+                : `<button type="button" class="recurring-map-btn" data-id="${s.id}">Map to budget</button>
+                   <button type="button" class="recurring-ignore-btn" data-id="${s.id}">Ignore</button>`}
+          </div>
+          <div class="recurring-map-form" id="recurring-map-form-${s.id}" style="display:none;">
+            <select class="recurring-map-cat" data-id="${s.id}">
+              <option value="bills">Bills</option>
+              <option value="income">Income</option>
+            </select>
+            <select class="recurring-map-line" data-id="${s.id}"></select>
+            <button type="button" class="recurring-map-save" data-id="${s.id}">Save</button>
+            <button type="button" class="recurring-map-cancel" data-id="${s.id}">Cancel</button>
+          </div>
+        </div>`;
+    }
+
+    function populateLineSelect(streamId, cat) {
+      const select = document.querySelector(`.recurring-map-line[data-id="${streamId}"]`);
+      if (!select) return;
+      const lines = (activeBudgetPeriod && activeBudgetPeriod.categories[cat]) || [];
+      select.innerHTML = lines.length
+        ? lines.map(l => `<option value="${l.id}">${(l.name || '(unnamed line)').replace(/</g,'&lt;')}</option>`).join('')
+        : '<option value="">No lines in this category yet</option>';
+    }
+
+    function wireRecurringEvents() {
+      document.querySelectorAll('.recurring-map-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          if (!activeBudgetPeriod) { alert('No active budget period found. Open the Budget Planner once to create one.'); return; }
+          document.querySelectorAll('.recurring-map-form').forEach(f => f.style.display = 'none');
+          const form = document.getElementById('recurring-map-form-' + id);
+          form.style.display = 'flex';
+          populateLineSelect(id, 'bills');
+        });
+      });
+
+      document.querySelectorAll('.recurring-map-cat').forEach(sel => {
+        sel.addEventListener('change', () => populateLineSelect(sel.dataset.id, sel.value));
+      });
+
+      document.querySelectorAll('.recurring-map-cancel').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.getElementById('recurring-map-form-' + btn.dataset.id).style.display = 'none';
+        });
+      });
+
+      document.querySelectorAll('.recurring-map-save').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const cat = document.querySelector(`.recurring-map-cat[data-id="${id}"]`).value;
+          const lineSelect = document.querySelector(`.recurring-map-line[data-id="${id}"]`);
+          const lineId = lineSelect.value;
+          if (!lineId) { alert('That category has no lines yet — add one in the Budget Planner first.'); return; }
+          const lineName = lineSelect.options[lineSelect.selectedIndex].textContent;
+
+          const { error } = await supabaseClient
+            .from('recurring_streams')
+            .update({ mapped_cat: cat, mapped_line_id: lineId, mapped_line_name: lineName, ignored: false, updated_at: new Date().toISOString() })
+            .eq('id', id);
+          if (error) { alert('Could not save this mapping: ' + error.message); return; }
+          logAuditEvent('recurring_stream_mapped', { mapped_cat: cat, mapped_line_name: lineName });
+          await loadRecurringData();
+        });
+      });
+
+      document.querySelectorAll('.recurring-unmap-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const { error } = await supabaseClient
+            .from('recurring_streams')
+            .update({ mapped_cat: null, mapped_line_id: null, mapped_line_name: null, updated_at: new Date().toISOString() })
+            .eq('id', btn.dataset.id);
+          if (error) { alert('Could not unmap this stream: ' + error.message); return; }
+          await loadRecurringData();
+        });
+      });
+
+      document.querySelectorAll('.recurring-ignore-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const { error } = await supabaseClient
+            .from('recurring_streams')
+            .update({ ignored: true, updated_at: new Date().toISOString() })
+            .eq('id', btn.dataset.id);
+          if (error) { alert('Could not ignore this stream: ' + error.message); return; }
+          await loadRecurringData();
+        });
+      });
+
+      document.querySelectorAll('.recurring-unignore-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const { error } = await supabaseClient
+            .from('recurring_streams')
+            .update({ ignored: false, updated_at: new Date().toISOString() })
+            .eq('id', btn.dataset.id);
+          if (error) { alert('Could not restore this stream: ' + error.message); return; }
+          await loadRecurringData();
+        });
+      });
+
+      document.querySelectorAll('.recurring-approve-btn').forEach(btn => {
+        btn.addEventListener('click', () => approveReview(btn.dataset.id));
+      });
+      document.querySelectorAll('.recurring-dismiss-btn').forEach(btn => {
+        btn.addEventListener('click', () => dismissReview(btn.dataset.id));
+      });
+    }
+
+    async function approveReview(reviewId) {
+      const review = pendingReviews.find(r => r.id === reviewId);
+      if (!review) return;
+      if (!activeBudgetPeriod) { alert('No active budget period found.'); return; }
+
+      const lines = activeBudgetPeriod.categories[review.mapped_cat] || [];
+      const line = lines.find(l => l.id === review.mapped_line_id);
+      if (!line) { alert('That budget line no longer exists — unmap and remap this stream.'); return; }
+
+      if (!Array.isArray(line.entries)) line.entries = [];
+      const amount = round2(Math.abs(Number(review.amount) || 0));
+      line.entries.push({ id: uid(), amount, note: review.merchant_name || '', date: review.txn_date });
+      line.actual = round2((Number(line.actual) || 0) + amount);
+      if (review.mapped_cat === 'bills' && (Number(line.budget) || 0) > 0 && line.actual >= Number(line.budget)) {
+        line.done = true;
+      }
+
+      const { error: budgetError } = await supabaseClient
+        .from('budget_periods')
+        .update({ categories: activeBudgetPeriod.categories, updated_at: new Date().toISOString() })
+        .eq('id', activeBudgetPeriod.id);
+      if (budgetError) { alert('Could not add this to your budget: ' + budgetError.message); return; }
+
+      await supabaseClient.from('pending_transaction_reviews').update({ status: 'approved' }).eq('id', reviewId);
+      logAuditEvent('recurring_review_approved', { amount, mapped_cat: review.mapped_cat, mapped_line_name: review.mapped_line_name, merchant_name: review.merchant_name });
+      await loadRecurringData();
+    }
+
+    async function dismissReview(reviewId) {
+      const review = pendingReviews.find(r => r.id === reviewId);
+      await supabaseClient.from('pending_transaction_reviews').update({ status: 'dismissed' }).eq('id', reviewId);
+      logAuditEvent('recurring_review_dismissed', { merchant_name: review?.merchant_name, amount: review?.amount });
+      await loadRecurringData();
+    }
+
+    function setupRecurringSection() {
+      document.getElementById('refresh-recurring-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('refresh-recurring-btn');
+        btn.textContent = 'Refreshing…';
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/plaid-sync-recurring', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUserId })
+          });
+          if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
+          await loadRecurringData();
+        } catch (err) {
+          console.error(err);
+          alert(err.message || 'Could not refresh recurring transactions right now.');
+        } finally {
+          btn.textContent = 'Refresh';
+          btn.disabled = false;
+        }
+      });
     }
 
     // ================= TWO-FACTOR AUTHENTICATION =================
-    function logAuditEvent(eventType, detail) {
-      supabaseClient.from('audit_log').insert({ user_id: currentUserId, event_type: eventType, detail: detail || {} })
-        .then(({ error }) => { if (error) console.error('Audit log write failed:', error); });
-    }
-
+    // Real end-user MFA via Supabase Auth's native TOTP support.
+    // requireMfaVerified(gate) is awaited at the very top of init(), before
+    // any page content renders — so Connections genuinely cannot be entered
+    // (not just "Connect with Plaid," the whole tab) until the user has
+    // both enrolled AND verified a second factor for this session (AAL2).
+    // When gate=true, the overlay can't be dismissed without completing it.
     let mfaEnrollFactorId = null;
     let mfaGateActive = false;
     let mfaResolveQueue = [];
@@ -987,6 +1043,10 @@
       return data;
     }
 
+    // Resolves once the session reaches AAL2. If already there, resolves
+    // immediately without ever showing the overlay. Otherwise opens it in
+    // the right state and waits — this function does not return until the
+    // user has actually completed verification.
     async function requireMfaVerified(gate) {
       const { currentLevel, nextLevel } = await getMfaLevel();
       if (currentLevel === 'aal2') return true;
@@ -1024,18 +1084,27 @@
       resolveMfaGate(false);
     }
     function closeMfaOverlay() {
-      if (mfaGateActive) return;
+      if (mfaGateActive) return; // can't be dismissed — must complete verification
       document.getElementById('mfa-overlay').classList.remove('open');
       mfaEnrollFactorId = null;
     }
 
     function mfaQrDataUri(qrRaw) {
       if (!qrRaw) return '';
-      // Handle either shape Supabase might hand back: already a ready
-      // data: URI (some SDK versions), or raw SVG markup that still needs
-      // encoding (others). Guessing wrong either way breaks the image, so
-      // check rather than assume.
-      if (qrRaw.startsWith('data:')) return qrRaw;
+      // Handle either shape Supabase might hand back, and don't just trust
+      // a "data:" prefix blindly — some versions return a data: URI whose
+      // payload is still raw, unescaped SVG markup (literal quotes and
+      // angle brackets), which corrupts the surrounding HTML exactly like
+      // unencoded raw SVG does. Check the actual payload, not just the
+      // prefix, and re-encode it if it isn't actually safe.
+      if (qrRaw.startsWith('data:')) {
+        const commaIndex = qrRaw.indexOf(',');
+        const payload = commaIndex >= 0 ? qrRaw.slice(commaIndex + 1) : '';
+        if (payload.includes('<') || payload.includes('"')) {
+          return 'data:image/svg+xml;utf-8,' + encodeURIComponent(payload);
+        }
+        return qrRaw; // genuinely already safe (percent-encoded or base64)
+      }
       return 'data:image/svg+xml;utf-8,' + encodeURIComponent(qrRaw);
     }
 
@@ -1069,7 +1138,7 @@
       }
 
       body.innerHTML = `
-        <p class="mfa-modal-sub">Two-factor authentication is <strong style="color:var(--vintage-blue-light);">enabled</strong>. It's required to open Connections and to link accounts via Plaid.</p>
+        <p class="mfa-modal-sub">Two-factor authentication is <strong style="color:var(--emerald-bright);">enabled</strong>. It's required to open Connections and to link accounts via Plaid.</p>
         <div class="mfa-factor-list">
           ${totpFactors.map(f => `
             <div class="mfa-factor-row">
@@ -1109,8 +1178,8 @@
           <label for="mfa-verify-code">6-digit code</label>
           <input type="text" id="mfa-verify-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
         </div>
-        <button type="button" id="mfa-enroll-verify-btn" class="mfa-verify-btn">Verify & Enable</button>
-        <p class="mfa-modal-sub" id="mfa-enroll-error" style="color:var(--error); display:none;"></p>
+        <button type="button" id="mfa-enroll-verify-btn" class="mfa-verify-btn" style="margin-top:6px;">Verify & Enable</button>
+        <p class="mfa-modal-sub" id="mfa-enroll-error" style="color:var(--liability-bright); display:none;"></p>
       `;
 
       document.getElementById('mfa-enroll-verify-btn').addEventListener('click', async () => {
@@ -1149,8 +1218,8 @@
           <label for="mfa-verify-code">6-digit code</label>
           <input type="text" id="mfa-verify-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
         </div>
-        <button type="button" id="mfa-session-verify-btn" class="mfa-verify-btn">Verify</button>
-        <p class="mfa-modal-sub" id="mfa-verify-error" style="color:var(--error); display:none;"></p>
+        <button type="button" id="mfa-session-verify-btn" class="mfa-verify-btn" style="margin-top:6px;">Verify</button>
+        <p class="mfa-modal-sub" id="mfa-verify-error" style="color:var(--liability-bright); display:none;"></p>
       `;
 
       document.getElementById('mfa-session-verify-btn').addEventListener('click', async () => {
@@ -1175,29 +1244,9 @@
       });
     }
 
-    // ================= STATIC LISTENERS =================
-    // ================= SETTINGS GEAR =================
-    function setupSettingsGear() {
-      const gearBtn = document.getElementById('settings-gear');
-      const gearDropdown = document.getElementById('settings-dropdown');
-
-      gearBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeLedgerMenu();
-        gearDropdown.classList.toggle('open');
-        gearBtn.classList.toggle('spin');
-      });
-
-      document.addEventListener('click', () => {
-        gearDropdown.classList.remove('open');
-        gearBtn.classList.remove('spin');
-        closeLedgerMenu();
-      });
-
-      gearDropdown.addEventListener('click', (e) => e.stopPropagation());
-
+    function setupMfaOverlay() {
       document.getElementById('manage-mfa-btn').addEventListener('click', () => {
-        gearDropdown.classList.remove('open');
+        document.getElementById('settings-dropdown').classList.remove('open');
         openMfaOverlay(false);
         renderMfaManage();
       });
@@ -1206,643 +1255,6 @@
       document.getElementById('mfa-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'mfa-overlay') closeMfaOverlay();
       });
-
-      document.getElementById('clear-archives-btn').addEventListener('click', () => {
-        gearDropdown.classList.remove('open');
-        gearBtn.classList.remove('spin');
-        openArchivesOverlay();
-      });
-    }
-
-    // ================= CLEAR ARCHIVES (select + delete) =================
-    function renderArchivesList() {
-      const list = document.getElementById('archives-list');
-      const deleteBtn = document.getElementById('archives-delete-selected');
-      const selectAll = document.getElementById('archives-select-all');
-      const finalizedPeriods = periods.filter(p => p.status === 'finalized');
-
-      selectAll.checked = false;
-
-      if (!finalizedPeriods.length) {
-        list.innerHTML = '<div class="history-empty">No archived periods to clear.</div>';
-        deleteBtn.disabled = true;
-        selectAll.disabled = true;
-        return;
-      }
-
-      selectAll.disabled = false;
-      deleteBtn.disabled = false;
-
-      list.innerHTML = finalizedPeriods.map(p => {
-        const isCal = p.start_date === firstOfMonthISO(p.start_date) && p.end_date === lastOfMonthISO(p.start_date);
-        const title = isCal
-          ? new Date(p.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-          : `${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}`;
-        return `
-          <div class="history-item">
-            <label class="log-check"><input type="checkbox" class="archive-select" data-id="${p.id}" /><span class="check-box"></span></label>
-            <div class="history-item-left">
-              <span class="history-item-title">${title}</span>
-              <span class="history-item-sub">${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}</span>
-            </div>
-            <span class="history-item-status finalized">finalized</span>
-          </div>`;
-      }).join('');
-    }
-
-    function openArchivesOverlay() {
-      renderArchivesList();
-      document.getElementById('archives-overlay').classList.add('open');
-    }
-
-    function closeArchivesOverlay() {
-      document.getElementById('archives-overlay').classList.remove('open');
-    }
-
-    async function pickOrCreateCurrentPeriod() {
-      const today = todayISO();
-      let next = periods.find(p => p.status === 'active' && p.start_date <= today && p.end_date >= today)
-              || periods.find(p => p.status === 'active')
-              || null;
-      if (!next) {
-        next = await createPeriod(firstOfMonthISO(today), lastOfMonthISO(today));
-        if (next) periods.unshift(next);
-      }
-      return next;
-    }
-
-    function setupArchivesOverlay() {
-      document.getElementById('archives-close').addEventListener('click', closeArchivesOverlay);
-      document.getElementById('archives-overlay').addEventListener('click', (e) => {
-        if (e.target.id === 'archives-overlay') closeArchivesOverlay();
-      });
-
-      document.getElementById('archives-select-all').addEventListener('change', (e) => {
-        document.querySelectorAll('.archive-select').forEach(cb => cb.checked = e.target.checked);
-      });
-
-      document.getElementById('archives-delete-selected').addEventListener('click', async () => {
-        const ids = Array.from(document.querySelectorAll('.archive-select:checked')).map(cb => cb.dataset.id);
-        if (ids.length === 0) {
-          alert('No archived periods selected.');
-          return;
-        }
-        if (!confirm(`Delete ${ids.length} selected archived period${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
-
-        const { error } = await supabaseClient
-          .from('budget_periods')
-          .delete()
-          .eq('user_id', currentUserId)
-          .in('id', ids);
-        if (error) { console.error(error); alert('Could not delete the selected periods: ' + error.message); return; }
-
-        periods = periods.filter(p => !ids.includes(p.id));
-
-        if (current && ids.includes(current.id)) {
-          current = await pickOrCreateCurrentPeriod();
-          unlocked = false;
-          renderAll();
-        } else {
-          renderCharts();
-        }
-
-        renderArchivesList();
-      });
-    }
-
-    // ================= PREMIUM FEATURE MENU =================
-    // Same tool list as the dashboard/log pages. Archive stays out of this
-    // menu on purpose — on the Budget Planner it already lives one click
-    // away in the header's "Archive" button, so listing it again here would
-    // just be the same action under two names.
-    const PREMIUM_TOOLS = [
-      {
-        id: 'dashboard',
-        label: 'Dashboard',
-        desc: 'Your accounts, at a glance.',
-        href: 'dashboard.html',
-        iconClass: 'icon-dashboard',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>'
-      },
-      {
-        id: 'budget',
-        label: 'Budget Planner',
-        desc: 'Plan, track, and archive monthly budgets.',
-        href: 'budget.html',
-        iconClass: 'icon-ledger',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><line x1="8.5" y1="7" x2="15.5" y2="7"></line><line x1="8.5" y1="11" x2="15.5" y2="11"></line></svg>'
-      },
-      {
-        id: 'connections',
-        label: 'Connections',
-        desc: 'Every account, one net worth.',
-        href: 'connections.html',
-        iconClass: 'icon-connections',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
-      }
-      // Future premium tools: add another object here.
-    ];
-
-    function renderLedgerMenu() {
-      const inner = document.getElementById('ledger-dropdown-inner');
-      const lockBadge = document.getElementById('ledger-lock-badge');
-      lockBadge.style.display = 'none'; // reaching this page already proves paid access
-
-      const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
-        const isCurrent = tool.href === 'budget.html';
-        return `
-          <button type="button" class="ledger-tool-item ${isCurrent ? 'current' : ''}" data-href="${tool.href}"
-                  style="animation-delay:${i * 55}ms" ${isCurrent ? 'disabled' : ''}>
-            <span class="ledger-tool-icon ${tool.iconClass}">${tool.icon}</span>
-            <span class="ledger-tool-text">
-              <span class="ledger-tool-title">${tool.label}${isCurrent ? ' <span class="current-pill">current</span>' : ''}</span>
-              <span class="ledger-tool-desc">${tool.desc}</span>
-            </span>
-            <span class="ledger-tool-arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span>
-          </button>`;
-      }).join('');
-
-      inner.innerHTML = `
-        <div class="ledger-heading">Premium Tools</div>
-        <p class="ledger-sub">Your unlocked workspace for deeper financial planning.</p>
-        <div class="ledger-tool-list">${itemsHtml}</div>
-        <div class="ledger-future-hint">More premium tools are on the way</div>
-      `;
-
-      inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (btn.disabled) return;
-          if (btn.dataset.href === 'connections.html') {
-            closeLedgerMenu();
-            const verified = await requireMfaVerified(true);
-            if (!verified) return; // cancelled — stay put, don't navigate
-            window.location.href = btn.dataset.href;
-            return;
-          }
-          window.location.href = btn.dataset.href;
-        });
-      });
-    }
-
-    function closeLedgerMenu() {
-      const dd = document.getElementById('ledger-dropdown');
-      const btn = document.getElementById('ledger-menu-btn');
-      if (dd) dd.classList.remove('open');
-      if (btn) btn.classList.remove('stamp');
-    }
-
-    function setupLedgerMenu() {
-      const btn = document.getElementById('ledger-menu-btn');
-      const dd = document.getElementById('ledger-dropdown');
-      const gearBtn = document.getElementById('settings-gear');
-      const gearDropdown = document.getElementById('settings-dropdown');
-
-      renderLedgerMenu();
-
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        gearDropdown.classList.remove('open');
-        gearBtn.classList.remove('spin');
-        const opening = !dd.classList.contains('open');
-        dd.classList.toggle('open', opening);
-        if (opening) {
-          renderLedgerMenu();
-          btn.classList.remove('stamp');
-          void btn.offsetWidth;
-          btn.classList.add('stamp');
-        }
-      });
-
-      dd.addEventListener('click', (e) => e.stopPropagation());
-    }
-
-    // ================= "+ FROM LOG" (log mirror) =================
-    // Renders finance_log using the exact same table structure and CSS
-    // classes as the dashboard's log.html, so it looks like that page
-    // itself appeared inside the planner. Checkboxes are real selection
-    // here (not decorative) — pick as many as you want, then add them all
-    // at once to whichever line (Income, Bills, or Expenses) opened it.
-    let logMirrorTargetCat = null;
-    let logMirrorTargetLineId = null;
-    let logMirrorRows = [];
-
-    const logMirrorRowClass = { add: 'log-row-add', subtract: 'log-row-subtract', transfer: 'log-row-transfer' };
-
-    function logMirrorFormatDate(d) {
-      return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    }
-    function logMirrorIsFirstOfMonth(d) {
-      return d.split('-')[2] === '01';
-    }
-
-    // Every finance_log column that can carry a portion of a deposit. Used
-    // to build the picker options. "Savings" and "Expenses" also double as
-    // the exact-match column for their matching Budget Planner category —
-    // everything else has no direct category equivalent, so it only shows
-    // up as a pickable option, never as a silent default.
-    const LOG_SPLIT_COLUMNS = [
-      { key: 'savings', label: 'Savings', col: 'savings' },
-      { key: 'investment', label: 'Investment', col: 'investment' },
-      { key: 'expenses', label: 'Expenses', col: 'expenses' },
-      { key: 'checking', label: 'Checking', col: 'checking' },
-    ];
-    const SPLIT_COLUMN_BY_CAT = { savings: 'savings', expenses: 'expenses' };
-
-    // A single "deposit" (add) entry can carry money into several columns
-    // at once (e.g. $50 to Savings AND $30 to Expenses in the same
-    // transaction). This finds which columns actually have money on this
-    // row, so the picker only appears when there's genuine ambiguity to
-    // resolve — never for Income, which has no per-column split anyway.
-    function logMirrorSplitOptions(row) {
-      return LOG_SPLIT_COLUMNS
-        .map(c => ({ key: c.key, label: c.label, amount: round2(Math.abs(Number(row[c.col]) || 0)) }))
-        .filter(s => s.amount > 0);
-    }
-
-    // Sums whichever columns were checked in the picker for this row. If no
-    // picker was ever shown for it (unambiguous row, or an Income target),
-    // falls back to the matching category column, then the row's total —
-    // always positive, since a transfer's "from" side is stored negative.
-    function logMirrorRowAmount(row, cat) {
-      const chosen = logMirrorSplitChoice[row.id];
-      if (chosen && chosen.size > 0) {
-        const sum = LOG_SPLIT_COLUMNS
-          .filter(c => chosen.has(c.key))
-          .reduce((s, c) => s + Math.abs(Number(row[c.col]) || 0), 0);
-        return round2(sum);
-      }
-      const col = SPLIT_COLUMN_BY_CAT[cat];
-      if (col && row[col] && Number(row[col]) !== 0) {
-        return round2(Math.abs(Number(row[col])));
-      }
-      return round2(Math.abs(Number(row.amount) || 0));
-    }
-
-    // rowId -> Set of chosen split-column keys, for ambiguous deposit rows.
-    // Reset each time the picker opens.
-    let logMirrorSplitChoice = {};
-
-    function updateLogMirrorActions() {
-      const count = document.querySelectorAll('.logmirror-select:checked').length;
-      const actions = document.getElementById('logmirror-actions');
-      const addBtn = document.getElementById('logmirror-add-selected');
-      actions.style.display = count > 0 ? 'flex' : 'none';
-      if (count > 0) addBtn.textContent = `Add ${count} selected`;
-
-      const total = document.querySelectorAll('.logmirror-select').length;
-      const selectAll = document.getElementById('logmirror-select-all');
-      if (selectAll) selectAll.checked = total > 0 && count === total;
-    }
-
-    async function openLogMirrorOverlay(cat, lineId, lineName) {
-      logMirrorTargetCat = cat;
-      logMirrorTargetLineId = lineId;
-      logMirrorSplitChoice = {};
-      document.getElementById('logmirror-sub').textContent = `Select entries to add to "${lineName || '(unnamed line)'}".`;
-      document.getElementById('logmirror-body').innerHTML = '<tr><td colspan="8" class="loading-message">Loading...</td></tr>';
-      document.getElementById('logmirror-actions').style.display = 'none';
-      document.getElementById('logmirror-select-all').checked = false;
-      document.getElementById('logmirror-overlay').classList.add('open');
-
-      const { data: rows, error } = await supabaseClient
-        .from('finance_log')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(150);
-
-      logMirrorRows = rows || [];
-      const tbody = document.getElementById('logmirror-body');
-      if (error) { console.error(error); tbody.innerHTML = '<tr><td colspan="8">Could not load your log.</td></tr>'; return; }
-      if (!logMirrorRows.length) { tbody.innerHTML = '<tr><td colspan="8">No entries yet — add some from the Dashboard first.</td></tr>'; return; }
-
-      let prevActionType = null;
-      tbody.innerHTML = logMirrorRows.map(r => {
-        const isGroupStart = r.action_type !== prevActionType;
-        prevActionType = r.action_type;
-        const mainRow = `
-        <tr class="${logMirrorRowClass[r.action_type] || ''} logmirror-row${isGroupStart ? ' log-group-start' : ''}" data-log-id="${r.id}">
-          <td><label class="log-check" onclick="event.stopPropagation();"><input type="checkbox" class="logmirror-select" data-log-id="${r.id}" /><span class="check-box"></span></label></td>
-          <td class="${logMirrorIsFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${logMirrorFormatDate(r.entry_date)}</td>
-          <td class="num-cell log-amount-cell">${money(r.amount)}</td>
-          <td class="num-cell">${money(r.savings)}</td>
-          <td class="num-cell">${money(r.investment)}</td>
-          <td class="num-cell">${money(r.expenses)}</td>
-          <td class="num-cell">${money(r.checking)}</td>
-          <td class="notes-cell">${r.notes ? r.notes.replace(/</g, '&lt;') : ''}</td>
-        </tr>`;
-
-        // Deposits can fund more than one category at once. When that's
-        // genuinely ambiguous for this row, add a small inline picker
-        // (hidden until the row is selected) instead of forcing a single
-        // guessed column — keeps everything else a plain one-click add.
-        // Income has no per-column split at all, so it always skips this
-        // and just uses the deposit's full amount, one click, no picker.
-        const splits = (r.action_type === 'add' && logMirrorTargetCat !== 'income') ? logMirrorSplitOptions(r) : [];
-        if (splits.length > 1) {
-          const exactMatch = splits.find(s => s.key === logMirrorTargetCat);
-          const defaultKey = exactMatch ? exactMatch.key : splits.slice().sort((a, b) => b.amount - a.amount)[0].key;
-          logMirrorSplitChoice[r.id] = new Set([defaultKey]);
-          const optionsHtml = splits.map(s => `
-            <label class="logmirror-split-option${s.key === defaultKey ? ' chip-active' : ''}">
-              <input type="checkbox" class="logmirror-split-checkbox" data-row-id="${r.id}" data-key="${s.key}" ${s.key === defaultKey ? 'checked' : ''} />
-              ${s.label} <span class="logmirror-split-amount">${money(s.amount)}</span>
-            </label>
-          `).join('');
-          const splitRow = `
-        <tr class="logmirror-split-row" id="logmirror-split-${r.id}" style="display:none;">
-          <td></td>
-          <td colspan="7">
-            <div class="logmirror-split-picker">
-              <span class="logmirror-split-label">Split:</span>
-              <div class="logmirror-split-options">${optionsHtml}</div>
-              <label class="logmirror-split-selectall">
-                <span class="log-check"><input type="checkbox" class="logmirror-split-selectall-cb" data-row-id="${r.id}" /><span class="check-box"></span></span>
-                All
-              </label>
-            </div>
-          </td>
-        </tr>`;
-          return mainRow + splitRow;
-        }
-        return mainRow;
-      }).join('');
-
-      // Clicking anywhere on a row toggles its checkbox — the checkbox's
-      // own label already stops propagation above so it doesn't double-toggle.
-      tbody.querySelectorAll('.logmirror-row').forEach(rowEl => {
-        rowEl.addEventListener('click', () => {
-          const cb = rowEl.querySelector('.logmirror-select');
-          if (cb) { cb.checked = !cb.checked; syncLogMirrorSplitRow(rowEl.dataset.logId, cb.checked); updateLogMirrorActions(); }
-        });
-      });
-      tbody.querySelectorAll('.logmirror-select').forEach(cb => {
-        cb.addEventListener('change', () => {
-          syncLogMirrorSplitRow(cb.dataset.logId, cb.checked);
-          updateLogMirrorActions();
-        });
-      });
-      tbody.querySelectorAll('.logmirror-split-checkbox').forEach(cb => {
-        cb.addEventListener('click', (e) => e.stopPropagation());
-        cb.addEventListener('change', () => {
-          const rowId = cb.dataset.rowId;
-          if (!logMirrorSplitChoice[rowId]) logMirrorSplitChoice[rowId] = new Set();
-          if (cb.checked) logMirrorSplitChoice[rowId].add(cb.dataset.key);
-          else logMirrorSplitChoice[rowId].delete(cb.dataset.key);
-          cb.closest('.logmirror-split-option').classList.toggle('chip-active', cb.checked);
-
-          const rowChecks = tbody.querySelectorAll(`.logmirror-split-checkbox[data-row-id="${rowId}"]`);
-          const selectAllCb = tbody.querySelector(`.logmirror-split-selectall-cb[data-row-id="${rowId}"]`);
-          if (selectAllCb) selectAllCb.checked = Array.from(rowChecks).every(x => x.checked);
-        });
-      });
-      tbody.querySelectorAll('.logmirror-split-selectall-cb').forEach(cb => {
-        cb.addEventListener('click', (e) => e.stopPropagation());
-        cb.addEventListener('change', () => {
-          const rowId = cb.dataset.rowId;
-          const rowChecks = tbody.querySelectorAll(`.logmirror-split-checkbox[data-row-id="${rowId}"]`);
-          rowChecks.forEach(x => {
-            x.checked = cb.checked;
-            x.closest('.logmirror-split-option').classList.toggle('chip-active', cb.checked);
-          });
-          logMirrorSplitChoice[rowId] = new Set(cb.checked ? Array.from(rowChecks).map(x => x.dataset.key) : []);
-        });
-      });
-
-      updateLogMirrorActions();
-    }
-
-    function syncLogMirrorSplitRow(rowId, visible) {
-      const splitRow = document.getElementById('logmirror-split-' + rowId);
-      if (splitRow) splitRow.style.display = visible ? 'table-row' : 'none';
-    }
-
-    function closeLogMirrorOverlay() {
-      document.getElementById('logmirror-overlay').classList.remove('open');
-      logMirrorTargetCat = null;
-      logMirrorTargetLineId = null;
-      logMirrorRows = [];
-      logMirrorSplitChoice = {};
-    }
-
-    function addSelectedLogRowsToTargetLine() {
-      const cat = logMirrorTargetCat;
-      const lines = cat && current.categories[cat];
-      const line = lines && lines.find(l => l.id === logMirrorTargetLineId);
-      if (!line) { closeLogMirrorOverlay(); return; }
-
-      const ids = Array.from(document.querySelectorAll('.logmirror-select:checked')).map(cb => cb.dataset.logId);
-      if (ids.length === 0) return;
-
-      if (!Array.isArray(line.entries)) line.entries = [];
-      let addedCount = 0;
-
-      ids.forEach(id => {
-        const row = logMirrorRows.find(r => r.id === id);
-        if (!row) return;
-        const amount = logMirrorRowAmount(row, cat);
-        if (amount <= 0) return;
-        line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date, action_type: row.action_type });
-        line.entries.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
-        line.actual = round2((Number(line.actual) || 0) + amount);
-        addedCount++;
-      });
-
-      if (addedCount === 0) {
-        alert('None of the selected entries have a dollar amount to add.');
-        return;
-      }
-
-      if (c_shouldMarkPaid(cat, line)) line.done = true;
-
-      renderCategoryPanel(cat);
-      recalcSummary();
-      queueSave();
-      updateScrollSpy();
-      closeLogMirrorOverlay();
-    }
-
-    function setupLogMirrorOverlay() {
-      document.getElementById('logmirror-close').addEventListener('click', closeLogMirrorOverlay);
-      document.getElementById('logmirror-overlay').addEventListener('click', (e) => {
-        if (e.target.id === 'logmirror-overlay') closeLogMirrorOverlay();
-      });
-      document.getElementById('logmirror-select-all').addEventListener('change', (e) => {
-        document.querySelectorAll('.logmirror-select').forEach(cb => {
-          cb.checked = e.target.checked;
-          syncLogMirrorSplitRow(cb.dataset.logId, cb.checked);
-        });
-        updateLogMirrorActions();
-      });
-      document.getElementById('logmirror-add-selected').addEventListener('click', addSelectedLogRowsToTargetLine);
-    }
-
-    function setupStaticListeners() {
-      document.getElementById('logout-button').addEventListener('click', async () => {
-        await supabaseClient.auth.signOut();
-        window.location.href = 'login.html';
-      });
-
-      setupSettingsGear();
-      setupLedgerMenu();
-      setupArchivesOverlay();
-      setupLogMirrorOverlay();
-      setupBreakdownToggle();
-
-      document.getElementById('start-date-input').addEventListener('change', (e) => {
-        current.start_date = e.target.value;
-        renderAll();
-        queueSave();
-      });
-      document.getElementById('end-date-input').addEventListener('change', (e) => {
-        current.end_date = e.target.value;
-        renderAll();
-        queueSave();
-      });
-
-      // Scroll-spy: find whichever panel's vertical span actually contains
-      // the "active zone" line near the top of the viewport, rather than
-      // just picking the last panel whose top has crossed it. That
-      // last-crossed approach silently skips short panels: if Savings (few
-      // lines) is short enough that Debt's top crosses the same line only
-      // moments later, Debt — being the later index — always wins and
-      // Savings never lights up. Checking each panel's full top→bottom span
-      // gives every category its own genuine highlighted window, no matter
-      // how short its content is.
-      const railTabs = Array.from(document.querySelectorAll('.rail-tab'));
-      const railPanels = CATS.map(c => document.getElementById('panel-' + c.key));
-      const ACTIVE_ZONE = 150; // px from top of viewport
-
-      function updateRailActive() {
-        let activeIndex = 0;
-        for (let i = 0; i < railPanels.length; i++) {
-          const panel = railPanels[i];
-          if (!panel) continue;
-          const rect = panel.getBoundingClientRect();
-          if (rect.top <= ACTIVE_ZONE) {
-            activeIndex = i;
-            if (rect.bottom > ACTIVE_ZONE) break; // the zone line falls inside this panel — this is the one
-            // otherwise this panel has already fully scrolled past the zone;
-            // keep looking at the next panel before settling
-          } else {
-            break; // this panel hasn't reached the zone yet — the previous activeIndex stands
-          }
-        }
-        const atBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 2);
-        if (atBottom) activeIndex = railPanels.length - 1;
-        railTabs.forEach((t, i) => t.classList.toggle('active', i === activeIndex));
-      }
-
-      railTabs.forEach((tab, i) => {
-        tab.addEventListener('click', () => {
-          const target = railPanels[i];
-          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          railTabs.forEach((t, j) => t.classList.toggle('active', j === i));
-        });
-      });
-
-      window.addEventListener('scroll', updateRailActive, { passive: true });
-      window.addEventListener('resize', updateRailActive);
-      updateScrollSpy = updateRailActive;
-      updateRailActive();
-
-      document.getElementById('save-default-btn').addEventListener('click', async () => {
-        const template = {};
-        CATS.forEach(c => {
-          template[c.key] = (current.categories[c.key] || []).map(l => ({ name: l.name, budget: l.budget || 0 }));
-        });
-        const { error } = await supabaseClient
-          .from('budget_defaults')
-          .upsert({ user_id: currentUserId, categories: template, updated_at: new Date().toISOString() });
-        if (error) { console.error(error); alert('Could not save your default layout: ' + error.message); return; }
-        alert('Saved. New periods will start filled in with this layout.');
-      });
-
-      document.getElementById('new-period-btn').addEventListener('click', async () => {
-        const today = todayISO();
-        const start = firstOfMonthISO(today);
-        const end = lastOfMonthISO(today);
-        if (!confirm(`Create a new period for ${fmtDate(start)} – ${fmtDate(end)}, filled in from your saved default layout?`)) return;
-        const created = await createPeriod(start, end);
-        if (!created) return;
-        periods.unshift(created);
-        current = created;
-        unlocked = false;
-        renderAll();
-      });
-
-      document.getElementById('finalize-btn').addEventListener('click', async () => {
-        if (!confirm('Finalize this period? It will move to your archive as a record you can still pull up or unlock later.')) return;
-        const { data, error } = await supabaseClient
-          .from('budget_periods')
-          .update({ status: 'finalized', finalized_at: new Date().toISOString() })
-          .eq('id', current.id).select().single();
-        if (error) { console.error(error); alert('Could not finalize: ' + error.message); return; }
-        current = data;
-        const idx = periods.findIndex(p => p.id === current.id);
-        if (idx > -1) periods[idx] = current;
-        unlocked = false;
-        renderAll();
-      });
-
-      document.getElementById('unlock-btn').addEventListener('click', () => {
-        unlocked = true;
-        renderAll();
-      });
-
-      document.getElementById('reopen-btn').addEventListener('click', async () => {
-        if (!confirm('Reopen this period? Its status will change back to active.')) return;
-        const { data, error } = await supabaseClient
-          .from('budget_periods').update({ status: 'active' }).eq('id', current.id).select().single();
-        if (error) { console.error(error); alert('Could not reopen: ' + error.message); return; }
-        current = data;
-        const idx = periods.findIndex(p => p.id === current.id);
-        if (idx > -1) periods[idx] = current;
-        unlocked = false;
-        renderAll();
-      });
-
-      // ---- history overlay ----
-      const overlay = document.getElementById('history-overlay');
-      function openHistory() {
-        renderHistoryList();
-        overlay.classList.add('open');
-      }
-      function closeHistory() { overlay.classList.remove('open'); }
-      document.getElementById('history-button').addEventListener('click', openHistory);
-      document.getElementById('history-close').addEventListener('click', closeHistory);
-      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeHistory(); });
-
-      function renderHistoryList() {
-        const list = document.getElementById('history-list');
-        if (!periods.length) {
-          list.innerHTML = '<div class="history-empty">No periods yet.</div>';
-          return;
-        }
-        list.innerHTML = periods.map(p => {
-          const isCal = p.start_date === firstOfMonthISO(p.start_date) && p.end_date === lastOfMonthISO(p.start_date);
-          const title = isCal
-            ? new Date(p.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-            : `${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}`;
-          return `
-            <div class="history-item ${current && p.id === current.id ? 'current' : ''}" data-id="${p.id}">
-              <div class="history-item-left">
-                <span class="history-item-title">${title}</span>
-                <span class="history-item-sub">${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}</span>
-              </div>
-              <span class="history-item-status ${p.status}">${p.status}</span>
-            </div>`;
-        }).join('');
-
-        list.querySelectorAll('.history-item').forEach(item => {
-          item.addEventListener('click', () => {
-            current = periods.find(p => p.id === item.dataset.id);
-            unlocked = false;
-            renderAll();
-            closeHistory();
-          });
-        });
-      }
     }
 
     init();
