@@ -1203,7 +1203,13 @@
         await supabaseClient.auth.mfa.unenroll({ factorId: f.id });
       }
 
-      const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp', issuer: 'Arko Finance' });
+      // friendlyName must be unique per user — Supabase defaults it to an
+      // empty string when omitted, and rejects a second enroll() with
+      // "already exists" once anything (even a since-removed factor) has
+      // used that same empty default. Generating a fresh one each time
+      // sidesteps that entirely, regardless of whether the cleanup above
+      // fully succeeded.
+      const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp', issuer: 'Arko Finance', friendlyName: 'totp-' + Date.now() });
       if (error) {
         body.innerHTML = `<p class="mfa-modal-sub">Could not start enrollment: ${error.message}</p>`;
         return;
