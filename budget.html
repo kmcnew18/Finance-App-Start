@@ -318,6 +318,7 @@
 
     const APP_TIMEZONE = 'America/Chicago';
     let currentUserId = null;
+    let currentUserEmail = null;
 
     const CATS = [
       { key: 'income',   label: 'Income',   checkbox: null },
@@ -396,23 +397,40 @@
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) { window.location.href = 'login.html'; return false; }
       currentUserId = session.user.id;
+      currentUserEmail = session.user.email;
 
       const { data: billing } = await supabaseClient
-        .from('user_billing').select('is_paid, trial_end').eq('user_id', currentUserId).maybeSingle();
+        .from('user_billing').select('is_paid').eq('user_id', currentUserId).maybeSingle();
 
-      // Only the paywall itself, and only once the trial has actually run
-      // out — being unpaid but still inside a valid trial window is not
-      // grounds to redirect here.
-      if (!billing) {
-        window.location.href = 'paywall.html';
-        return false;
-      }
-      const trialExpired = new Date(billing.trial_end) < new Date();
-      if (!billing.is_paid && trialExpired) {
-        window.location.href = 'paywall.html';
+      // Budget Planner is a paid feature, not part of the free trial —
+      // being unpaid sends straight to Stripe checkout, not the
+      // trial-expiry paywall page (that page is for Dashboard/Log only).
+      if (!billing || !billing.is_paid) {
+        await redirectToCheckout(currentUserId, currentUserEmail);
         return false;
       }
       return true;
+    }
+
+    // Straight to Stripe — no stop at paywall.html, since that page is
+    // specifically for "your trial ended," and this isn't that.
+    async function redirectToCheckout(userId, email) {
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, email })
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          window.location.href = 'paywall.html'; // fallback if checkout couldn't start
+        }
+      } catch (err) {
+        console.error(err);
+        window.location.href = 'paywall.html'; // fallback
+      }
     }
 
     async function fetchDefaultTemplate() {

@@ -628,7 +628,10 @@
       inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (btn.disabled) return;
-          if (!isPaidUser && trialExpired) { window.location.href = 'paywall.html'; return; }
+          // Budget Planner and Connections are paid features, not covered
+          // by the free trial — unpaid goes straight to Stripe checkout,
+          // not the trial-expiry paywall page.
+          if (!isPaidUser) { await startCheckoutSilent(); return; }
           if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);
@@ -643,6 +646,29 @@
       if (!isPaidUser) {
         const unlockBtn = document.getElementById('ledger-unlock-cta');
         if (unlockBtn) unlockBtn.addEventListener('click', () => startCheckout(unlockBtn));
+      }
+    }
+
+    // Straight to Stripe without touching the clicked element's content —
+    // unlike the "Unlock full access" CTA (a plain text button), the menu
+    // items have icons/labels inside them that startCheckout()'s
+    // textContent swap would wipe out.
+    async function startCheckoutSilent() {
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, email: currentUserEmail })
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          alert('Could not start checkout. Please try again.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Network error — please try again.');
       }
     }
 
