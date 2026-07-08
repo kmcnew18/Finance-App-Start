@@ -143,6 +143,7 @@
     let currentUserId = null;
     let currentUserEmail = null;
     let isPaidUser = false;
+    let trialExpired = false;
 
     function money(n) {
       const num = Number(n || 0);
@@ -212,8 +213,15 @@
       currentUserEmail = session.user.email;
 
       const { data: billing } = await supabaseClient
-        .from('user_billing').select('is_paid').eq('user_id', currentUserId).maybeSingle();
+        .from('user_billing').select('is_paid, trial_end').eq('user_id', currentUserId).maybeSingle();
       isPaidUser = !!(billing && billing.is_paid);
+      if (billing) {
+        trialExpired = new Date(billing.trial_end) < new Date();
+        if (trialExpired && !isPaidUser) {
+          window.location.href = 'paywall.html';
+          return;
+        }
+      }
       setupLedgerMenu();
       setupMfaOverlay();
 
@@ -620,7 +628,7 @@
       inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (btn.disabled) return;
-          if (!isPaidUser) { window.location.href = 'paywall.html'; return; }
+          if (!isPaidUser && trialExpired) { window.location.href = 'paywall.html'; return; }
           if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);

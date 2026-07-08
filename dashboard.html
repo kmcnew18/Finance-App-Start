@@ -272,7 +272,9 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUserId = null;
+    let currentUserEmail = null;
     let isPaidUser = false;
+    let trialExpired = false;
     let totals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
 
     const dashMain = document.getElementById('dash-main');
@@ -334,13 +336,14 @@
       if (!session) { window.location.href = 'login.html'; return; }
 
       currentUserId = session.user.id;
+      currentUserEmail = session.user.email;
       document.getElementById('user-email').textContent = session.user.email;
       const { data: billing } = await supabaseClient
         .from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
 
       if (billing) {
         isPaidUser = !!billing.is_paid;
-        const trialExpired = new Date(billing.trial_end) < new Date();
+        trialExpired = new Date(billing.trial_end) < new Date();
         if (trialExpired && !billing.is_paid) {
           window.location.href = 'paywall.html';
           return;
@@ -1029,7 +1032,7 @@
       inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (btn.disabled) return;
-          if (!isPaidUser) { window.location.href = 'paywall.html'; return; }
+          if (!isPaidUser && trialExpired) { window.location.href = 'paywall.html'; return; }
           if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);
@@ -1043,7 +1046,37 @@
 
       if (!isPaidUser) {
         const unlockBtn = document.getElementById('ledger-unlock-cta');
-        if (unlockBtn) unlockBtn.addEventListener('click', () => window.location.href = 'paywall.html');
+        if (unlockBtn) unlockBtn.addEventListener('click', () => startCheckout(unlockBtn));
+      }
+    }
+
+    // Goes straight to Stripe checkout — no stop at paywall.html first.
+    // Same call paywall.html itself makes; this just triggers it directly
+    // from wherever the "Unlock full access" CTA is clicked.
+    async function startCheckout(btn) {
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Redirecting to checkout…';
+
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, email: currentUserEmail })
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          alert('Could not start checkout. Please try again.');
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Network error — please try again.');
+        btn.disabled = false;
+        btn.textContent = originalText;
       }
     }
 

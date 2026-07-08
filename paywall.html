@@ -80,10 +80,17 @@
       if (!session) { window.location.href = 'login.html'; return; }
       currentUser = session.user;
 
-      // Already paid? Don't show the paywall.
+      // Only show the paywall if the trial has actually run out. Already
+      // paid, or still legitimately inside the trial window? Send them
+      // back rather than showing "your trial has ended" incorrectly.
       const { data: billing } = await supabaseClient
-        .from('user_billing').select('is_paid').eq('user_id', currentUser.id).maybeSingle();
-      if (billing && billing.is_paid) window.location.href = 'dashboard.html';
+        .from('user_billing').select('is_paid, trial_end').eq('user_id', currentUser.id).maybeSingle();
+      if (billing) {
+        const trialExpired = new Date(billing.trial_end) < new Date();
+        if (billing.is_paid || !trialExpired) {
+          window.location.href = 'dashboard.html';
+        }
+      }
     })();
 
     document.getElementById('checkout-button').addEventListener('click', async () => {

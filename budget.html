@@ -398,9 +398,17 @@
       currentUserId = session.user.id;
 
       const { data: billing } = await supabaseClient
-        .from('user_billing').select('is_paid').eq('user_id', currentUserId).maybeSingle();
+        .from('user_billing').select('is_paid, trial_end').eq('user_id', currentUserId).maybeSingle();
 
-      if (!billing || !billing.is_paid) {
+      // Only the paywall itself, and only once the trial has actually run
+      // out — being unpaid but still inside a valid trial window is not
+      // grounds to redirect here.
+      if (!billing) {
+        window.location.href = 'paywall.html';
+        return false;
+      }
+      const trialExpired = new Date(billing.trial_end) < new Date();
+      if (!billing.is_paid && trialExpired) {
         window.location.href = 'paywall.html';
         return false;
       }
