@@ -542,6 +542,19 @@
       const body = document.getElementById('mfa-modal-body');
       body.innerHTML = `<p class="mfa-modal-sub">Loading enrollment…</p>`;
 
+      // Every open used to call enroll() fresh, which hands back a brand
+      // new secret/QR each time — so closing before verifying and
+      // reopening orphaned whatever was already scanned into an
+      // authenticator app (the old code no longer matched anything).
+      // Clean up any unverified attempt left over from a previous
+      // open/close first, so each open is a single, clean, working
+      // attempt no matter how many times it's been opened before.
+      const { data: existingFactors } = await supabaseClient.auth.mfa.listFactors();
+      const danglingFactors = (existingFactors?.totp || []).filter(f => f.status === 'unverified');
+      for (const f of danglingFactors) {
+        await supabaseClient.auth.mfa.unenroll({ factorId: f.id });
+      }
+
       const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp', issuer: 'Arko Finance' });
       if (error) {
         body.innerHTML = `<p class="mfa-modal-sub">Could not start enrollment: ${error.message}</p>`;

@@ -24,88 +24,6 @@
       letter-spacing:.15px;
     }
 
-    /* ================= SIGNUP 2FA TOGGLE ================= */
-    .mfa-toggle-row {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px 12px;
-      margin-bottom: -4px;
-    }
-    .mfa-toggle-text { display: flex; flex-direction: column; gap: 2px; }
-    .mfa-toggle-title { font-size: 0.82rem; font-weight: 600; color: var(--tan); }
-    .mfa-toggle-sub { font-size: 0.72rem; color: #A8A29A; line-height: 1.4; }
-    .mfa-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
-    .mfa-switch input { opacity: 0; width: 0; height: 0; }
-    .mfa-switch-slider {
-      position: absolute; cursor: pointer; inset: 0;
-      background: #4a453c; border-radius: 22px; transition: background 0.15s ease;
-    }
-    .mfa-switch-slider::before {
-      content: ""; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px;
-      background: var(--tan); border-radius: 50%; transition: transform 0.15s ease;
-    }
-    .mfa-switch input:checked + .mfa-switch-slider { background: var(--brown); }
-    .mfa-switch input:checked + .mfa-switch-slider::before { transform: translateX(18px); }
-
-    /* ================= OPTIONAL MFA SETUP OVERLAY ================= */
-    /* Only ever shown when the toggle above was checked — an explicit
-       opt-in, not an automatic popup. */
-    .mfa-prompt-overlay {
-      position: fixed; inset: 0; background: rgba(6,8,11,0.78);
-      display: flex; align-items: center; justify-content: center;
-      padding: 20px; z-index: 200;
-      opacity: 0; visibility: hidden;
-      transition: opacity 0.2s ease, visibility 0.2s;
-    }
-    .mfa-prompt-overlay.open { opacity: 1; visibility: visible; }
-    .mfa-prompt-modal {
-      background: var(--blue-deep);
-      border: 1px solid var(--brown);
-      border-radius: 14px;
-      width: 100%; max-width: 400px;
-      padding: 26px 24px;
-      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
-      text-align: center;
-    }
-    .mfa-prompt-modal h2 { font-family: 'Fraunces', serif; color: var(--tan); font-size: 1.2rem; margin-bottom: 10px; }
-    .mfa-prompt-modal p { font-size: 0.85rem; color: var(--silver); line-height: 1.55; margin-bottom: 18px; }
-    .mfa-prompt-actions { display: flex; flex-direction: column; gap: 10px; }
-    .mfa-prompt-setup-btn {
-      padding: 12px; border: none; border-radius: 8px;
-      background: var(--brown); color: var(--tan);
-      font-weight: 600; font-size: 0.9rem; cursor: pointer;
-      transition: background 0.15s ease;
-    }
-    .mfa-prompt-setup-btn:hover { background: var(--brown-hover); }
-    .mfa-prompt-skip-btn {
-      padding: 10px; border: 1px solid var(--line); border-radius: 8px;
-      background: transparent; color: var(--silver);
-      font-weight: 600; font-size: 0.82rem; cursor: pointer;
-      transition: color 0.15s ease, border-color 0.15s ease;
-    }
-    .mfa-prompt-skip-btn:hover { color: var(--tan); border-color: var(--silver); }
-    .mfa-prompt-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-    .mfa-prompt-field label { font-size: 0.78rem; font-weight: 600; color: var(--tan); text-align: left; }
-    .mfa-prompt-field input {
-      padding: 12px 14px; border-radius: 8px; border: 1px solid var(--line);
-      background: #0F151C; color: var(--tan); font-size: 1.05rem; font-family: 'IBM Plex Mono', monospace;
-      letter-spacing: 0.15em; text-align: center;
-    }
-    .mfa-prompt-error { font-size: 0.78rem; color: #E08B7D; margin-top: -6px; margin-bottom: 12px; display: none; }
-    .mfa-prompt-qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 16px; }
-    .mfa-prompt-qr-wrap img { width: 160px; height: 160px; background: #fff; padding: 14px; border-radius: 14px; box-shadow: 0 10px 24px rgba(0,0,0,0.4); }
-    .mfa-prompt-secret-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
-    .mfa-prompt-secret-label { font-size: 0.66rem; color: var(--silver); }
-    .mfa-prompt-secret-code {
-      display: block; width: 100%; max-width: 260px;
-      font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem;
-      color: var(--tan); background: rgba(255,255,255,0.05);
-      border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px;
-      text-align: center; white-space: nowrap; overflow-x: auto;
-    }
-
     /* ================= CONSENT CHECKBOX ================= */
     .consent-row {
       display: flex;
@@ -197,17 +115,6 @@
           </span>
         </label>
 
-        <div class="mfa-toggle-row">
-          <div class="mfa-toggle-text">
-            <span class="mfa-toggle-title">Set up two-factor authentication now</span>
-            <span class="mfa-toggle-sub">Optional, takes about a minute. Required later to use Connections — do it now or whenever's convenient.</span>
-          </div>
-          <label class="mfa-switch">
-            <input type="checkbox" id="mfa-signup-toggle" />
-            <span class="mfa-switch-slider"></span>
-          </label>
-        </div>
-
         <button type="submit" id="signup-button">Sign up</button>
       </form>
 
@@ -218,12 +125,6 @@
       <p class="auth-switch">Already have an account? <a href="login.html">Log in</a></p>
     </div>
   </header>
-
-  <div class="mfa-prompt-overlay" id="mfa-prompt-overlay">
-    <div class="mfa-prompt-modal" id="mfa-prompt-modal">
-      <!-- populated by JS -->
-    </div>
-  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
@@ -275,31 +176,15 @@
           return;
         }
 
-        const wantsMfa = document.getElementById('mfa-signup-toggle').checked;
-
         if (data.user && !data.session) {
           lastSignupEmail = email;
-          if (wantsMfa) {
-            // No session yet (email confirmation required) — can't enroll
-            // MFA without one. The decision's already made by this point
-            // either way; they can pick it up in Settings once they're in,
-            // or from the Dashboard banner.
-            message.textContent = "Check your email to confirm your account. You'll be able to finish 2FA setup from Settings once you log in.";
-          } else {
-            message.textContent = "Check your email to confirm your account before logging in.";
-          }
+          message.textContent = "Check your email to confirm your account before logging in.";
           message.classList.add('auth-message-success');
           resendButton.style.display = 'inline-block';
         } else if (data.session) {
-          if (wantsMfa) {
-            message.textContent = "Account created!";
-            message.classList.add('auth-message-success');
-            showMfaPrompt();
-          } else {
-            message.textContent = "Account created! Redirecting...";
-            message.classList.add('auth-message-success');
-            setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
-          }
+          message.textContent = "Account created! Redirecting...";
+          message.classList.add('auth-message-success');
+          setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
         }
 
       } catch (err) {
@@ -344,85 +229,6 @@
         resendButton.textContent = 'Resend confirmation email';
       }
     });
-
-    // ================= OPT-IN MFA SETUP (from the signup toggle) =================
-    // Only ever called if the user explicitly checked the toggle — never
-    // automatic. Skippable at any point; skipping just proceeds to
-    // Dashboard like normal, no MFA set up (same as if the toggle had
-    // been left off).
-    function goToDashboard() {
-      window.location.href = 'dashboard.html';
-    }
-
-    function showMfaPrompt() {
-      document.getElementById('mfa-prompt-overlay').classList.add('open');
-      renderMfaPromptEnroll();
-    }
-
-    function mfaQrDataUri(qrRaw) {
-      if (!qrRaw) return '';
-      if (qrRaw.startsWith('data:')) {
-        const commaIndex = qrRaw.indexOf(',');
-        const payload = commaIndex >= 0 ? qrRaw.slice(commaIndex + 1) : '';
-        if (payload.includes('<') || payload.includes('"')) {
-          return 'data:image/svg+xml;utf-8,' + encodeURIComponent(payload);
-        }
-        return qrRaw;
-      }
-      return 'data:image/svg+xml;utf-8,' + encodeURIComponent(qrRaw);
-    }
-
-    async function renderMfaPromptEnroll() {
-      const modal = document.getElementById('mfa-prompt-modal');
-      modal.innerHTML = `<p>Loading enrollment…</p>`;
-
-      const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp', issuer: 'Arko Finance' });
-      if (error) {
-        modal.innerHTML = `<p>Could not start enrollment: ${error.message}</p><div class="mfa-prompt-actions"><button type="button" class="mfa-prompt-skip-btn" id="mfa-prompt-skip-btn2">Continue to Dashboard</button></div>`;
-        document.getElementById('mfa-prompt-skip-btn2').addEventListener('click', goToDashboard);
-        return;
-      }
-      const factorId = data.id;
-      const qrDataUri = mfaQrDataUri(data.totp.qr_code);
-
-      modal.innerHTML = `
-        <h2>Scan to set up</h2>
-        <p>Scan this code with your authenticator app, then enter the 6-digit code it shows.</p>
-        <div class="mfa-prompt-qr-wrap">
-          <img src="${qrDataUri}" alt="Two-factor authentication QR code" />
-          <div class="mfa-prompt-secret-wrap">
-            <span class="mfa-prompt-secret-label">Can't scan it? Enter manually</span>
-            <code class="mfa-prompt-secret-code">${data.totp.secret}</code>
-          </div>
-        </div>
-        <div class="mfa-prompt-field">
-          <label for="mfa-prompt-code">6-digit code</label>
-          <input type="text" id="mfa-prompt-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
-        </div>
-        <p class="mfa-prompt-error" id="mfa-prompt-error"></p>
-        <div class="mfa-prompt-actions">
-          <button type="button" class="mfa-prompt-setup-btn" id="mfa-prompt-verify-btn">Verify & Enable</button>
-          <button type="button" class="mfa-prompt-skip-btn" id="mfa-prompt-skip-btn3">Skip for now</button>
-        </div>
-      `;
-
-      document.getElementById('mfa-prompt-skip-btn3').addEventListener('click', goToDashboard);
-      document.getElementById('mfa-prompt-verify-btn').addEventListener('click', async () => {
-        const code = document.getElementById('mfa-prompt-code').value.trim();
-        const errorEl = document.getElementById('mfa-prompt-error');
-        errorEl.style.display = 'none';
-        if (!code) return;
-
-        const { data: challengeData, error: challengeError } = await supabaseClient.auth.mfa.challenge({ factorId });
-        if (challengeError) { errorEl.textContent = challengeError.message; errorEl.style.display = 'block'; return; }
-
-        const { error: verifyError } = await supabaseClient.auth.mfa.verify({ factorId, challengeId: challengeData.id, code });
-        if (verifyError) { errorEl.textContent = 'Incorrect code — try again.'; errorEl.style.display = 'block'; return; }
-
-        goToDashboard();
-      });
-    }
-
   </script>
 
 </body>
