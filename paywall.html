@@ -23,20 +23,18 @@
       color:#b3ae9f;
       letter-spacing:.15px;
     }
-
-    /* Fallback styling for the logout control in case signup.css doesn't
-       define .btn-ghost — keeps this page self-sufficient. */
-    .paywall-logout-row {
-      margin-top: 28px;
+    .paywall-nav-row {
       display: flex;
-      justify-content: center;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
     }
-    .paywall-logout {
-      padding: 10px 20px;
-      border: 1px solid rgba(179,182,185,0.4);
+    .paywall-logout-btn {
+      padding: 9px 16px;
+      border: 1px solid rgba(239, 230, 208, 0.3);
       border-radius: 8px;
       background: transparent;
-      color: #C9C4B4;
+      color: #EFE6D0;
       font-family: 'Public Sans', sans-serif;
       font-weight: 600;
       font-size: 0.85rem;
@@ -44,19 +42,17 @@
       cursor: pointer;
       transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
     }
-    .paywall-logout:hover {
-      background: rgba(255,255,255,0.06);
-      border-color: rgba(179,182,185,0.7);
-      transform: translateY(-1px);
-    }
-    .paywall-logout:active { transform: translateY(0); }
+    .paywall-logout-btn:hover { background: rgba(239,230,208,0.1); border-color: rgba(239,230,208,0.55); transform: translateY(-1px); }
+    .paywall-logout-btn:active { transform: translateY(0); }
+    .paywall-logout-btn:focus-visible { outline: 2px solid #E7C766; outline-offset: 2px; }
   </style>
 </head>
 <body>
 
   <header class="hero">
-    <nav class="nav">
+    <nav class="nav paywall-nav-row">
       <span class="wordmark"><span class="wordmark-brand">Arko</span> | Early Access</span>
+      <button type="button" id="paywall-logout-button" class="paywall-logout-btn">Log out</button>
     </nav>
 
     <div class="wip-banner">Early development · some features may not be live</div>
@@ -67,10 +63,6 @@
 
       <button type="button" id="checkout-button" class="hero-cta">Unlock full access — $10</button>
       <p class="auth-message" id="auth-message"></p>
-
-      <div class="paywall-logout-row">
-        <button type="button" id="logout-button" class="btn-ghost paywall-logout">Log out</button>
-      </div>
 
     </div>
   </header>
@@ -119,7 +111,7 @@
       }
     });
 
-    document.getElementById('logout-button').addEventListener('click', async () => {
+    document.getElementById('paywall-logout-button').addEventListener('click', async () => {
       await supabaseClient.auth.signOut();
       window.location.href = 'login.html';
     });

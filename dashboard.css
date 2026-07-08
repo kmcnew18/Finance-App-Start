@@ -930,6 +930,23 @@ input[type="number"]::-webkit-outer-spin-button {
   50% { opacity: 0.5; }
 }
 
+/* Connections gets emerald, matching its own "vault" room identity, with a
+   gentle orbiting node motion on hover instead of the shared rotate. */
+.ledger-tool-icon.icon-connections {
+  background: linear-gradient(155deg, rgba(63,174,133,0.24), rgba(63,174,133,0.05));
+  border-color: rgba(63,174,133,0.32);
+}
+.ledger-tool-icon.icon-connections svg { stroke: #7FE0BB; }
+.ledger-tool-item:hover .ledger-tool-icon.icon-connections {
+  background: linear-gradient(155deg, rgba(63,174,133,0.36), rgba(63,174,133,0.08));
+  transform: scale(1.08) rotate(0deg);
+}
+.ledger-tool-item:hover .icon-connections svg { animation: connPulse 1.3s ease infinite; }
+@keyframes connPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 .ledger-tool-text { flex: 1; min-width: 0; }
 .ledger-tool-title {
   font-size: 0.83rem;

@@ -48,6 +48,13 @@
         <label for="password">Password</label>
         <input type="password" id="password" name="password" placeholder="••••••••" required minlength="8" />
 
+        <label class="consent-row" style="flex-direction: row; align-items: flex-start; gap: 9px; font-weight: 400; margin-bottom: -4px;">
+          <input type="checkbox" id="privacy-consent" required style="width: 16px; height: 16px; margin-top: 2px; accent-color: var(--brown);" />
+          <span style="font-size: 0.82rem; color: #D8D2C4; line-height: 1.4;">
+            I agree to Arko's <a href="privacy-policy.html" target="_blank" rel="noopener" style="color: var(--tan); text-decoration: underline;">Privacy Policy</a>, including how my financial data is collected and used when I connect accounts via Plaid.
+          </span>
+        </label>
+
         <button type="submit" id="signup-button">Sign up</button>
       </form>
 

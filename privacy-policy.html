@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy · Arko</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="signup.css" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <style>
+    .policy-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px 100px;
+      position: relative;
+      z-index: 1;
+      color: var(--tan);
+    }
+    .policy-wrap h1 { font-size: 1.9rem; margin-bottom: 6px; }
+    .policy-updated { font-size: 0.82rem; color: #A8A29A; margin-bottom: 32px; }
+    .policy-wrap h2 { font-size: 1.15rem; color: var(--tan); margin: 32px 0 10px; }
+    .policy-wrap p, .policy-wrap li { font-size: 0.92rem; line-height: 1.7; color: #D8D2C4; }
+    .policy-wrap ul { margin: 8px 0 8px 22px; }
+    .policy-wrap li { margin-bottom: 6px; }
+    .policy-wrap a { color: var(--tan); }
+    .policy-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.86rem; }
+    .policy-table th, .policy-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #333; }
+    .policy-table th { color: var(--tan); font-weight: 600; }
+    .policy-table td { color: #D8D2C4; }
+    .policy-back { display: inline-block; margin-bottom: 20px; color: #A8A29A; font-size: 0.85rem; text-decoration: none; }
+    .policy-back:hover { color: var(--tan); }
+  </style>
+</head>
+<body>
+
+  <header class="hero" style="padding-bottom: 40px;">
+    <nav class="nav" style="margin-bottom: 20px;">
+      <a href="index.html" class="wordmark" style="text-decoration: none;"><span class="wordmark-brand">Arko</span> | Early Access</a>
+    </nav>
+
+    <div class="policy-wrap">
+      <a href="signup.html" class="policy-back">← Back</a>
+      <h1>Privacy Policy</h1>
+      <p class="policy-updated">Last updated: 07/07/2026
+      </p>
+
+      <p>This policy explains what information Arko ("we," "us") collects when you use the app, why we collect it, and what control you have over it. Arko is a personal budgeting and net worth tracking application.</p>
+
+      <h2>1. Information We Collect</h2>
+      <p>We collect the following categories of information:</p>
+      <table class="policy-table">
+        <tr><th>Category</th><th>Examples</th><th>Source</th></tr>
+        <tr><td>Account information</td><td>Email address, password (hashed, never stored in plain text)</td><td>You, at signup</td></tr>
+        <tr><td>Financial account data</td><td>Account balances, account type, institution name, and — where you've enabled it — transaction history</td><td>Plaid, only for accounts you explicitly connect via Plaid Link</td></tr>
+        <tr><td>Budget and tracking data</td><td>Budget categories, amounts, notes you enter manually</td><td>You, directly</td></tr>
+        <tr><td>Payment information</td><td>Processed for the one-time unlock fee</td><td>Our payment processor — we do not store your card details ourselves</td></tr>
+      </table>
+
+      <h2>2. How We Use Your Information</h2>
+      <ul>
+        <li>To provide the core features you're using Arko for: budgeting, net worth tracking, and account aggregation.</li>
+        <li>To detect recurring bills, subscriptions, and income when you've connected accounts with Transactions enabled — this detection is automatic, but nothing is added to your budget without your explicit approval.</li>
+        <li>To communicate with you about your account (e.g., password resets, service updates).</li>
+      </ul>
+      <p><strong>We do not sell or rent your personal or financial information to any third party, for any purpose, ever.</strong> Data obtained via Plaid is used exclusively to power features within Arko itself, for the account holder it belongs to.</p>
+
+      <h2>3. Your Consent</h2>
+      <p>When you connect a financial account through Plaid Link, Plaid shows you exactly what data will be shared and requires your explicit agreement before any connection is made. You can review or revoke access to any connected account at any time from the Connections page in Arko, or directly through Plaid's own consumer portal at <a href="https://my.plaid.com" target="_blank" rel="noopener">my.plaid.com</a>.</p>
+
+      <h2>4. Data Retention and Deletion</h2>
+      <ul>
+        <li>We retain your data for as long as your account is active, so the app continues to work as expected.</li>
+        <li>You can remove any individual linked account, budget period, or log entry at any time — these deletions are immediate and permanent.</li>
+        <li>If you'd like your entire account and all associated data deleted, contact us at contact@arkofinance.com and we will delete it within 3 days, except where we're required to retain limited records by law (e.g., payment records for tax/accounting purposes).</li>
+        <li>Removing a linked account in Arko disconnects it from our system, but does not itself revoke Plaid's access — for full revocation, also remove the connection at my.plaid.com.</li>
+      </ul>
+
+      <h2>5. Security</h2>
+      <p>We use industry-standard practices to protect your data, including encryption in transit (TLS) and at rest, and restricted access to systems that store financial data. Details are available in our <a href="#">Security Policy</a> on request.</p>
+
+      <h2>6. Your Rights</h2>
+      <p>Depending on where you live, you may have rights to access, correct, delete, or export your personal data, and to object to certain processing. To exercise any of these rights, contact us at contact@arkofinance.com.</p>
+
+      <h2>7. Changes to This Policy</h2>
+      <p>We'll update this page when our practices change. Material changes will be communicated to you directly.</p>
+
+      <h2>8. Contact</h2>
+      <p>Questions about this policy or your data: contact@arkofinance.com</p>
+    </div>
+  </header>
+
+</body>
+</html>
