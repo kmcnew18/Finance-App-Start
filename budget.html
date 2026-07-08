@@ -231,6 +231,9 @@
       <div class="mfa-modal-body" id="mfa-modal-body">
         <!-- populated by JS depending on enrollment state -->
       </div>
+      <div class="mfa-modal-actions">
+        <button type="button" class="mfa-cancel-btn" id="mfa-cancel-btn">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -998,8 +1001,8 @@
       return new Promise(resolve => { mfaResolveQueue.push(resolve); });
     }
 
-    function resolveMfaGate() {
-      mfaResolveQueue.forEach(r => r(true));
+    function resolveMfaGate(success) {
+      mfaResolveQueue.forEach(r => r(success));
       mfaResolveQueue = [];
     }
 
@@ -1009,24 +1012,43 @@
       overlay.classList.add('open');
       overlay.classList.toggle('mfa-gated', mfaGateActive);
     }
+    // Dismisses the overlay without completing verification. Always
+    // available via the Cancel button, even during a required gate —
+    // there's no reason to trap someone in a broken or unwanted flow.
+    // Backdrop-click and the × button still respect the gate, so an
+    // accidental click elsewhere can't dismiss a required step.
+    function cancelMfaOverlay() {
+      mfaGateActive = false;
+      document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
+      mfaEnrollFactorId = null;
+      resolveMfaGate(false);
+    }
     function closeMfaOverlay() {
       if (mfaGateActive) return;
       document.getElementById('mfa-overlay').classList.remove('open');
       mfaEnrollFactorId = null;
     }
 
+    function mfaQrDataUri(qrRaw) {
+      if (!qrRaw) return '';
+      // Handle either shape Supabase might hand back: already a ready
+      // data: URI (some SDK versions), or raw SVG markup that still needs
+      // encoding (others). Guessing wrong either way breaks the image, so
+      // check rather than assume.
+      if (qrRaw.startsWith('data:')) return qrRaw;
+      return 'data:image/svg+xml;utf-8,' + encodeURIComponent(qrRaw);
+    }
+
     function mfaQrFrameHtml(qrSvg, secret) {
-      // Supabase returns qr_code as raw SVG *markup*, not a ready image URL
-      // — it must be percent-encoded into a proper data URI before it can
-      // be used as an <img> src. Using the raw markup directly breaks the
-      // HTML, since the SVG's own quotes prematurely close the src
-      // attribute (this was the actual cause of the broken-image icon and
-      // garbled leftover text).
-      const qrDataUri = 'data:image/svg+xml;utf-8,' + encodeURIComponent(qrSvg);
+      const qrDataUri = mfaQrDataUri(qrSvg);
       return `
         <div class="mfa-qr-frame">
           <span class="mfa-qr-label">Scan with your authenticator app</span>
-          <div class="mfa-qr-inner"><img src="${qrDataUri}" alt="Two-factor authentication QR code" /></div>
+          <div class="mfa-qr-inner">
+            <img src="${qrDataUri}" alt="Two-factor authentication QR code"
+                 onerror="this.style.display='none'; document.getElementById('mfa-qr-fallback').style.display='block';" />
+            <p class="mfa-qr-fallback" id="mfa-qr-fallback" style="display:none;">Couldn't load the QR code — use the code below to set up manually instead.</p>
+          </div>
           <div class="mfa-qr-secret-wrap">
             <span class="mfa-qr-secret-label">Can't scan it? Enter manually</span>
             <code class="mfa-qr-secret-code">${secret}</code>
@@ -1111,7 +1133,7 @@
         mfaEnrollFactorId = null;
         mfaGateActive = false;
         document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
-        resolveMfaGate();
+        resolveMfaGate(true);
       });
     }
 
@@ -1149,7 +1171,7 @@
 
         mfaGateActive = false;
         document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
-        resolveMfaGate();
+        resolveMfaGate(true);
       });
     }
 
@@ -1180,6 +1202,7 @@
         renderMfaManage();
       });
       document.getElementById('mfa-close').addEventListener('click', closeMfaOverlay);
+      document.getElementById('mfa-cancel-btn').addEventListener('click', cancelMfaOverlay);
       document.getElementById('mfa-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'mfa-overlay') closeMfaOverlay();
       });
@@ -1351,7 +1374,10 @@
           if (btn.disabled) return;
           if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
-            await requireMfaVerified(true);
+            const verified = await requireMfaVerified(true);
+            if (!verified) return; // cancelled — stay put, don't navigate
+            window.location.href = btn.dataset.href;
+            return;
           }
           window.location.href = btn.dataset.href;
         });
