@@ -307,7 +307,7 @@
       // HTML, since the SVG's own quotes prematurely close the src
       // attribute (this was the actual cause of the broken-image icon and
       // garbled leftover text).
-      const qrDataUri = 'data:image/svg+xml;utf8,' + encodeURIComponent(qrSvg);
+      const qrDataUri = 'data:image/svg+xml;utf-8,' + encodeURIComponent(qrSvg);
       return `
         <div class="mfa-qr-frame">
           <span class="mfa-qr-label">Scan with your authenticator app</span>

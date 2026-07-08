@@ -1114,27 +1114,22 @@ textarea:focus-visible,
 .mfa-verify-btn:hover { background: var(--vintage-blue-light); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
 .mfa-verify-btn:active { transform: translateY(0); }
 
-/* QR code frame — the code itself must stay on a pure white background for
-   scan reliability (any tint reduces contrast and can break scanning), but
-   the frame around it carries the app's own identity so it doesn't look
-   like a raw, unstyled element dropped onto the page. */
+/* QR code — shown plain, transparent background, no decorative box around
+   it. Just centered and sized consistently. */
 .mfa-qr-frame {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
-  background: var(--panel-bg);
-  border: 1px solid var(--vintage-blue);
-  border-radius: 14px;
-  padding: 18px;
+  background: transparent;
   margin: 4px auto;
-  box-shadow: 0 0 18px rgba(110,143,163,0.16);
   width: fit-content;
 }
 .mfa-qr-label {
   font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--silver-dim);
 }
 .mfa-qr-inner {
+  background: transparent;
   line-height: 0; /* collapses whitespace so the frame hugs the image tightly */
 }
-.mfa-qr-inner img { display: block; width: 168px; height: 168px; border-radius: 4px; }
+.mfa-qr-inner img { display: block; width: 168px; height: 168px; background: transparent; }
 .mfa-qr-secret-wrap {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   width: 100%; max-width: 280px;
