@@ -1183,3 +1183,28 @@ textarea:focus-visible,
   transition: background 0.15s ease;
 }
 .mfa-remove-factor-btn:hover { background: rgba(224,139,125,0.12); }
+
+/* Dismissible 2FA suggestion banner — accessible, never blocking. */
+.mfa-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  background: linear-gradient(135deg, rgba(46,84,114,0.16), rgba(46,84,114,0.05));
+  border: 1px solid var(--vintage-blue);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.mfa-banner-text { font-size: 0.85rem; color: var(--tan); }
+.mfa-banner-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.mfa-banner-setup-btn {
+  padding: 7px 14px; border: none; border-radius: 7px;
+  background: var(--vintage-blue); color: var(--tan);
+  font-weight: 600; font-size: 0.78rem; cursor: pointer;
+  transition: background 0.15s ease;
+}
+.mfa-banner-setup-btn:hover { background: var(--vintage-blue-light); }
+.mfa-banner-dismiss-btn {
+  background: none; border: none; color: var(--silver-dim);
+  font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 2px 4px;
+}
+.mfa-banner-dismiss-btn:hover { color: var(--tan); }

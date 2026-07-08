@@ -1104,7 +1104,7 @@
       const body = document.getElementById('mfa-modal-body');
       body.innerHTML = `<p class="mfa-modal-sub">Loading enrollment…</p>`;
 
-      const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp' });
+      const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp', issuer: 'Arko Finance' });
       if (error) {
         body.innerHTML = `<p class="mfa-modal-sub">Could not start enrollment: ${error.message}</p>`;
         return;

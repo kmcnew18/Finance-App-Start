@@ -5,88 +5,306 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Privacy Policy · Arko</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="signup.css" />
   <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <style>
-    .policy-wrap {
-      max-width: 720px;
+    /* ============================================================
+       Privacy Policy — styled as a "policy ledger": a bound spine
+       down the left of each clause echoes the app's own ledger
+       vocabulary (the Premium Tools menu, Budget Planner) rather
+       than reading as a generic legal-doc dump. Numbered clauses
+       are appropriate here — a policy genuinely is a sequence.
+       ============================================================ */
+
+    .policy-shell {
+      max-width: 1040px;
       margin: 0 auto;
-      padding: 40px 24px 100px;
       position: relative;
       z-index: 1;
-      color: var(--tan);
+      padding: 0 24px;
     }
-    .policy-wrap h1 { font-size: 1.9rem; margin-bottom: 6px; }
-    .policy-updated { font-size: 0.82rem; color: #A8A29A; margin-bottom: 32px; }
-    .policy-wrap h2 { font-size: 1.15rem; color: var(--tan); margin: 32px 0 10px; }
-    .policy-wrap p, .policy-wrap li { font-size: 0.92rem; line-height: 1.7; color: #D8D2C4; }
-    .policy-wrap ul { margin: 8px 0 8px 22px; }
-    .policy-wrap li { margin-bottom: 6px; }
-    .policy-wrap a { color: var(--tan); }
-    .policy-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.86rem; }
-    .policy-table th, .policy-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #333; }
-    .policy-table th { color: var(--tan); font-weight: 600; }
-    .policy-table td { color: #D8D2C4; }
-    .policy-back { display: inline-block; margin-bottom: 20px; color: #A8A29A; font-size: 0.85rem; text-decoration: none; }
+
+    .policy-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 28px;
+      color: var(--silver);
+      font-size: 0.82rem;
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
     .policy-back:hover { color: var(--tan); }
+
+    .policy-header { max-width: 640px; margin-bottom: 44px; }
+    .policy-eyebrow {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--brown-hover);
+      margin-bottom: 10px;
+    }
+    .policy-header h1 {
+      font-size: clamp(2rem, 4vw, 2.6rem);
+      color: var(--tan);
+      line-height: 1.12;
+      margin-bottom: 12px;
+    }
+    .policy-updated {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.76rem;
+      color: #9A9184;
+    }
+
+    /* ---------- summary card ---------- */
+    .policy-summary {
+      max-width: 640px;
+      background: rgba(107, 74, 56, 0.12);
+      border: 1px solid rgba(107, 74, 56, 0.5);
+      border-radius: 10px;
+      padding: 22px 24px;
+      margin-bottom: 56px;
+    }
+    .policy-summary-title {
+      font-family: 'Fraunces', serif;
+      font-size: 1rem;
+      color: var(--tan);
+      margin-bottom: 14px;
+    }
+    .policy-summary ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .policy-summary li {
+      font-size: 0.88rem; line-height: 1.5; color: #D8D2C4;
+      padding-left: 20px; position: relative;
+    }
+    .policy-summary li::before {
+      content: "—";
+      position: absolute; left: 0; color: var(--brown-hover);
+    }
+
+    /* ---------- layout: rail + content ---------- */
+    .policy-layout {
+      display: grid;
+      grid-template-columns: 200px minmax(0, 640px);
+      gap: 64px;
+      align-items: start;
+      padding-bottom: 100px;
+    }
+
+    .policy-rail {
+      position: sticky;
+      top: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .policy-rail a {
+      font-size: 0.8rem;
+      color: #9A9184;
+      text-decoration: none;
+      padding: 7px 0;
+      border-left: 2px solid transparent;
+      padding-left: 14px;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+    .policy-rail a:hover,
+    .policy-rail a:focus-visible { color: var(--tan); border-color: var(--brown-hover); }
+
+    /* ---------- ledger spine on each clause ---------- */
+    .policy-clause {
+      position: relative;
+      padding-left: 26px;
+      margin-bottom: 48px;
+      border-left: 2px solid #3a3430;
+      scroll-margin-top: 32px;
+    }
+    .policy-clause-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--brown-hover);
+      position: absolute;
+      left: -1px;
+      top: 2px;
+      background: var(--grey);
+      padding-right: 10px;
+      transform: translateX(-50%);
+    }
+    .policy-clause h2 {
+      font-size: 1.1rem;
+      color: var(--tan);
+      margin-bottom: 12px;
+    }
+    .policy-clause p, .policy-clause li {
+      font-size: 0.92rem; line-height: 1.7; color: #D8D2C4;
+    }
+    .policy-clause ul { margin: 10px 0 4px 20px; }
+    .policy-clause li { margin-bottom: 8px; }
+    .policy-clause p + p { margin-top: 12px; }
+    .policy-clause a { color: var(--tan); }
+    .policy-clause strong { color: var(--tan); }
+
+    .policy-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 4px;
+      font-size: 0.85rem;
+    }
+    .policy-table th, .policy-table td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid #3a3430;
+      vertical-align: top;
+    }
+    .policy-table th {
+      color: var(--tan);
+      font-weight: 600;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .policy-table td { color: #D8D2C4; }
+
+    .policy-footer {
+      max-width: 640px;
+      margin-left: 226px;
+      padding-bottom: 60px;
+      font-size: 0.82rem;
+      color: #9A9184;
+      border-top: 1px solid #3a3430;
+      padding-top: 24px;
+    }
+
+    @media (max-width: 820px) {
+      .policy-layout { grid-template-columns: 1fr; gap: 32px; }
+      .policy-rail {
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 4px 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #3a3430;
+        margin-bottom: 12px;
+      }
+      .policy-rail a { padding: 4px 0; border-left: none; }
+      .policy-footer { margin-left: 0; }
+    }
   </style>
 </head>
 <body>
 
-  <header class="hero" style="padding-bottom: 40px;">
-    <nav class="nav" style="margin-bottom: 20px;">
+  <header class="hero" style="padding-bottom: 0;">
+    <nav class="nav" style="margin-bottom: 40px;">
       <a href="index.html" class="wordmark" style="text-decoration: none;"><span class="wordmark-brand">Arko</span> | Early Access</a>
     </nav>
 
-    <div class="policy-wrap">
-      <a href="signup.html" class="policy-back">← Back</a>
-      <h1>Privacy Policy</h1>
-      <p class="policy-updated">Last updated: 07/07/2026
-      </p>
+    <div class="policy-shell">
+      <a href="signup.html" class="policy-back">← Back to sign up</a>
 
-      <p>This policy explains what information Arko ("we," "us") collects when you use the app, why we collect it, and what control you have over it. Arko is a personal budgeting and net worth tracking application.</p>
+      <div class="policy-header">
+        <div class="policy-eyebrow">Legal · Privacy</div>
+        <h1>Privacy Policy</h1>
+        <p class="policy-updated">Last updated: [fill in date]</p>
+      </div>
 
-      <h2>1. Information We Collect</h2>
-      <p>We collect the following categories of information:</p>
-      <table class="policy-table">
-        <tr><th>Category</th><th>Examples</th><th>Source</th></tr>
-        <tr><td>Account information</td><td>Email address, password (hashed, never stored in plain text)</td><td>You, at signup</td></tr>
-        <tr><td>Financial account data</td><td>Account balances, account type, institution name, and — where you've enabled it — transaction history</td><td>Plaid, only for accounts you explicitly connect via Plaid Link</td></tr>
-        <tr><td>Budget and tracking data</td><td>Budget categories, amounts, notes you enter manually</td><td>You, directly</td></tr>
-        <tr><td>Payment information</td><td>Processed for the one-time unlock fee</td><td>Our payment processor — we do not store your card details ourselves</td></tr>
-      </table>
+      <div class="policy-summary">
+        <div class="policy-summary-title">In short</div>
+        <ul>
+          <li>We collect only what powers your budget, net worth, and account features — nothing more.</li>
+          <li>We never sell or rent your data, financial or otherwise, to anyone, for any reason.</li>
+          <li>Connecting an account through Plaid always shows you what's shared first, and you approve it.</li>
+          <li>You can remove any account, entry, or your whole profile whenever you want.</li>
+        </ul>
+      </div>
 
-      <h2>2. How We Use Your Information</h2>
-      <ul>
-        <li>To provide the core features you're using Arko for: budgeting, net worth tracking, and account aggregation.</li>
-        <li>To detect recurring bills, subscriptions, and income when you've connected accounts with Transactions enabled — this detection is automatic, but nothing is added to your budget without your explicit approval.</li>
-        <li>To communicate with you about your account (e.g., password resets, service updates).</li>
-      </ul>
-      <p><strong>We do not sell or rent your personal or financial information to any third party, for any purpose, ever.</strong> Data obtained via Plaid is used exclusively to power features within Arko itself, for the account holder it belongs to.</p>
+      <div class="policy-layout">
+        <nav class="policy-rail" aria-label="Policy sections">
+          <a href="#collect">1. Information we collect</a>
+          <a href="#use">2. How we use it</a>
+          <a href="#consent">3. Your consent</a>
+          <a href="#retention">4. Retention & deletion</a>
+          <a href="#security">5. Security</a>
+          <a href="#rights">6. Your rights</a>
+          <a href="#changes">7. Changes</a>
+          <a href="#contact">8. Contact</a>
+        </nav>
 
-      <h2>3. Your Consent</h2>
-      <p>When you connect a financial account through Plaid Link, Plaid shows you exactly what data will be shared and requires your explicit agreement before any connection is made. You can review or revoke access to any connected account at any time from the Connections page in Arko, or directly through Plaid's own consumer portal at <a href="https://my.plaid.com" target="_blank" rel="noopener">my.plaid.com</a>.</p>
+        <div class="policy-content">
+          <p style="font-size:0.94rem; line-height:1.7; color:#D8D2C4; margin-bottom: 40px;">This policy explains what information Arko ("we," "us") collects when you use the app, why we collect it, and what control you have over it. Arko is a personal budgeting and net worth tracking application.</p>
 
-      <h2>4. Data Retention and Deletion</h2>
-      <ul>
-        <li>We retain your data for as long as your account is active, so the app continues to work as expected.</li>
-        <li>You can remove any individual linked account, budget period, or log entry at any time — these deletions are immediate and permanent.</li>
-        <li>If you'd like your entire account and all associated data deleted, contact us at contact@arkofinance.com and we will delete it within 3 days, except where we're required to retain limited records by law (e.g., payment records for tax/accounting purposes).</li>
-        <li>Removing a linked account in Arko disconnects it from our system, but does not itself revoke Plaid's access — for full revocation, also remove the connection at my.plaid.com.</li>
-      </ul>
+          <section class="policy-clause" id="collect">
+            <span class="policy-clause-num">01</span>
+            <h2>Information we collect</h2>
+            <table class="policy-table">
+              <tr><th>Category</th><th>Examples</th><th>Source</th></tr>
+              <tr><td>Account information</td><td>Email address, password (hashed, never stored in plain text)</td><td>You, at signup</td></tr>
+              <tr><td>Financial account data</td><td>Balances, account type, institution name, and — where enabled — transaction history</td><td>Plaid, only for accounts you explicitly connect</td></tr>
+              <tr><td>Budget and tracking data</td><td>Categories, amounts, notes you enter manually</td><td>You, directly</td></tr>
+              <tr><td>Payment information</td><td>Processed for the one-time unlock fee</td><td>Our payment processor — we don't store card details ourselves</td></tr>
+            </table>
+          </section>
 
-      <h2>5. Security</h2>
-      <p>We use industry-standard practices to protect your data, including encryption in transit (TLS) and at rest, and restricted access to systems that store financial data. Details are available in our <a href="#">Security Policy</a> on request.</p>
+          <section class="policy-clause" id="use">
+            <span class="policy-clause-num">02</span>
+            <h2>How we use your information</h2>
+            <ul>
+              <li>To provide the core features you're using Arko for: budgeting, net worth tracking, and account aggregation.</li>
+              <li>To detect recurring bills, subscriptions, and income when you've connected accounts with Transactions enabled — this detection is automatic, but nothing is added to your budget without your explicit approval.</li>
+              <li>To communicate with you about your account, such as password resets or service updates.</li>
+            </ul>
+            <p><strong>We do not sell or rent your personal or financial information to any third party, for any purpose, ever.</strong> Data obtained via Plaid is used exclusively to power features within Arko itself, for the account holder it belongs to.</p>
+          </section>
 
-      <h2>6. Your Rights</h2>
-      <p>Depending on where you live, you may have rights to access, correct, delete, or export your personal data, and to object to certain processing. To exercise any of these rights, contact us at contact@arkofinance.com.</p>
+          <section class="policy-clause" id="consent">
+            <span class="policy-clause-num">03</span>
+            <h2>Your consent</h2>
+            <p>When you connect a financial account through Plaid Link, Plaid shows you exactly what data will be shared and requires your explicit agreement before any connection is made. You can review or revoke access to any connected account at any time from the Connections page in Arko, or directly through Plaid's own consumer portal at <a href="https://my.plaid.com" target="_blank" rel="noopener">my.plaid.com</a>.</p>
+          </section>
 
-      <h2>7. Changes to This Policy</h2>
-      <p>We'll update this page when our practices change. Material changes will be communicated to you directly.</p>
+          <section class="policy-clause" id="retention">
+            <span class="policy-clause-num">04</span>
+            <h2>Data retention and deletion</h2>
+            <ul>
+              <li>We retain your data for as long as your account is active, so the app continues to work as expected.</li>
+              <li>You can remove any individual linked account, budget period, or log entry at any time — these deletions are immediate and permanent.</li>
+              <li>If you'd like your entire account and all associated data deleted, contact us at [your contact email] and we will delete it within [X] days, except where we're required to retain limited records by law (e.g., payment records for tax purposes).</li>
+              <li>Removing a linked account in Arko disconnects it from our system, but does not itself revoke Plaid's access — for full revocation, also remove the connection at my.plaid.com.</li>
+            </ul>
+          </section>
 
-      <h2>8. Contact</h2>
-      <p>Questions about this policy or your data: contact@arkofinance.com</p>
+          <section class="policy-clause" id="security">
+            <span class="policy-clause-num">05</span>
+            <h2>Security</h2>
+            <p>We use industry-standard practices to protect your data, including encryption in transit (TLS) and at rest, and restricted access to systems that store financial data. Details are available in our Security Policy on request.</p>
+          </section>
+
+          <section class="policy-clause" id="rights">
+            <span class="policy-clause-num">06</span>
+            <h2>Your rights</h2>
+            <p>Depending on where you live, you may have rights to access, correct, delete, or export your personal data, and to object to certain processing. To exercise any of these rights, contact us at [your contact email].</p>
+          </section>
+
+          <section class="policy-clause" id="changes">
+            <span class="policy-clause-num">07</span>
+            <h2>Changes to this policy</h2>
+            <p>We'll update this page when our practices change. Material changes will be communicated to you directly.</p>
+          </section>
+
+          <section class="policy-clause" id="contact" style="border-left-color: transparent; margin-bottom: 0;">
+            <span class="policy-clause-num">08</span>
+            <h2>Contact</h2>
+            <p>Questions about this policy or your data: [your contact email]</p>
+          </section>
+        </div>
+      </div>
+
+      <div class="policy-footer">
+        Arko is a personal finance application currently in Early Access. This policy is reviewed and updated as the product evolves.
+      </div>
     </div>
   </header>
 

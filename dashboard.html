@@ -85,6 +85,14 @@
 
   <main class="dash-main" id="dash-main" style="display:none;">
 
+    <div class="mfa-banner" id="mfa-banner" style="display:none;">
+      <span class="mfa-banner-text">Add two-factor authentication for extra security on your account.</span>
+      <div class="mfa-banner-actions">
+        <button type="button" id="mfa-banner-setup-btn" class="mfa-banner-setup-btn">Set up</button>
+        <button type="button" id="mfa-banner-dismiss-btn" class="mfa-banner-dismiss-btn" aria-label="Dismiss">×</button>
+      </div>
+    </div>
+
     <section class="overview-cards">
       <div class="card" data-cat="savings">
         <span class="card-label">Savings</span>
@@ -340,6 +348,7 @@
       }
       setupLedgerMenu();
       setupMfaOverlay();
+      setupMfaBanner();
 
       const dateNow = todayStr();
       document.getElementById('add-date').textContent = dateNow;
@@ -533,7 +542,7 @@
       const body = document.getElementById('mfa-modal-body');
       body.innerHTML = `<p class="mfa-modal-sub">Loading enrollment…</p>`;
 
-      const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp' });
+      const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp', issuer: 'Arko Finance' });
       if (error) {
         body.innerHTML = `<p class="mfa-modal-sub">Could not start enrollment: ${error.message}</p>`;
         return;
@@ -571,6 +580,8 @@
         mfaEnrollFactorId = null;
         mfaGateActive = false;
         document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
+        const banner = document.getElementById('mfa-banner');
+        if (banner) banner.style.display = 'none';
         resolveMfaGate(true);
       });
     }
@@ -623,6 +634,29 @@
       document.getElementById('mfa-cancel-btn').addEventListener('click', cancelMfaOverlay);
       document.getElementById('mfa-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'mfa-overlay') closeMfaOverlay();
+      });
+    }
+
+    // Accessible, never-blocking nudge — shown once per browser session if
+    // the user has no MFA set up yet, and only if they haven't dismissed
+    // it already. "Set up" opens the exact same overlay used from
+    // Settings; dismiss just hides it for this session, no nagging.
+    async function setupMfaBanner() {
+      if (sessionStorage.getItem('mfaBannerDismissed') === 'true') return;
+
+      const { data } = await supabaseClient.auth.mfa.listFactors();
+      const hasMfa = (data?.totp || []).some(f => f.status === 'verified');
+      if (hasMfa) return;
+
+      document.getElementById('mfa-banner').style.display = 'flex';
+
+      document.getElementById('mfa-banner-setup-btn').addEventListener('click', () => {
+        openMfaOverlay(false);
+        renderMfaEnrollStart();
+      });
+      document.getElementById('mfa-banner-dismiss-btn').addEventListener('click', () => {
+        sessionStorage.setItem('mfaBannerDismissed', 'true');
+        document.getElementById('mfa-banner').style.display = 'none';
       });
     }
 
