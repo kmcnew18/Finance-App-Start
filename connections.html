@@ -199,16 +199,17 @@
   </div>
 
   <!-- ================= TWO-FACTOR AUTHENTICATION OVERLAY =================
-       Enrolling here is required before Plaid Link can be launched — see
-       requireMfaVerified() in the script below, called at the start of
-       startPlaidLink(). -->
-  <div class="vault-overlay" id="mfa-overlay">
-    <div class="vault-panel-modal">
-      <div class="vault-modal-head">
+       This is a shared component (styles live in dashboard.css, loaded on
+       every page) so Dashboard, Log, Budget, and Connections all present
+       an identical MFA flow. Entry to this page is gated on it — see
+       requireMfaVerified(true) awaited at the top of init() below. -->
+  <div class="mfa-overlay" id="mfa-overlay">
+    <div class="mfa-modal">
+      <div class="mfa-modal-head">
         <h2>Two-factor authentication</h2>
-        <button type="button" class="vault-modal-close" id="mfa-close">×</button>
+        <button type="button" class="mfa-modal-close" id="mfa-close">×</button>
       </div>
-      <div class="vault-modal-body" id="mfa-modal-body">
+      <div class="mfa-modal-body" id="mfa-modal-body">
         <!-- populated by JS depending on enrollment state -->
       </div>
     </div>
@@ -269,6 +270,13 @@
       setupRecurringSection();
       setupMfaOverlay();
 
+      // Blocks here until the user has enrolled AND verified a second
+      // factor for this session — the rest of the page (accounts, net
+      // worth, everything) does not load until this resolves.
+      document.getElementById('loading-message').textContent = 'Checking two-factor authentication…';
+      await requireMfaVerified(true);
+
+      document.getElementById('loading-message').textContent = 'Loading your accounts...';
       await loadAccounts();
       await loadRecurringData();
 
@@ -544,9 +552,8 @@
     // Requires backend endpoints (see /api/plaid-create-link-token,
     // /api/plaid-exchange-token) — see setup notes for what to deploy.
     async function startPlaidLink() {
-      const mfaOk = await requireMfaVerified();
-      if (!mfaOk) return; // requireMfaVerified() has already shown the enrollment/verification overlay
-
+      // No MFA check needed here — the whole page is gated at entry in
+      // init(), so reaching this point already means the session is AAL2.
       const btn = document.getElementById('plaid-connect-btn');
       btn.disabled = true;
       const originalText = btn.innerHTML;
@@ -1014,12 +1021,15 @@
     }
 
     // ================= TWO-FACTOR AUTHENTICATION =================
-    // Real end-user MFA via Supabase Auth's native TOTP support — not just
-    // a settings toggle. requireMfaVerified() is called at the very start
-    // of startPlaidLink(), so Plaid Link genuinely cannot be launched until
-    // the user has both enrolled AND verified a second factor for this
-    // session (Authenticator Assurance Level 2).
-    let mfaEnrollFactorId = null; // set while an enrollment is in progress but not yet verified
+    // Real end-user MFA via Supabase Auth's native TOTP support.
+    // requireMfaVerified(gate) is awaited at the very top of init(), before
+    // any page content renders — so Connections genuinely cannot be entered
+    // (not just "Connect with Plaid," the whole tab) until the user has
+    // both enrolled AND verified a second factor for this session (AAL2).
+    // When gate=true, the overlay can't be dismissed without completing it.
+    let mfaEnrollFactorId = null;
+    let mfaGateActive = false;
+    let mfaResolveQueue = [];
 
     async function getMfaLevel() {
       const { data, error } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -1027,39 +1037,54 @@
       return data;
     }
 
-    // Returns true if the session is already at aal2 (MFA verified this
-    // session). Otherwise opens the MFA overlay in the right state
-    // (enroll, or verify-existing-factor) and returns false — the caller
-    // should stop, since the user needs to complete a step in the overlay
-    // before continuing.
-    async function requireMfaVerified() {
+    // Resolves once the session reaches AAL2. If already there, resolves
+    // immediately without ever showing the overlay. Otherwise opens it in
+    // the right state and waits — this function does not return until the
+    // user has actually completed verification.
+    async function requireMfaVerified(gate) {
       const { currentLevel, nextLevel } = await getMfaLevel();
       if (currentLevel === 'aal2') return true;
 
-      openMfaOverlay();
+      openMfaOverlay(gate);
       if (nextLevel === 'aal2') {
-        // A factor is already enrolled — this session just hasn't verified
-        // it yet (e.g. fresh login). Prompt for the code directly.
         await renderMfaVerifyForm();
       } else {
-        // No factor enrolled at all yet.
         await renderMfaEnrollStart();
       }
-      return false;
+
+      return new Promise(resolve => { mfaResolveQueue.push(resolve); });
     }
 
-    function openMfaOverlay() {
-      document.getElementById('mfa-overlay').classList.add('open');
+    function resolveMfaGate() {
+      mfaResolveQueue.forEach(r => r(true));
+      mfaResolveQueue = [];
+    }
+
+    function openMfaOverlay(gate) {
+      mfaGateActive = !!gate;
+      const overlay = document.getElementById('mfa-overlay');
+      overlay.classList.add('open');
+      overlay.classList.toggle('mfa-gated', mfaGateActive);
     }
     function closeMfaOverlay() {
+      if (mfaGateActive) return; // can't be dismissed — must complete verification
       document.getElementById('mfa-overlay').classList.remove('open');
       mfaEnrollFactorId = null;
+    }
+
+    function mfaQrFrameHtml(qrSvg, secret) {
+      return `
+        <div class="mfa-qr-frame">
+          <span class="mfa-qr-label">Scan with your authenticator app</span>
+          <div class="mfa-qr-inner">${qrSvg}</div>
+          <span class="mfa-qr-secret">Can't scan it? Enter manually: <code>${secret}</code></span>
+        </div>`;
     }
 
     async function renderMfaManage() {
       const body = document.getElementById('mfa-modal-body');
       const { data, error } = await supabaseClient.auth.mfa.listFactors();
-      if (error) { body.innerHTML = `<p class="vault-modal-sub">Could not load your two-factor settings: ${error.message}</p>`; return; }
+      if (error) { body.innerHTML = `<p class="mfa-modal-sub">Could not load your two-factor settings: ${error.message}</p>`; return; }
 
       const totpFactors = (data.totp || []).filter(f => f.status === 'verified');
 
@@ -1069,12 +1094,12 @@
       }
 
       body.innerHTML = `
-        <p class="vault-modal-sub">Two-factor authentication is <strong style="color:var(--emerald-bright);">enabled</strong> on your account. It's required before connecting any account via Plaid.</p>
-        <div class="vault-field">
+        <p class="mfa-modal-sub">Two-factor authentication is <strong style="color:var(--emerald-bright);">enabled</strong>. It's required to open Connections and to link accounts via Plaid.</p>
+        <div class="mfa-factor-list">
           ${totpFactors.map(f => `
-            <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--vault-line);">
-              <span style="font-size:0.85rem; color:var(--tan);">Authenticator app${f.friendly_name ? ' — ' + f.friendly_name : ''}</span>
-              <button type="button" class="mfa-remove-factor-btn" data-id="${f.id}" style="background:none; border:1px solid var(--liability); color:var(--liability-bright); border-radius:6px; padding:5px 10px; font-size:0.72rem; cursor:pointer;">Remove</button>
+            <div class="mfa-factor-row">
+              <span>Authenticator app${f.friendly_name ? ' — ' + f.friendly_name : ''}</span>
+              <button type="button" class="mfa-remove-factor-btn" data-id="${f.id}">Remove</button>
             </div>
           `).join('')}
         </div>
@@ -1082,7 +1107,7 @@
 
       document.querySelectorAll('.mfa-remove-factor-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-          if (!confirm("Remove this authenticator? You won't be able to connect Plaid accounts until you enroll a new one.")) return;
+          if (!confirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
           const { error: unenrollError } = await supabaseClient.auth.mfa.unenroll({ factorId: btn.dataset.id });
           if (unenrollError) { alert('Could not remove: ' + unenrollError.message); return; }
           logAuditEvent('mfa_factor_removed', {});
@@ -1093,25 +1118,24 @@
 
     async function renderMfaEnrollStart() {
       const body = document.getElementById('mfa-modal-body');
-      body.innerHTML = `<p class="vault-modal-sub">Loading enrollment…</p>`;
+      body.innerHTML = `<p class="mfa-modal-sub">Loading enrollment…</p>`;
 
       const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp' });
       if (error) {
-        body.innerHTML = `<p class="vault-modal-sub">Could not start enrollment: ${error.message}</p>`;
+        body.innerHTML = `<p class="mfa-modal-sub">Could not start enrollment: ${error.message}</p>`;
         return;
       }
       mfaEnrollFactorId = data.id;
 
       body.innerHTML = `
-        <p class="vault-modal-sub">Two-factor authentication is required before you can connect an account via Plaid. Scan this QR code with an authenticator app (Google Authenticator, Authy, 1Password, etc.), then enter the 6-digit code it shows.</p>
-        <div style="background:#fff; padding:12px; border-radius:10px; width:fit-content; margin:4px auto;">${data.totp.qr_code}</div>
-        <p style="font-size:0.72rem; color:var(--silver-dim); text-align:center; word-break:break-all;">Can't scan it? Enter this manually: ${data.totp.secret}</p>
-        <div class="vault-field">
+        <p class="mfa-modal-sub">Two-factor authentication is required to open Connections. Scan this code with an authenticator app (Google Authenticator, Authy, 1Password, etc.), then enter the 6-digit code it shows.</p>
+        ${mfaQrFrameHtml(data.totp.qr_code, data.totp.secret)}
+        <div class="mfa-field">
           <label for="mfa-verify-code">6-digit code</label>
           <input type="text" id="mfa-verify-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
         </div>
-        <button type="button" id="mfa-enroll-verify-btn" class="btn-vault-solid" style="margin-top:6px;">Verify & enable</button>
-        <p class="vault-modal-sub" id="mfa-enroll-error" style="color:var(--liability-bright); display:none;"></p>
+        <button type="button" id="mfa-enroll-verify-btn" class="mfa-verify-btn" style="margin-top:6px;">Verify & enable</button>
+        <p class="mfa-modal-sub" id="mfa-enroll-error" style="color:var(--liability-bright); display:none;"></p>
       `;
 
       document.getElementById('mfa-enroll-verify-btn').addEventListener('click', async () => {
@@ -1132,7 +1156,9 @@
 
         logAuditEvent('mfa_enrolled', {});
         mfaEnrollFactorId = null;
-        closeMfaOverlay();
+        mfaGateActive = false;
+        document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
+        resolveMfaGate();
       });
     }
 
@@ -1143,13 +1169,13 @@
       if (!factor) { await renderMfaEnrollStart(); return; }
 
       body.innerHTML = `
-        <p class="vault-modal-sub">Enter the code from your authenticator app to continue.</p>
-        <div class="vault-field">
+        <p class="mfa-modal-sub">Enter the code from your authenticator app to continue.</p>
+        <div class="mfa-field">
           <label for="mfa-verify-code">6-digit code</label>
           <input type="text" id="mfa-verify-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
         </div>
-        <button type="button" id="mfa-session-verify-btn" class="btn-vault-solid" style="margin-top:6px;">Verify</button>
-        <p class="vault-modal-sub" id="mfa-verify-error" style="color:var(--liability-bright); display:none;"></p>
+        <button type="button" id="mfa-session-verify-btn" class="mfa-verify-btn" style="margin-top:6px;">Verify</button>
+        <p class="mfa-modal-sub" id="mfa-verify-error" style="color:var(--liability-bright); display:none;"></p>
       `;
 
       document.getElementById('mfa-session-verify-btn').addEventListener('click', async () => {
@@ -1168,14 +1194,16 @@
         });
         if (verifyError) { errorEl.textContent = 'Incorrect code — try again.'; errorEl.style.display = 'block'; return; }
 
-        closeMfaOverlay();
+        mfaGateActive = false;
+        document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
+        resolveMfaGate();
       });
     }
 
     function setupMfaOverlay() {
       document.getElementById('manage-mfa-btn').addEventListener('click', () => {
         document.getElementById('settings-dropdown').classList.remove('open');
-        openMfaOverlay();
+        openMfaOverlay(false);
         renderMfaManage();
       });
       document.getElementById('mfa-close').addEventListener('click', closeMfaOverlay);

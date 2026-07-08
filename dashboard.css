@@ -1052,3 +1052,109 @@ textarea:focus-visible,
     scroll-behavior: auto !important;
   }
 }
+
+/* ==========================================================================
+   TWO-FACTOR AUTHENTICATION — shared overlay component
+   Lives here (not in any one page's own CSS) so Dashboard, Log, Budget, and
+   Connections all present an identical MFA flow, in the app's core
+   silver/vintage-blue identity — appropriate since 2FA is an account-level
+   concern that sits above any single "room."
+   ========================================================================== */
+.mfa-overlay {
+  position: fixed; inset: 0; background: rgba(6,8,11,0.78);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 70px 20px; z-index: 200;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s;
+}
+.mfa-overlay.open { opacity: 1; visibility: visible; }
+.mfa-modal {
+  background: var(--dark-vintage);
+  border: 1px solid var(--vintage-blue);
+  border-radius: 14px;
+  width: 100%; max-width: 440px;
+  max-height: 86vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 26px rgba(46,84,114,0.2);
+  transform: translateY(-10px) scale(0.98);
+  transition: transform 0.25s cubic-bezier(.2,.9,.25,1.1);
+}
+.mfa-overlay.open .mfa-modal { transform: translateY(0) scale(1); }
+.mfa-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px; border-bottom: 1px solid #222C3A;
+}
+.mfa-modal-head h2 { font-family: 'Fraunces', serif; color: var(--vintage-blue-light); font-size: 1.1rem; }
+.mfa-modal-close { background: none; border: none; color: var(--silver-dim); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+.mfa-modal-close:hover { color: var(--tan); }
+/* When 2FA is required to proceed (gated entry), the close button is
+   hidden entirely rather than just disabled — there's no dismissing your
+   way past a required step, so don't offer a button that implies you can. */
+.mfa-overlay.mfa-gated .mfa-modal-close { display: none; }
+
+.mfa-modal-body { overflow-y: auto; padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+.mfa-modal-sub { font-size: 0.85rem; color: var(--silver-dim); line-height: 1.55; }
+
+.mfa-field { display: flex; flex-direction: column; gap: 6px; }
+.mfa-field label { font-size: 0.78rem; font-weight: 600; color: var(--tan); }
+.mfa-field input {
+  padding: 12px 14px; border-radius: 8px; border: 1px solid var(--panel-border);
+  background: #0F151C; color: var(--tan); font-size: 1.05rem; font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.15em; text-align: center;
+}
+.mfa-field input:focus { outline: none; border-color: var(--vintage-blue-light); box-shadow: 0 0 0 3px rgba(110,143,163,0.18); }
+
+.mfa-verify-btn {
+  padding: 12px 20px; border: none; border-radius: 8px;
+  background: var(--vintage-blue); color: var(--tan);
+  font-weight: 600; font-size: 0.9rem; letter-spacing: 0.02em; cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.mfa-verify-btn:hover { background: var(--vintage-blue-light); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.mfa-verify-btn:active { transform: translateY(0); }
+
+/* QR code frame — the code itself must stay on a pure white background for
+   scan reliability (any tint reduces contrast and can break scanning), but
+   the frame around it carries the app's own identity so it doesn't look
+   like a raw, unstyled element dropped onto the page. */
+.mfa-qr-frame {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  background: var(--panel-bg);
+  border: 1px solid var(--vintage-blue);
+  border-radius: 14px;
+  padding: 18px;
+  margin: 4px auto;
+  box-shadow: 0 0 18px rgba(110,143,163,0.16);
+  width: fit-content;
+}
+.mfa-qr-label {
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--silver-dim);
+}
+.mfa-qr-inner {
+  background: #fff;
+  padding: 10px;
+  border-radius: 9px;
+  line-height: 0; /* collapses whitespace around the inline SVG so the frame hugs it tightly */
+}
+.mfa-qr-inner svg { display: block; width: 168px; height: 168px; }
+.mfa-qr-secret {
+  font-size: 0.68rem; color: var(--silver-dim); text-align: center; word-break: break-all; max-width: 280px;
+}
+.mfa-qr-secret code {
+  font-family: 'IBM Plex Mono', monospace; color: var(--tan); background: rgba(255,255,255,0.05);
+  padding: 1px 5px; border-radius: 4px;
+}
+
+.mfa-factor-list { display: flex; flex-direction: column; gap: 2px; }
+.mfa-factor-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 2px; border-bottom: 1px solid #222C3A; font-size: 0.85rem; color: var(--tan);
+}
+.mfa-factor-row:last-child { border-bottom: none; }
+.mfa-remove-factor-btn {
+  background: none; border: 1px solid var(--error); color: var(--error);
+  border-radius: 6px; padding: 5px 11px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s ease;
+}
+.mfa-remove-factor-btn:hover { background: rgba(224,139,125,0.12); }

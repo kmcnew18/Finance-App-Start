@@ -60,6 +60,8 @@
             </svg>
           </button>
           <div class="settings-dropdown" id="settings-dropdown">
+            <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
+            <div class="dropdown-divider"></div>
             <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
             <div class="dropdown-divider"></div>
             <div class="dropdown-toggle-row" id="override-toggle-row">
@@ -236,6 +238,22 @@
 
   <p id="loading-message" class="loading-message">Loading your dashboard...</p>
 
+  <!-- ================= TWO-FACTOR AUTHENTICATION OVERLAY =================
+       Shared component — styles live in dashboard.css so every page
+       presents an identical MFA flow. Clicking "Connections" in the
+       Premium Tools menu gates on this before navigating there. -->
+  <div class="mfa-overlay" id="mfa-overlay">
+    <div class="mfa-modal">
+      <div class="mfa-modal-head">
+        <h2>Two-factor authentication</h2>
+        <button type="button" class="mfa-modal-close" id="mfa-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="mfa-modal-body">
+        <!-- populated by JS depending on enrollment state -->
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
@@ -318,6 +336,7 @@
         }
       }
       setupLedgerMenu();
+      setupMfaOverlay();
 
       const dateNow = todayStr();
       document.getElementById('add-date').textContent = dateNow;
@@ -372,6 +391,198 @@
       gearBtn.classList.remove('spin');
       closeLedgerMenu();
     });
+
+    // ================= TWO-FACTOR AUTHENTICATION =================
+    // Same shared module as every other page — see connections.html for
+    // the fuller comment on how the gate works. Here it's used two ways:
+    // (1) manage-mfa-btn opens it in "manage" mode from Settings, and
+    // (2) the Premium Tools menu's Connections link gates on it (see
+    // renderLedgerMenu above) before navigating there.
+    function logAuditEvent(eventType, detail) {
+      supabaseClient.from('audit_log').insert({ user_id: currentUserId, event_type: eventType, detail: detail || {} })
+        .then(({ error }) => { if (error) console.error('Audit log write failed:', error); });
+    }
+
+    let mfaEnrollFactorId = null;
+    let mfaGateActive = false;
+    let mfaResolveQueue = [];
+
+    async function getMfaLevel() {
+      const { data, error } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (error) { console.error(error); return { currentLevel: 'aal1', nextLevel: 'aal1' }; }
+      return data;
+    }
+
+    async function requireMfaVerified(gate) {
+      const { currentLevel, nextLevel } = await getMfaLevel();
+      if (currentLevel === 'aal2') return true;
+
+      openMfaOverlay(gate);
+      if (nextLevel === 'aal2') {
+        await renderMfaVerifyForm();
+      } else {
+        await renderMfaEnrollStart();
+      }
+
+      return new Promise(resolve => { mfaResolveQueue.push(resolve); });
+    }
+
+    function resolveMfaGate() {
+      mfaResolveQueue.forEach(r => r(true));
+      mfaResolveQueue = [];
+    }
+
+    function openMfaOverlay(gate) {
+      mfaGateActive = !!gate;
+      const overlay = document.getElementById('mfa-overlay');
+      overlay.classList.add('open');
+      overlay.classList.toggle('mfa-gated', mfaGateActive);
+    }
+    function closeMfaOverlay() {
+      if (mfaGateActive) return;
+      document.getElementById('mfa-overlay').classList.remove('open');
+      mfaEnrollFactorId = null;
+    }
+
+    function mfaQrFrameHtml(qrSvg, secret) {
+      return `
+        <div class="mfa-qr-frame">
+          <span class="mfa-qr-label">Scan with your authenticator app</span>
+          <div class="mfa-qr-inner">${qrSvg}</div>
+          <span class="mfa-qr-secret">Can't scan it? Enter manually: <code>${secret}</code></span>
+        </div>`;
+    }
+
+    async function renderMfaManage() {
+      const body = document.getElementById('mfa-modal-body');
+      const { data, error } = await supabaseClient.auth.mfa.listFactors();
+      if (error) { body.innerHTML = `<p class="mfa-modal-sub">Could not load your two-factor settings: ${error.message}</p>`; return; }
+
+      const totpFactors = (data.totp || []).filter(f => f.status === 'verified');
+
+      if (!totpFactors.length) {
+        await renderMfaEnrollStart();
+        return;
+      }
+
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Two-factor authentication is <strong style="color:var(--vintage-blue-light);">enabled</strong>. It's required to open Connections and to link accounts via Plaid.</p>
+        <div class="mfa-factor-list">
+          ${totpFactors.map(f => `
+            <div class="mfa-factor-row">
+              <span>Authenticator app${f.friendly_name ? ' — ' + f.friendly_name : ''}</span>
+              <button type="button" class="mfa-remove-factor-btn" data-id="${f.id}">Remove</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      document.querySelectorAll('.mfa-remove-factor-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
+          const { error: unenrollError } = await supabaseClient.auth.mfa.unenroll({ factorId: btn.dataset.id });
+          if (unenrollError) { alert('Could not remove: ' + unenrollError.message); return; }
+          logAuditEvent('mfa_factor_removed', {});
+          await renderMfaManage();
+        });
+      });
+    }
+
+    async function renderMfaEnrollStart() {
+      const body = document.getElementById('mfa-modal-body');
+      body.innerHTML = `<p class="mfa-modal-sub">Loading enrollment…</p>`;
+
+      const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp' });
+      if (error) {
+        body.innerHTML = `<p class="mfa-modal-sub">Could not start enrollment: ${error.message}</p>`;
+        return;
+      }
+      mfaEnrollFactorId = data.id;
+
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Two-factor authentication is required to open Connections. Scan this code with an authenticator app (Google Authenticator, Authy, 1Password, etc.), then enter the 6-digit code it shows.</p>
+        ${mfaQrFrameHtml(data.totp.qr_code, data.totp.secret)}
+        <div class="mfa-field">
+          <label for="mfa-verify-code">6-digit code</label>
+          <input type="text" id="mfa-verify-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
+        </div>
+        <button type="button" id="mfa-enroll-verify-btn" class="mfa-verify-btn">Verify & enable</button>
+        <p class="mfa-modal-sub" id="mfa-enroll-error" style="color:var(--error); display:none;"></p>
+      `;
+
+      document.getElementById('mfa-enroll-verify-btn').addEventListener('click', async () => {
+        const code = document.getElementById('mfa-verify-code').value.trim();
+        const errorEl = document.getElementById('mfa-enroll-error');
+        errorEl.style.display = 'none';
+        if (!code) return;
+
+        const { data: challengeData, error: challengeError } = await supabaseClient.auth.mfa.challenge({ factorId: mfaEnrollFactorId });
+        if (challengeError) { errorEl.textContent = challengeError.message; errorEl.style.display = 'block'; return; }
+
+        const { error: verifyError } = await supabaseClient.auth.mfa.verify({
+          factorId: mfaEnrollFactorId,
+          challengeId: challengeData.id,
+          code,
+        });
+        if (verifyError) { errorEl.textContent = 'Incorrect code — try again.'; errorEl.style.display = 'block'; return; }
+
+        logAuditEvent('mfa_enrolled', {});
+        mfaEnrollFactorId = null;
+        mfaGateActive = false;
+        document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
+        resolveMfaGate();
+      });
+    }
+
+    async function renderMfaVerifyForm() {
+      const body = document.getElementById('mfa-modal-body');
+      const { data } = await supabaseClient.auth.mfa.listFactors();
+      const factor = (data?.totp || []).find(f => f.status === 'verified');
+      if (!factor) { await renderMfaEnrollStart(); return; }
+
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Enter the code from your authenticator app to continue.</p>
+        <div class="mfa-field">
+          <label for="mfa-verify-code">6-digit code</label>
+          <input type="text" id="mfa-verify-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
+        </div>
+        <button type="button" id="mfa-session-verify-btn" class="mfa-verify-btn">Verify</button>
+        <p class="mfa-modal-sub" id="mfa-verify-error" style="color:var(--error); display:none;"></p>
+      `;
+
+      document.getElementById('mfa-session-verify-btn').addEventListener('click', async () => {
+        const code = document.getElementById('mfa-verify-code').value.trim();
+        const errorEl = document.getElementById('mfa-verify-error');
+        errorEl.style.display = 'none';
+        if (!code) return;
+
+        const { data: challengeData, error: challengeError } = await supabaseClient.auth.mfa.challenge({ factorId: factor.id });
+        if (challengeError) { errorEl.textContent = challengeError.message; errorEl.style.display = 'block'; return; }
+
+        const { error: verifyError } = await supabaseClient.auth.mfa.verify({
+          factorId: factor.id,
+          challengeId: challengeData.id,
+          code,
+        });
+        if (verifyError) { errorEl.textContent = 'Incorrect code — try again.'; errorEl.style.display = 'block'; return; }
+
+        mfaGateActive = false;
+        document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
+        resolveMfaGate();
+      });
+    }
+
+    function setupMfaOverlay() {
+      document.getElementById('manage-mfa-btn').addEventListener('click', () => {
+        gearDropdown.classList.remove('open');
+        openMfaOverlay(false);
+        renderMfaManage();
+      });
+      document.getElementById('mfa-close').addEventListener('click', closeMfaOverlay);
+      document.getElementById('mfa-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'mfa-overlay') closeMfaOverlay();
+      });
+    }
 
     document.getElementById('reset-categories-btn').addEventListener('click', async () => {
       if (!confirm('Reset all category totals to $0.00? This cannot be undone.')) return;
@@ -727,9 +938,14 @@
       `;
 
       inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
           if (btn.disabled) return;
-          window.location.href = isPaidUser ? btn.dataset.href : 'paywall.html';
+          if (!isPaidUser) { window.location.href = 'paywall.html'; return; }
+          if (btn.dataset.href === 'connections.html') {
+            closeLedgerMenu();
+            await requireMfaVerified(true); // blocks here until verified — no early return needed
+          }
+          window.location.href = btn.dataset.href;
         });
       });
 
