@@ -445,10 +445,13 @@
     }
 
     function mfaQrFrameHtml(qrSvg, secret) {
+      // qrSvg is a data: URI from Supabase — render it as an actual image,
+      // not raw text. The image already carries its own light modules, so
+      // no separate white box is needed around it.
       return `
         <div class="mfa-qr-frame">
           <span class="mfa-qr-label">Scan with your authenticator app</span>
-          <div class="mfa-qr-inner">${qrSvg}</div>
+          <div class="mfa-qr-inner"><img src="${qrSvg}" alt="Two-factor authentication QR code" /></div>
           <span class="mfa-qr-secret">Can't scan it? Enter manually: <code>${secret}</code></span>
         </div>`;
     }
@@ -506,7 +509,7 @@
           <label for="mfa-verify-code">6-digit code</label>
           <input type="text" id="mfa-verify-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
         </div>
-        <button type="button" id="mfa-enroll-verify-btn" class="mfa-verify-btn">Verify & enable</button>
+        <button type="button" id="mfa-enroll-verify-btn" class="mfa-verify-btn">Verify & Enable</button>
         <p class="mfa-modal-sub" id="mfa-enroll-error" style="color:var(--error); display:none;"></p>
       `;
 
