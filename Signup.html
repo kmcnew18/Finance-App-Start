@@ -83,6 +83,30 @@
       text-underline-offset: 2px;
     }
     .consent-text a:hover { color: var(--tan-hover); }
+
+    /* ================= PASSWORD STRENGTH METER ================= */
+    .pw-strength-wrap { margin-top: -6px; margin-bottom: 2px; }
+    .pw-strength-bars { display: flex; gap: 4px; margin-bottom: 8px; }
+    .pw-strength-bar {
+      height: 4px; flex: 1; border-radius: 2px;
+      background: rgba(255,255,255,0.08);
+      transition: background 0.2s ease;
+    }
+    .pw-strength-bar.filled-weak { background: #B3563F; }
+    .pw-strength-bar.filled-fair { background: #B38A3F; }
+    .pw-strength-bar.filled-good { background: #7C9A5A; }
+    .pw-strength-bar.filled-strong { background: #5A9A73; }
+    .pw-requirements { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+    .pw-requirement {
+      font-size: 0.72rem; color: #7A756A;
+      display: flex; align-items: center; gap: 5px;
+      transition: color 0.15s ease;
+    }
+    .pw-requirement.met { color: #9BB088; }
+    .pw-requirement .pw-req-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: currentColor; flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -106,7 +130,22 @@
         <input type="email" id="email" name="email" placeholder="you@email.com" required />
 
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" placeholder="••••••••" required minlength="8" />
+        <input type="password" id="password" name="password" placeholder="••••••••" required minlength="8" autocomplete="new-password" />
+
+        <div class="pw-strength-wrap" id="pw-strength-wrap" style="display:none;">
+          <div class="pw-strength-bars">
+            <div class="pw-strength-bar" id="pw-bar-1"></div>
+            <div class="pw-strength-bar" id="pw-bar-2"></div>
+            <div class="pw-strength-bar" id="pw-bar-3"></div>
+            <div class="pw-strength-bar" id="pw-bar-4"></div>
+          </div>
+          <div class="pw-requirements">
+            <span class="pw-requirement" id="pw-req-length"><span class="pw-req-dot"></span>8+ characters</span>
+            <span class="pw-requirement" id="pw-req-case"><span class="pw-req-dot"></span>Upper &amp; lowercase</span>
+            <span class="pw-requirement" id="pw-req-number"><span class="pw-req-dot"></span>A number</span>
+            <span class="pw-requirement" id="pw-req-symbol"><span class="pw-req-dot"></span>A symbol</span>
+          </div>
+        </div>
 
         <label class="consent-row" for="privacy-consent">
           <input type="checkbox" id="privacy-consent" class="consent-checkbox" required />
@@ -140,6 +179,38 @@
 
     let lastSignupEmail = '';
 
+    // ================= PASSWORD STRENGTH =================
+    function evaluatePassword(pw) {
+      return {
+        length: pw.length >= 8,
+        case: /[a-z]/.test(pw) && /[A-Z]/.test(pw),
+        number: /[0-9]/.test(pw),
+        symbol: /[^A-Za-z0-9]/.test(pw),
+      };
+    }
+
+    const pwInput = document.getElementById('password');
+    pwInput.addEventListener('input', () => {
+      const pw = pwInput.value;
+      const wrap = document.getElementById('pw-strength-wrap');
+      wrap.style.display = pw.length ? 'block' : 'none';
+      if (!pw.length) return;
+
+      const checks = evaluatePassword(pw);
+      const metCount = Object.values(checks).filter(Boolean).length;
+
+      ['length', 'case', 'number', 'symbol'].forEach(key => {
+        document.getElementById('pw-req-' + key).classList.toggle('met', checks[key]);
+      });
+
+      const tiers = ['weak', 'weak', 'fair', 'good', 'strong'];
+      const tier = tiers[metCount];
+      for (let i = 1; i <= 4; i++) {
+        const bar = document.getElementById('pw-bar-' + i);
+        bar.className = 'pw-strength-bar' + (i <= metCount ? ' filled-' + tier : '');
+      }
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       message.textContent = '';
@@ -148,6 +219,13 @@
 
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
+
+      const pwChecks = evaluatePassword(password);
+      if (!Object.values(pwChecks).every(Boolean)) {
+        message.textContent = 'Password needs 8+ characters, upper & lowercase letters, a number, and a symbol.';
+        message.classList.add('auth-message-error');
+        return;
+      }
 
       button.disabled = true;
       button.textContent = 'Creating account...';

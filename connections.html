@@ -55,6 +55,7 @@
           </button>
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
+            <button type="button" id="view-activity-btn" class="dropdown-item">Recent activity</button>
             <div class="dropdown-divider"></div>
             <button type="button" id="sync-all-btn" class="dropdown-item">Sync all accounts</button>
             <div class="dropdown-divider"></div>
@@ -218,6 +219,29 @@
     </div>
   </div>
 
+  <!-- ================= IDLE SESSION TIMEOUT ================= -->
+  <div class="idle-overlay" id="idle-overlay">
+    <div class="idle-modal">
+      <h2>Still there?</h2>
+      <p>You've been inactive for a while. For your security, we'll sign you out automatically.</p>
+      <div class="idle-countdown" id="idle-countdown">60</div>
+      <button type="button" class="idle-stay-btn" id="idle-stay-btn">Stay signed in</button>
+    </div>
+  </div>
+
+  <!-- ================= RECENT ACTIVITY ================= -->
+  <div class="mfa-overlay" id="activity-overlay">
+    <div class="mfa-modal" style="max-width: 480px;">
+      <div class="mfa-modal-head">
+        <h2>Recent activity</h2>
+        <button type="button" class="mfa-modal-close" id="activity-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="activity-modal-body" style="max-height: 60vh;">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -277,6 +301,8 @@
       setupConnectOverlay();
       setupRecurringSection();
       setupMfaOverlay();
+      setupActivityPanel();
+      setupIdleTimeout();
 
       // Blocks here until the user has enrolled AND verified a second
       // factor for this session — the rest of the page (accounts, net
@@ -1300,6 +1326,108 @@
       document.getElementById('mfa-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'mfa-overlay') closeMfaOverlay();
       });
+    }
+
+    // ================= RECENT ACTIVITY =================
+    // Makes the audit_log table (written throughout this app for security
+    // events) visible to the person it belongs to, rather than existing
+    // only as a compliance answer nobody ever sees working.
+    const ACTIVITY_LABELS = {
+      plaid_item_linked: (d) => `Connected ${d.institution_name || 'an account'} via Plaid`,
+      linked_account_removed: (d) => `Removed ${d.institution_name || 'an account'}${d.account_type ? ' (' + d.account_type + ')' : ''}`,
+      all_linked_accounts_removed: (d) => `Removed all linked accounts (${d.count ?? '?'})`,
+      recurring_review_approved: (d) => `Added ${d.merchant_name || 'a transaction'} to ${d.mapped_line_name || d.mapped_cat || 'your budget'}`,
+      recurring_review_dismissed: (d) => `Dismissed a suggested transaction${d.merchant_name ? ' — ' + d.merchant_name : ''}`,
+      recurring_stream_mapped: (d) => `Mapped a recurring ${d.mapped_cat || 'transaction'} to your budget`,
+      mfa_enrolled: () => `Enabled two-factor authentication`,
+      mfa_factor_removed: () => `Removed a two-factor authenticator`,
+    };
+
+    function formatActivityEvent(row) {
+      const formatter = ACTIVITY_LABELS[row.event_type];
+      const label = formatter ? formatter(row.detail || {}) : row.event_type.replace(/_/g, ' ');
+      const when = new Date(row.created_at).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+      });
+      return { label, when };
+    }
+
+    async function renderActivityPanel() {
+      const body = document.getElementById('activity-modal-body');
+      body.innerHTML = `<p class="mfa-modal-sub">Loading…</p>`;
+
+      const { data, error } = await supabaseClient
+        .from('audit_log')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) { body.innerHTML = `<p class="mfa-modal-sub">Could not load activity: ${error.message}</p>`; return; }
+      if (!data.length) { body.innerHTML = `<p class="mfa-modal-sub">No activity yet.</p>`; return; }
+
+      body.innerHTML = `
+        <div class="activity-list">
+          ${data.map(row => {
+            const { label, when } = formatActivityEvent(row);
+            return `<div class="activity-row"><span class="activity-label">${label}</span><span class="activity-when">${when}</span></div>`;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function setupActivityPanel() {
+      document.getElementById('view-activity-btn').addEventListener('click', () => {
+        document.getElementById('settings-dropdown').classList.remove('open');
+        document.getElementById('activity-overlay').classList.add('open');
+        renderActivityPanel();
+      });
+      document.getElementById('activity-close').addEventListener('click', () => {
+        document.getElementById('activity-overlay').classList.remove('open');
+      });
+      document.getElementById('activity-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'activity-overlay') document.getElementById('activity-overlay').classList.remove('open');
+      });
+    }
+
+    // ================= IDLE SESSION TIMEOUT =================
+    // 10 minutes of no activity triggers a 60-second countdown warning
+    // before automatically signing out — this page handles linked
+    // financial account data, so it gets this even though it's a bit
+    // more friction than the rest of the app.
+    const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+    const IDLE_WARNING_MS = 60 * 1000;
+    let idleTimer = null;
+    let idleCountdownInterval = null;
+
+    function resetIdleTimer() {
+      clearTimeout(idleTimer);
+      clearInterval(idleCountdownInterval);
+      document.getElementById('idle-overlay').classList.remove('open');
+      idleTimer = setTimeout(showIdleWarning, IDLE_TIMEOUT_MS - IDLE_WARNING_MS);
+    }
+
+    function showIdleWarning() {
+      document.getElementById('idle-overlay').classList.add('open');
+      let secondsLeft = IDLE_WARNING_MS / 1000;
+      document.getElementById('idle-countdown').textContent = secondsLeft;
+      idleCountdownInterval = setInterval(async () => {
+        secondsLeft--;
+        document.getElementById('idle-countdown').textContent = secondsLeft;
+        if (secondsLeft <= 0) {
+          clearInterval(idleCountdownInterval);
+          await supabaseClient.auth.signOut();
+          window.location.href = 'login.html';
+        }
+      }, 1000);
+    }
+
+    function setupIdleTimeout() {
+      ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+        document.addEventListener(evt, resetIdleTimer, { passive: true });
+      });
+      document.getElementById('idle-stay-btn').addEventListener('click', resetIdleTimer);
+      resetIdleTimer();
     }
 
     init();

@@ -237,6 +237,16 @@
     </div>
   </div>
 
+  <!-- ================= IDLE SESSION TIMEOUT ================= -->
+  <div class="idle-overlay" id="idle-overlay">
+    <div class="idle-modal">
+      <h2>Still there?</h2>
+      <p>You've been inactive for a while. For your security, we'll sign you out automatically.</p>
+      <div class="idle-countdown" id="idle-countdown">60</div>
+      <button type="button" class="idle-stay-btn" id="idle-stay-btn">Stay signed in</button>
+    </div>
+  </div>
+
   <!-- ================= HISTORY / ARCHIVE OVERLAY ================= -->
   <div class="history-overlay" id="history-overlay">
     <div class="history-panel">
@@ -480,6 +490,7 @@
       document.getElementById('budget-shell').style.display = 'flex';
       renderAll();
       setupStaticListeners();
+      setupIdleTimeout();
 
       if (new URLSearchParams(window.location.search).get('history') === '1') {
         document.getElementById('history-button').click();
@@ -1897,6 +1908,45 @@
           });
         });
       }
+    }
+
+
+    // ================= IDLE SESSION TIMEOUT =================
+    // 10 minutes of no activity triggers a 60-second countdown warning
+    // before automatically signing out.
+    const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+    const IDLE_WARNING_MS = 60 * 1000;
+    let idleTimer = null;
+    let idleCountdownInterval = null;
+
+    function resetIdleTimer() {
+      clearTimeout(idleTimer);
+      clearInterval(idleCountdownInterval);
+      document.getElementById('idle-overlay').classList.remove('open');
+      idleTimer = setTimeout(showIdleWarning, IDLE_TIMEOUT_MS - IDLE_WARNING_MS);
+    }
+
+    function showIdleWarning() {
+      document.getElementById('idle-overlay').classList.add('open');
+      let secondsLeft = IDLE_WARNING_MS / 1000;
+      document.getElementById('idle-countdown').textContent = secondsLeft;
+      idleCountdownInterval = setInterval(async () => {
+        secondsLeft--;
+        document.getElementById('idle-countdown').textContent = secondsLeft;
+        if (secondsLeft <= 0) {
+          clearInterval(idleCountdownInterval);
+          await supabaseClient.auth.signOut();
+          window.location.href = 'login.html';
+        }
+      }, 1000);
+    }
+
+    function setupIdleTimeout() {
+      ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+        document.addEventListener(evt, resetIdleTimer, { passive: true });
+      });
+      document.getElementById('idle-stay-btn').addEventListener('click', resetIdleTimer);
+      resetIdleTimer();
     }
 
     init();
