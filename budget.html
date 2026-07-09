@@ -1102,6 +1102,41 @@
         </div>`;
     }
 
+    // Prompts for a code from an already-verified factor and resolves
+    // true/false — used before removing a factor, since Supabase requires
+    // AAL2 to do that. Deliberately separate from requireMfaVerified(),
+    // which closes the whole overlay on success (right for "gate before
+    // navigating away", wrong here where the goal is to stay put and
+    // continue the removal).
+    function verifyFactorInline(factorId) {
+      return new Promise((resolve) => {
+        const body = document.getElementById('mfa-modal-body');
+        body.innerHTML = `
+          <p class="mfa-modal-sub">Enter your authenticator code to confirm removal.</p>
+          <div class="mfa-field">
+            <label for="mfa-remove-verify-code">6-digit code</label>
+            <input type="text" id="mfa-remove-verify-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
+          </div>
+          <button type="button" id="mfa-remove-verify-btn" class="mfa-verify-btn">Confirm</button>
+          <p class="mfa-modal-sub" id="mfa-remove-verify-error" style="color:var(--error); display:none;"></p>
+        `;
+        document.getElementById('mfa-remove-verify-btn').addEventListener('click', async () => {
+          const code = document.getElementById('mfa-remove-verify-code').value.trim();
+          const errorEl = document.getElementById('mfa-remove-verify-error');
+          errorEl.style.display = 'none';
+          if (!code) return;
+
+          const { data: challengeData, error: challengeError } = await supabaseClient.auth.mfa.challenge({ factorId });
+          if (challengeError) { errorEl.textContent = challengeError.message; errorEl.style.display = 'block'; resolve(false); return; }
+
+          const { error: verifyError } = await supabaseClient.auth.mfa.verify({ factorId, challengeId: challengeData.id, code });
+          if (verifyError) { errorEl.textContent = 'Incorrect code — try again.'; errorEl.style.display = 'block'; return; }
+
+          resolve(true);
+        });
+      });
+    }
+
     async function renderMfaManage() {
       const body = document.getElementById('mfa-modal-body');
       const { data, error } = await supabaseClient.auth.mfa.listFactors();
@@ -1129,7 +1164,22 @@
       document.querySelectorAll('.mfa-remove-factor-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (!confirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
-          const { error: unenrollError } = await supabaseClient.auth.mfa.unenroll({ factorId: btn.dataset.id });
+
+          // Supabase requires the session to already be AAL2 (a completed
+          // 2FA challenge this session) before it'll let you remove a
+          // verified factor — a safeguard so removal can't happen without
+          // proving you still have access to it. If this session hasn't
+          // done that yet (e.g. you came straight from Dashboard/Log/
+          // Budget, where MFA isn't required to just use the page),
+          // prompt for the code inline before actually removing anything.
+          const factorId = btn.dataset.id;
+          const { currentLevel } = await getMfaLevel();
+          if (currentLevel !== 'aal2') {
+            const verified = await verifyFactorInline(factorId);
+            if (!verified) { await renderMfaManage(); return; }
+          }
+
+          const { error: unenrollError } = await supabaseClient.auth.mfa.unenroll({ factorId });
           if (unenrollError) { alert('Could not remove: ' + unenrollError.message); return; }
           logAuditEvent('mfa_factor_removed', {});
           await renderMfaManage();
