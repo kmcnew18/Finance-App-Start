@@ -93,25 +93,37 @@
       </div>
     </div>
 
+    <div class="txn-review-section" id="txn-review-section" style="display:none;">
+      <div class="txn-review-head">
+        <span class="txn-review-title">New transactions to review</span>
+        <span class="txn-review-sub">Detected automatically from your connected accounts — nothing is added until you approve it.</span>
+      </div>
+      <div class="txn-review-list" id="txn-review-list"></div>
+    </div>
+
     <section class="overview-cards">
       <div class="card" data-cat="savings">
         <span class="card-label">Savings</span>
         <span class="card-value" id="val-savings">$0.00</span>
+        <span class="sync-hint" id="sync-hint-savings" style="display:none;"></span>
         <input type="number" class="card-value-input" id="edit-savings" data-cat="savings" step="0.01" />
       </div>
       <div class="card" data-cat="investment">
         <span class="card-label">Investment</span>
         <span class="card-value" id="val-investment">$0.00</span>
+        <span class="sync-hint" id="sync-hint-investment" style="display:none;"></span>
         <input type="number" class="card-value-input" id="edit-investment" data-cat="investment" step="0.01" />
       </div>
       <div class="card" data-cat="expenses">
         <span class="card-label">Expenses</span>
         <span class="card-value" id="val-expenses">$0.00</span>
+        <span class="sync-hint" id="sync-hint-expenses" style="display:none;"></span>
         <input type="number" class="card-value-input" id="edit-expenses" data-cat="expenses" step="0.01" />
       </div>
       <div class="card" data-cat="checking">
         <span class="card-label">Checking</span>
         <span class="card-value" id="val-checking">$0.00</span>
+        <span class="sync-hint" id="sync-hint-checking" style="display:none;"></span>
         <input type="number" class="card-value-input" id="edit-checking" data-cat="checking" step="0.01" />
       </div>
       <div class="card card-total"><span class="card-label">Total</span><span class="card-value" id="val-total">$0.00</span></div>
@@ -275,6 +287,19 @@
     </div>
   </div>
 
+  <!-- ================= BUDGET AUTOMATION PRESET ================= -->
+  <div class="mfa-overlay" id="preset-overlay">
+    <div class="mfa-modal">
+      <div class="mfa-modal-head">
+        <h2>Auto-file to your budget?</h2>
+        <button type="button" class="mfa-modal-close" id="preset-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="preset-modal-body">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
@@ -291,6 +316,12 @@
     const loadingMessage = document.getElementById('loading-message');
 
     function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+    function uid() {
+      return (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      }));
+    }
     function money(n) {
       return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
@@ -309,17 +340,53 @@
     }
 
     function renderTotals() {
-      const total = totals.savings + totals.investment + totals.expenses + totals.checking;
-      document.getElementById('val-savings').textContent = money(totals.savings);
-      document.getElementById('val-investment').textContent = money(totals.investment);
-      document.getElementById('val-expenses').textContent = money(totals.expenses);
-      document.getElementById('val-checking').textContent = money(totals.checking);
+      const combined = {
+        savings: round2(totals.savings + connectedTotals.savings),
+        investment: round2(totals.investment + connectedTotals.investment),
+        expenses: round2(totals.expenses + connectedTotals.expenses),
+        checking: round2(totals.checking + connectedTotals.checking),
+      };
+      const customTotal = customCategoryCards.reduce((s, c) => s + c.total, 0);
+      const total = combined.savings + combined.investment + combined.expenses + combined.checking + customTotal;
+
+      document.getElementById('val-savings').textContent = money(combined.savings);
+      document.getElementById('val-investment').textContent = money(combined.investment);
+      document.getElementById('val-expenses').textContent = money(combined.expenses);
+      document.getElementById('val-checking').textContent = money(combined.checking);
       document.getElementById('val-total').textContent = money(total);
+
+      ['savings', 'investment', 'expenses', 'checking'].forEach(cat => {
+        const hintEl = document.getElementById('sync-hint-' + cat);
+        if (!hintEl) return;
+        hintEl.textContent = connectedTotals[cat] > 0 ? `+${money(connectedTotals[cat])} from Connections` : '';
+        hintEl.style.display = connectedTotals[cat] > 0 ? 'block' : 'none';
+      });
 
       document.querySelectorAll('.card-value-input').forEach(input => {
         if (document.activeElement !== input) {
           input.value = totals[input.dataset.cat];
         }
+      });
+
+      renderCustomCategoryCards();
+    }
+
+    function renderCustomCategoryCards() {
+      const existing = document.querySelectorAll('.card-custom-category');
+      existing.forEach(el => el.remove());
+
+      if (!customCategoryCards.length) return;
+
+      const totalCard = document.querySelector('.card-total');
+      customCategoryCards.forEach(cat => {
+        const card = document.createElement('div');
+        card.className = 'card card-custom-category';
+        card.innerHTML = `
+          <span class="card-label">${cat.name.replace(/</g,'&lt;')}</span>
+          <span class="card-value">${money(cat.total)}</span>
+          <span class="sync-hint" style="display:block;">Synced from Connections</span>
+        `;
+        totalCard.parentNode.insertBefore(card, totalCard);
       });
     }
 
@@ -363,6 +430,7 @@
       setupMfaOverlay();
       setupMfaBanner();
       setupIdleTimeout();
+      setupPresetOverlay();
 
       const dateNow = todayStr();
       document.getElementById('add-date').textContent = dateNow;
@@ -387,9 +455,306 @@
         totals = { savings: row.savings, investment: row.investment, expenses: row.expenses, checking: row.checking };
       }
 
+      await loadConnectedTotals();
+      await loadPendingReviews();
+      await loadBudgetAutomationData();
+
       loadingMessage.style.display = 'none';
       dashMain.style.display = 'block';
       renderTotals();
+    }
+
+    // ================= BUDGET AUTOMATION =================
+    // Optional layer on top of the transaction review queue: if a preset
+    // exists for a transaction's Plaid category, approving it on
+    // Dashboard also files it into the matching Budget Planner line —
+    // set once (offered inline the first time a category has no preset
+    // yet), applied automatically after that. A category with no preset
+    // just doesn't auto-file; nothing forced.
+    let activeBudgetPeriod = null;
+    let budgetPresets = [];
+
+    async function loadBudgetAutomationData() {
+      const { data: periods } = await supabaseClient
+        .from('budget_periods').select('*').eq('user_id', currentUserId).eq('status', 'active').order('start_date', { ascending: false });
+      if (periods && periods.length) {
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+        activeBudgetPeriod = periods.find(p => p.start_date <= today && p.end_date >= today) || periods[0];
+      } else {
+        activeBudgetPeriod = null;
+      }
+
+      const { data: presets } = await supabaseClient.from('category_budget_presets').select('*').eq('user_id', currentUserId);
+      budgetPresets = presets || [];
+    }
+
+    // ================= TRANSACTION REVIEW QUEUE =================
+    // Auto-detected from synced Plaid transactions on accounts mapped to
+    // a single Dashboard category. Nothing here writes to finance_totals
+    // or finance_log until the user explicitly approves it — same
+    // "detect automatically, write only on approval" principle used
+    // throughout the rest of the automation system.
+    let pendingReviews = [];
+    const CATEGORY_LABELS = { savings: 'Savings', investment: 'Investment', expenses: 'Expenses', checking: 'Checking' };
+
+    async function loadPendingReviews() {
+      const { data, error } = await supabaseClient
+        .from('pending_dashboard_reviews')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .eq('status', 'pending')
+        .order('txn_date', { ascending: false });
+      if (error) { console.error(error); pendingReviews = []; return; }
+      pendingReviews = data || [];
+      renderTxnReviewSection();
+    }
+
+    function renderTxnReviewSection() {
+      const section = document.getElementById('txn-review-section');
+      if (!pendingReviews.length) { section.style.display = 'none'; return; }
+      section.style.display = 'block';
+
+      document.getElementById('txn-review-list').innerHTML = pendingReviews.map(txnReviewRowHtml).join('');
+      wireTxnReviewEvents();
+    }
+
+    function txnReviewRowHtml(r) {
+      const categoryKey = (r.category_name || '').toLowerCase();
+      const verb = r.suggested_action === 'add' ? 'to' : 'from';
+      const when = new Date(r.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return `
+        <div class="txn-review-row" data-id="${r.id}">
+          <div class="txn-review-info">
+            <span class="txn-review-merchant">${(r.merchant_name || 'Transaction').replace(/</g,'&lt;')}</span>
+            <span class="txn-review-meta">${when} · ${money(r.amount)}</span>
+          </div>
+          <div class="txn-review-suggestion-text" id="txn-suggestion-text-${r.id}">
+            We think this is ${money(r.amount)} ${verb} <strong>${r.category_name || 'Uncategorized'}</strong>.
+          </div>
+          <div class="txn-review-change-form" id="txn-change-form-${r.id}" style="display:none;">
+            <select class="txn-action-select" data-id="${r.id}">
+              <option value="subtract" ${r.suggested_action === 'subtract' ? 'selected' : ''}>Subtract from</option>
+              <option value="add" ${r.suggested_action === 'add' ? 'selected' : ''}>Add to</option>
+            </select>
+            <select class="txn-category-select" data-id="${r.id}">
+              ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
+                `<option value="${key}" ${key === categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
+            </select>
+          </div>
+          <div class="txn-review-actions">
+            <button type="button" class="txn-approve-btn" data-id="${r.id}">Looks good</button>
+            <button type="button" class="txn-change-btn" data-id="${r.id}">Change</button>
+            <button type="button" class="txn-skip-btn" data-id="${r.id}">Skip</button>
+          </div>
+        </div>`;
+    }
+
+    function wireTxnReviewEvents() {
+      document.querySelectorAll('.txn-change-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.getElementById('txn-suggestion-text-' + btn.dataset.id).style.display = 'none';
+          document.getElementById('txn-change-form-' + btn.dataset.id).style.display = 'flex';
+          btn.style.display = 'none';
+        });
+      });
+      document.querySelectorAll('.txn-approve-btn').forEach(btn => {
+        btn.addEventListener('click', () => approveTxnReview(btn.dataset.id));
+      });
+      document.querySelectorAll('.txn-skip-btn').forEach(btn => {
+        btn.addEventListener('click', () => skipTxnReview(btn.dataset.id));
+      });
+    }
+
+    async function approveTxnReview(reviewId) {
+      const review = pendingReviews.find(r => r.id === reviewId);
+      if (!review) return;
+
+      const actionSelect = document.querySelector(`.txn-action-select[data-id="${reviewId}"]`);
+      const categorySelect = document.querySelector(`.txn-category-select[data-id="${reviewId}"]`);
+      const action = actionSelect ? actionSelect.value : review.suggested_action;
+      const cat = categorySelect ? categorySelect.value : (review.category_name || '').toLowerCase();
+
+      if (!CATEGORY_LABELS[cat]) { alert('Pick a valid category before approving.'); return; }
+
+      const amount = round2(Number(review.amount) || 0);
+      totals[cat] = round2(action === 'add' ? totals[cat] + amount : totals[cat] - amount);
+      await saveTotals();
+
+      const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+      logRow[cat] = amount;
+      await logEntry({ amount, ...logRow, notes: review.merchant_name || '', action_type: action });
+
+      await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
+      logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, category: cat, action });
+
+      await applyBudgetAutomation(review, amount);
+
+      renderTotals();
+      await loadPendingReviews();
+    }
+
+    async function applyBudgetAutomation(review, amount) {
+      if (!review.plaid_category || !activeBudgetPeriod) return;
+
+      const preset = budgetPresets.find(p => p.plaid_category === review.plaid_category);
+      if (preset) {
+        await fileIntoBudgetLine(preset.target_cat, preset.target_line_id, amount, review.merchant_name, review.txn_date);
+        return;
+      }
+
+      // No preset for this category yet — offer to set one up. Entirely
+      // skippable; declining just means this one (and future ones in
+      // this category) stay Dashboard-only until a preset is created.
+      openPresetPrompt(review, amount);
+    }
+
+    async function fileIntoBudgetLine(targetCat, targetLineId, amount, merchantName, txnDate) {
+      const lines = activeBudgetPeriod.categories[targetCat] || [];
+      const line = lines.find(l => l.id === targetLineId);
+      if (!line) return; // preset points at a line that's since been removed — silently skip rather than error
+
+      if (!Array.isArray(line.entries)) line.entries = [];
+      line.entries.push({ id: uid(), amount, note: merchantName || '', date: txnDate });
+      line.actual = round2((Number(line.actual) || 0) + amount);
+      if (targetCat === 'bills' && (Number(line.budget) || 0) > 0 && line.actual >= Number(line.budget)) {
+        line.done = true;
+      }
+
+      await supabaseClient
+        .from('budget_periods')
+        .update({ categories: activeBudgetPeriod.categories, updated_at: new Date().toISOString() })
+        .eq('id', activeBudgetPeriod.id);
+    }
+
+    // ---------- preset prompt ----------
+    let presetPromptReview = null;
+    let presetPromptAmount = 0;
+
+    function openPresetPrompt(review, amount) {
+      presetPromptReview = review;
+      presetPromptAmount = amount;
+      document.getElementById('preset-overlay').classList.add('open');
+      renderPresetPrompt();
+    }
+
+    function closePresetPrompt() {
+      document.getElementById('preset-overlay').classList.remove('open');
+      presetPromptReview = null;
+    }
+
+    const BUDGET_CAT_LABELS = { income: 'Income', bills: 'Bills', expenses: 'Expenses', savings: 'Savings', debt: 'Debt' };
+
+    function renderPresetPrompt() {
+      const body = document.getElementById('preset-modal-body');
+      const categoryLabel = prettyPlaidCategory(presetPromptReview.plaid_category);
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Want future <strong style="color:var(--tan);">${categoryLabel}</strong> transactions to automatically file into a Budget Planner line?</p>
+        <div class="mfa-field">
+          <label for="preset-cat-select">Budget category</label>
+          <select id="preset-cat-select">
+            ${Object.entries(BUDGET_CAT_LABELS).map(([key, label]) => `<option value="${key}">${label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="mfa-field">
+          <label for="preset-line-select">Line</label>
+          <select id="preset-line-select"></select>
+        </div>
+        <button type="button" class="mfa-verify-btn" id="preset-save-btn">Set up auto-filing</button>
+        <button type="button" class="txn-skip-btn" id="preset-skip-btn" style="width:100%; margin-top:8px;">Not now</button>
+      `;
+
+      const catSelect = document.getElementById('preset-cat-select');
+      const populateLines = () => {
+        const lines = (activeBudgetPeriod.categories[catSelect.value] || []);
+        const lineSelect = document.getElementById('preset-line-select');
+        lineSelect.innerHTML = lines.length
+          ? lines.map(l => `<option value="${l.id}">${(l.name || '(unnamed line)').replace(/</g,'&lt;')}</option>`).join('')
+          : '<option value="">No lines in this category yet</option>';
+      };
+      catSelect.addEventListener('change', populateLines);
+      populateLines();
+
+      document.getElementById('preset-skip-btn').addEventListener('click', closePresetPrompt);
+      document.getElementById('preset-save-btn').addEventListener('click', async () => {
+        const targetCat = catSelect.value;
+        const lineSelect = document.getElementById('preset-line-select');
+        const targetLineId = lineSelect.value;
+        if (!targetLineId) { alert('That category has no lines yet — add one in Budget Planner first.'); return; }
+        const targetLineName = lineSelect.options[lineSelect.selectedIndex].textContent;
+
+        const { error } = await supabaseClient.from('category_budget_presets').insert({
+          user_id: currentUserId,
+          plaid_category: presetPromptReview.plaid_category,
+          target_cat: targetCat,
+          target_line_id: targetLineId,
+          target_line_name: targetLineName,
+        });
+        if (error) { alert('Could not save this preset: ' + error.message); return; }
+
+        await fileIntoBudgetLine(targetCat, targetLineId, presetPromptAmount, presetPromptReview.merchant_name, presetPromptReview.txn_date);
+        logAuditEvent('budget_preset_created', { plaid_category: presetPromptReview.plaid_category, target_cat: targetCat, target_line_name: targetLineName });
+
+        budgetPresets.push({ plaid_category: presetPromptReview.plaid_category, target_cat: targetCat, target_line_id: targetLineId, target_line_name: targetLineName });
+        closePresetPrompt();
+      });
+    }
+
+    function prettyPlaidCategory(raw) {
+      if (!raw) return 'this';
+      return raw.toLowerCase().split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    function setupPresetOverlay() {
+      document.getElementById('preset-close').addEventListener('click', closePresetPrompt);
+      document.getElementById('preset-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'preset-overlay') closePresetPrompt();
+      });
+    }
+
+    async function skipTxnReview(reviewId) {
+      const review = pendingReviews.find(r => r.id === reviewId);
+      await supabaseClient.from('pending_dashboard_reviews').update({ status: 'dismissed' }).eq('id', reviewId);
+      logAuditEvent('txn_review_dismissed', { merchant_name: review?.merchant_name });
+      await loadPendingReviews();
+    }
+
+    // ================= CONNECTED TOTALS (from Connections) =================
+    // Read-only here — Connections is where accounts actually get mapped
+    // to categories. This just totals up whatever's already been mapped
+    // there and folds it into what Dashboard shows, on top of (not
+    // instead of) manual tracking for the original four categories.
+    let connectedTotals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+    let customCategoryCards = []; // { id, name, accent, total } for anything beyond the original four
+
+    async function loadConnectedTotals() {
+      connectedTotals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+      customCategoryCards = [];
+
+      const { data: cats } = await supabaseClient.from('budget_categories').select('*').eq('user_id', currentUserId);
+      if (!cats || !cats.length) return; // nothing mapped yet — Connections seeds these on first visit there
+
+      const { data: linkedAccts } = await supabaseClient.from('linked_accounts').select('id, balance').eq('user_id', currentUserId);
+      const { data: splits } = await supabaseClient.from('account_category_splits').select('*').eq('user_id', currentUserId);
+      if (!linkedAccts || !splits || !splits.length) return;
+
+      const balanceById = Object.fromEntries(linkedAccts.map(a => [a.id, Number(a.balance) || 0]));
+      const DEFAULT_NAME_KEYS = { savings: 'savings', investment: 'investment', expenses: 'expenses', checking: 'checking' };
+
+      cats.forEach(cat => {
+        const catSplits = splits.filter(s => s.category_id === cat.id);
+        const catTotal = round2(catSplits.reduce((sum, s) => {
+          const bal = balanceById[s.linked_account_id] || 0;
+          return sum + (bal * Number(s.split_percent) / 100);
+        }, 0));
+        if (!catTotal) return;
+
+        const matchedKey = Object.keys(DEFAULT_NAME_KEYS).find(k => cat.name.toLowerCase() === k);
+        if (matchedKey) {
+          connectedTotals[matchedKey] = catTotal;
+        } else {
+          customCategoryCards.push({ id: cat.id, name: cat.name, accent: cat.accent, total: catTotal });
+        }
+      });
     }
 
     document.getElementById('logout-button').addEventListener('click', async () => {
@@ -1047,6 +1412,14 @@
         href: 'connections.html',
         iconClass: 'icon-connections',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
+      },
+      {
+        id: 'spending',
+        label: 'Spendings',
+        desc: 'Monthly breakdown and subscriptions.',
+        href: 'spending.html',
+        iconClass: 'icon-spending',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>'
       }
       // Future premium tools: add another object here, e.g.
       // { id: 'reports', label: 'Reports', desc: '...', href: 'reports.html', iconClass: 'icon-reports', icon: '<svg>...</svg>' }
@@ -1103,7 +1476,7 @@
           // by the free trial — unpaid goes straight to Stripe checkout,
           // not the trial-expiry paywall page.
           if (!isPaidUser) { await startCheckoutSilent(); return; }
-          if (btn.dataset.href === 'connections.html') {
+          if (btn.dataset.href === 'connections.html' || btn.dataset.href === 'spending.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);
             if (!verified) return; // cancelled — stay put, don't navigate

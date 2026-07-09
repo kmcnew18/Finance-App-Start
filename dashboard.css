@@ -214,6 +214,57 @@ h1, h2, h3 {
 }
 .card:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0,0,0,0.35); }
 
+.sync-hint {
+  font-size: 0.68rem;
+  color: var(--emerald-bright, #63D9AA);
+  font-weight: 600;
+}
+.card-custom-category {
+  border-color: rgba(63,174,133,0.3);
+}
+.card-custom-category .sync-hint {
+  color: var(--silver-dim);
+  font-weight: 500;
+}
+
+/* Transaction review queue */
+.txn-review-section {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+.txn-review-head { margin-bottom: 12px; }
+.txn-review-title { display: block; font-family: 'Fraunces', serif; font-size: 1rem; color: var(--tan); margin-bottom: 3px; }
+.txn-review-sub { font-size: 0.78rem; color: var(--silver-dim); }
+.txn-review-list { display: flex; flex-direction: column; gap: 10px; }
+.txn-review-row {
+  padding: 12px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  background: rgba(255,255,255,0.02);
+}
+.txn-review-info { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.txn-review-merchant { font-weight: 600; color: var(--tan); font-size: 0.9rem; }
+.txn-review-meta { font-size: 0.76rem; color: var(--silver-dim); }
+.txn-review-suggestion-text { font-size: 0.85rem; color: var(--silver); margin-bottom: 10px; }
+.txn-review-suggestion-text strong { color: var(--tan); }
+.txn-review-change-form { display: none; gap: 8px; margin-bottom: 10px; }
+.txn-review-change-form select {
+  flex: 1; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--panel-border);
+  background: #12181F; color: var(--tan); font-size: 0.8rem;
+}
+.txn-review-actions { display: flex; gap: 8px; }
+.txn-approve-btn, .txn-change-btn, .txn-skip-btn {
+  padding: 6px 13px; border-radius: 7px; font-size: 0.76rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.txn-approve-btn { background: var(--vintage-blue); color: var(--tan); border: none; }
+.txn-approve-btn:hover { background: var(--vintage-blue-light); }
+.txn-change-btn, .txn-skip-btn { background: none; border: 1px solid var(--panel-border); color: var(--silver-dim); }
+.txn-change-btn:hover, .txn-skip-btn:hover { color: var(--tan); border-color: var(--silver-dim); }
+
 .card-total {
   background: linear-gradient(135deg, var(--vintage-blue), #223d54);
   border-color: var(--vintage-blue);
@@ -947,6 +998,18 @@ input[type="number"]::-webkit-outer-spin-button {
   50% { opacity: 0.55; }
 }
 
+/* Spendings gets coral, matching its own "outflow" identity color used
+   elsewhere (Subtract panel, spend totals). */
+.ledger-tool-icon.icon-spending {
+  background: linear-gradient(155deg, rgba(224,128,106,0.24), rgba(224,128,106,0.05));
+  border-color: rgba(224,128,106,0.32);
+}
+.ledger-tool-icon.icon-spending svg { stroke: #E0806A; }
+.ledger-tool-item:hover .ledger-tool-icon.icon-spending {
+  background: linear-gradient(155deg, rgba(224,128,106,0.36), rgba(224,128,106,0.08));
+  transform: scale(1.08);
+}
+
 .ledger-tool-text { flex: 1; min-width: 0; }
 .ledger-tool-title {
   font-size: 0.83rem;
@@ -1120,6 +1183,11 @@ textarea:focus-visible,
   letter-spacing: 0.15em; text-align: center;
 }
 .mfa-field input:focus { outline: none; border-color: var(--vintage-blue-light); box-shadow: 0 0 0 3px rgba(110,143,163,0.18); }
+.mfa-field select {
+  padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border);
+  background: #0F151C; color: var(--tan); font-size: 0.88rem; font-family: 'Public Sans', sans-serif;
+}
+.mfa-field select:focus { outline: none; border-color: var(--vintage-blue-light); box-shadow: 0 0 0 3px rgba(110,143,163,0.18); }
 
 .mfa-verify-btn {
   padding: 12px 20px; border: none; border-radius: 8px;
@@ -1183,6 +1251,52 @@ textarea:focus-visible,
   transition: background 0.15s ease;
 }
 .mfa-remove-factor-btn:hover { background: rgba(224,139,125,0.12); }
+
+/* ==========================================================================
+   IDLE SESSION TIMEOUT — shared overlay, same pattern as the MFA modal.
+   Auto-signs out after a period of inactivity, with a countdown warning
+   first so nothing gets cut off mid-action without notice.
+   ========================================================================== */
+.idle-overlay {
+  position: fixed; inset: 0; background: rgba(6,8,11,0.82);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; z-index: 300;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s;
+}
+.idle-overlay.open { opacity: 1; visibility: visible; }
+.idle-modal {
+  background: var(--dark-vintage);
+  border: 1px solid var(--vintage-blue);
+  border-radius: 14px;
+  width: 100%; max-width: 380px;
+  padding: 28px 24px;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 26px rgba(46,84,114,0.2);
+}
+.idle-modal h2 { font-family: 'Fraunces', serif; color: var(--vintage-blue-light); font-size: 1.1rem; margin-bottom: 10px; }
+.idle-modal p { font-size: 0.85rem; color: var(--silver-dim); line-height: 1.55; }
+.idle-countdown {
+  font-family: 'IBM Plex Mono', monospace; font-size: 2rem; color: var(--tan);
+  margin: 16px 0 22px;
+}
+.idle-stay-btn {
+  width: 100%; padding: 12px; border: none; border-radius: 8px;
+  background: var(--vintage-blue); color: var(--tan);
+  font-weight: 600; font-size: 0.9rem; cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.idle-stay-btn:hover { background: var(--vintage-blue-light); transform: translateY(-1px); }
+
+/* Recent Activity list */
+.activity-list { display: flex; flex-direction: column; }
+.activity-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 11px 2px; border-bottom: 1px solid #222C3A; font-size: 0.85rem;
+}
+.activity-row:last-child { border-bottom: none; }
+.activity-label { color: var(--tan); }
+.activity-when { color: var(--silver-dim); font-size: 0.74rem; white-space: nowrap; flex-shrink: 0; }
 
 /* Dismissible 2FA suggestion banner — accessible, never blocking. */
 .mfa-banner {

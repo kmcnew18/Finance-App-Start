@@ -244,6 +244,19 @@
     </div>
   </div>
 
+  <!-- ================= CATEGORY MAPPING ================= -->
+  <div class="mfa-overlay" id="category-overlay">
+    <div class="mfa-modal" style="max-width: 420px;">
+      <div class="mfa-modal-head">
+        <h2>Categorize this account</h2>
+        <button type="button" class="mfa-modal-close" id="category-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="category-modal-body">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -255,6 +268,25 @@
     let currentUserId = null;
     let currentUserEmail = null;
     let accounts = [];
+    let categories = [];
+    let accountSplits = []; // account_category_splits rows
+
+    const DEFAULT_CATEGORIES = [
+      { name: 'Savings', accent: 'sage' },
+      { name: 'Investment', accent: 'blue' },
+      { name: 'Expenses', accent: 'coral' },
+      { name: 'Checking', accent: 'gold' },
+    ];
+
+    // Suggests a starting category by name for a given account type — the
+    // "smart default" that lets most people just tap "Looks good" instead
+    // of thinking about it. Returns null when there's no sensible
+    // single-category guess (credit cards/loans are debts, not something
+    // that fills a spending category).
+    function suggestCategoryName(accountType) {
+      const map = { checking: 'Checking', savings: 'Savings', investment: 'Investment', crypto: 'Investment' };
+      return map[accountType] || null;
+    }
     let editingAccountId = null; // set when the modal is being used to edit, not create
 
     // ================= ACCOUNT TYPE CONFIG =================
@@ -304,6 +336,7 @@
       setupRecurringSection();
       setupMfaOverlay();
       setupActivityPanel();
+      setupCategoryOverlay();
       setupIdleTimeout();
 
       // Blocks here until the user has enrolled AND verified a second
@@ -355,7 +388,38 @@
       if (error) { console.error(error); accounts = []; return; }
       accounts = data || [];
       await loadConnectionStatus();
+      await loadCategories();
       renderAll();
+    }
+
+    async function loadCategories() {
+      const { data, error } = await supabaseClient
+        .from('budget_categories')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .order('sort_order', { ascending: true });
+      if (error) { console.error(error); categories = []; return; }
+
+      // First time this user has ever reached this feature — seed the
+      // four categories they already had, so nothing changes for them
+      // until they actively choose to add more. No setup step forced.
+      if (!data.length) {
+        const seedRows = DEFAULT_CATEGORIES.map((c, i) => ({
+          user_id: currentUserId, name: c.name, accent: c.accent, is_default: true, sort_order: i,
+        }));
+        const { data: seeded, error: seedError } = await supabaseClient.from('budget_categories').insert(seedRows).select();
+        if (seedError) { console.error(seedError); categories = []; return; }
+        categories = seeded || [];
+      } else {
+        categories = data;
+      }
+
+      const { data: splits, error: splitsError } = await supabaseClient
+        .from('account_category_splits')
+        .select('*')
+        .eq('user_id', currentUserId);
+      if (splitsError) { console.error(splitsError); accountSplits = []; return; }
+      accountSplits = splits || [];
     }
 
     async function loadConnectionStatus() {
@@ -464,6 +528,27 @@
       container.querySelectorAll('.account-reconnect-btn').forEach(btn => {
         btn.addEventListener('click', () => reconnectItem(btn.dataset.itemId, btn.dataset.institution, btn));
       });
+      container.querySelectorAll('.category-pill').forEach(btn => {
+        btn.addEventListener('click', () => openCategoryMapping(btn.dataset.accountId));
+      });
+    }
+
+    function categoryPillHtml(accountId) {
+      const splits = accountSplits.filter(s => s.linked_account_id === accountId);
+      const totalPercent = splits.reduce((s, x) => s + Number(x.split_percent), 0);
+
+      let label, cls;
+      if (!splits.length) {
+        label = 'Tap to categorize'; cls = 'category-pill-empty';
+      } else if (splits.length === 1) {
+        const cat = categories.find(c => c.id === splits[0].category_id);
+        label = cat ? cat.name : 'Categorized'; cls = 'category-pill-set';
+      } else {
+        label = `Split across ${splits.length}`; cls = 'category-pill-set';
+      }
+      if (splits.length && totalPercent < 100) label += ` (${Math.round(100 - totalPercent)}% unassigned)`;
+
+      return `<button type="button" class="category-pill ${cls}" data-account-id="${accountId}">${label}</button>`;
     }
 
     function accountCardHtml(a, t) {
@@ -494,6 +579,7 @@
           </div>
           <div class="account-card-balance">${money(a.balance)}</div>
           ${synced}
+          ${categoryPillHtml(a.id)}
           ${reconnectBlock}
           <div class="account-card-actions" style="margin-top:10px;">
             <button type="button" class="account-edit-btn" data-id="${a.id}">Edit</button>
@@ -979,6 +1065,14 @@
         href: 'connections.html',
         iconClass: 'icon-connections',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
+      },
+      {
+        id: 'spending',
+        label: 'Spendings',
+        desc: 'Monthly breakdown and subscriptions.',
+        href: 'spending.html',
+        iconClass: 'icon-spending',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>'
       }
     ];
 
@@ -1655,6 +1749,168 @@
       });
       document.getElementById('activity-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'activity-overlay') document.getElementById('activity-overlay').classList.remove('open');
+      });
+    }
+
+    // ================= CATEGORY MAPPING =================
+    // Convenience-first: opens on a simple one-tap choice with a smart
+    // suggestion already highlighted. Splitting across categories is a
+    // deliberate extra step ("Split this account across categories
+    // instead"), never the default view — most people never need it.
+    let categoryMappingAccountId = null;
+
+    function closeCategoryOverlay() {
+      document.getElementById('category-overlay').classList.remove('open');
+      categoryMappingAccountId = null;
+    }
+
+    function openCategoryMapping(accountId) {
+      categoryMappingAccountId = accountId;
+      document.getElementById('category-overlay').classList.add('open');
+      renderCategorySimpleMode();
+    }
+
+    function renderCategorySimpleMode() {
+      const acct = accounts.find(a => a.id === categoryMappingAccountId);
+      if (!acct) { closeCategoryOverlay(); return; }
+      const body = document.getElementById('category-modal-body');
+      const suggested = suggestCategoryName(acct.account_type);
+      const currentSplits = accountSplits.filter(s => s.linked_account_id === categoryMappingAccountId);
+      const currentSingleCatId = currentSplits.length === 1 && Number(currentSplits[0].split_percent) === 100 ? currentSplits[0].category_id : null;
+      const displayName = (acct.nickname || acct.institution_name || 'this account').replace(/</g, '&lt;');
+
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Which category should <strong style="color:var(--tan);">${displayName}</strong> count toward on your Dashboard?</p>
+        <div class="category-choice-grid">
+          ${categories.map(c => {
+            const isSuggested = c.name === suggested && !currentSingleCatId;
+            const isCurrent = c.id === currentSingleCatId;
+            return `<button type="button" class="category-choice-btn${isCurrent || isSuggested ? ' suggested' : ''}" data-cat-id="${c.id}">${c.name.replace(/</g,'&lt;')}${isCurrent ? ' ✓' : ''}</button>`;
+          }).join('')}
+        </div>
+        <button type="button" class="category-text-link" id="category-add-new-btn">+ Add a new category</button>
+        <button type="button" class="category-text-link" id="category-split-link">Split this account across categories instead</button>
+        ${currentSplits.length ? `<button type="button" class="category-text-link category-clear-link" id="category-clear-btn">Remove categorization</button>` : ''}
+      `;
+
+      body.querySelectorAll('.category-choice-btn').forEach(btn => {
+        btn.addEventListener('click', () => assignSingleCategory(btn.dataset.catId));
+      });
+      document.getElementById('category-add-new-btn').addEventListener('click', renderAddCategoryForm);
+      document.getElementById('category-split-link').addEventListener('click', renderCategorySplitMode);
+      const clearBtn = document.getElementById('category-clear-btn');
+      if (clearBtn) clearBtn.addEventListener('click', clearCategoryMapping);
+    }
+
+    async function assignSingleCategory(categoryId) {
+      await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId);
+      const { error } = await supabaseClient.from('account_category_splits').insert({
+        user_id: currentUserId, linked_account_id: categoryMappingAccountId, category_id: categoryId, split_percent: 100,
+      });
+      if (error) { alert('Could not save: ' + error.message); return; }
+      logAuditEvent('account_categorized', {});
+      closeCategoryOverlay();
+      await loadAccounts();
+    }
+
+    async function clearCategoryMapping() {
+      await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId);
+      closeCategoryOverlay();
+      await loadAccounts();
+    }
+
+    function renderAddCategoryForm() {
+      const body = document.getElementById('category-modal-body');
+      body.innerHTML = `
+        <p class="mfa-modal-sub">What should this category be called?</p>
+        <div class="mfa-field">
+          <label for="new-category-name">Category name</label>
+          <input type="text" id="new-category-name" placeholder="e.g. Emergency Fund" maxlength="30" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
+        </div>
+        <button type="button" class="mfa-verify-btn" id="save-new-category-btn">Add category</button>
+        <button type="button" class="category-text-link" id="cancel-add-category-btn">Cancel</button>
+      `;
+      document.getElementById('new-category-name').focus();
+      document.getElementById('save-new-category-btn').addEventListener('click', async () => {
+        const name = document.getElementById('new-category-name').value.trim();
+        if (!name) return;
+        const accentPalette = ['sage', 'blue', 'coral', 'gold', 'violet', 'teal'];
+        const accent = accentPalette[categories.length % accentPalette.length];
+        const { data, error } = await supabaseClient.from('budget_categories').insert({
+          user_id: currentUserId, name, accent, is_default: false, sort_order: categories.length,
+        }).select().maybeSingle();
+        if (error) { alert('Could not add category: ' + error.message); return; }
+        categories.push(data);
+        logAuditEvent('category_created', { name });
+        renderCategorySimpleMode();
+      });
+      document.getElementById('cancel-add-category-btn').addEventListener('click', renderCategorySimpleMode);
+    }
+
+    function renderCategorySplitMode() {
+      const acct = accounts.find(a => a.id === categoryMappingAccountId);
+      if (!acct) { closeCategoryOverlay(); return; }
+      const currentSplits = accountSplits.filter(s => s.linked_account_id === categoryMappingAccountId);
+      const body = document.getElementById('category-modal-body');
+      const displayName = (acct.nickname || acct.institution_name || 'this account').replace(/</g, '&lt;');
+
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Split <strong style="color:var(--tan);">${displayName}</strong> across categories by percentage.</p>
+        <div class="category-split-list">
+          ${categories.map(c => {
+            const existing = currentSplits.find(s => s.category_id === c.id);
+            return `<div class="category-split-row">
+              <span class="category-split-name">${c.name.replace(/</g,'&lt;')}</span>
+              <input type="number" class="category-split-input" data-cat-id="${c.id}" min="0" max="100" value="${existing ? existing.split_percent : 0}" />
+              <span class="category-split-pct-sign">%</span>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="category-split-total" id="category-split-total">0% allocated</div>
+        <button type="button" class="mfa-verify-btn" id="save-split-btn">Save split</button>
+        <button type="button" class="category-text-link" id="back-to-simple-btn">Back</button>
+      `;
+
+      function updateTotal() {
+        let total = 0;
+        body.querySelectorAll('.category-split-input').forEach(i => { total += Number(i.value) || 0; });
+        const totalEl = document.getElementById('category-split-total');
+        totalEl.textContent = total > 100
+          ? `${total}% — that's over 100%, adjust before saving`
+          : total === 100
+            ? `100% allocated — all set`
+            : `${total}% allocated — ${100 - total}% left unassigned`;
+        totalEl.classList.toggle('over', total > 100);
+      }
+      body.querySelectorAll('.category-split-input').forEach(input => input.addEventListener('input', updateTotal));
+      updateTotal();
+
+      document.getElementById('back-to-simple-btn').addEventListener('click', renderCategorySimpleMode);
+      document.getElementById('save-split-btn').addEventListener('click', async () => {
+        let total = 0;
+        const rows = [];
+        body.querySelectorAll('.category-split-input').forEach(i => {
+          const pct = Number(i.value) || 0;
+          total += pct;
+          if (pct > 0) rows.push({ user_id: currentUserId, linked_account_id: categoryMappingAccountId, category_id: i.dataset.catId, split_percent: pct });
+        });
+        if (total > 100) { alert("That adds up to more than 100% — adjust the numbers before saving."); return; }
+
+        await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId);
+        if (rows.length) {
+          const { error } = await supabaseClient.from('account_category_splits').insert(rows);
+          if (error) { alert('Could not save: ' + error.message); return; }
+        }
+        logAuditEvent('account_categorized', { split: true });
+        closeCategoryOverlay();
+        await loadAccounts();
+      });
+    }
+
+    function setupCategoryOverlay() {
+      document.getElementById('category-close').addEventListener('click', closeCategoryOverlay);
+      document.getElementById('category-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'category-overlay') closeCategoryOverlay();
       });
     }
 

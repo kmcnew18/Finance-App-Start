@@ -60,7 +60,9 @@ function mapAccountType(plaidType, plaidSubtype) {
 async function syncTransactionsForItem(itemRow) {
   const accessToken = decryptToken(itemRow.access_token);
   let cursor = itemRow.transactions_cursor || undefined;
-  let addedIds = [];
+  let addedTransactions = [];
+  let modifiedTransactions = [];
+  let removedTransactions = [];
   let hasMore = true;
 
   while (hasMore) {
@@ -68,7 +70,9 @@ async function syncTransactionsForItem(itemRow) {
       access_token: accessToken,
       cursor,
     });
-    addedIds = addedIds.concat(resp.data.added.map(t => t.transaction_id));
+    addedTransactions = addedTransactions.concat(resp.data.added);
+    modifiedTransactions = modifiedTransactions.concat(resp.data.modified);
+    removedTransactions = removedTransactions.concat(resp.data.removed);
     hasMore = resp.data.has_more;
     cursor = resp.data.next_cursor;
   }
@@ -78,7 +82,7 @@ async function syncTransactionsForItem(itemRow) {
     .update({ transactions_cursor: cursor })
     .eq('item_id', itemRow.item_id);
 
-  return addedIds;
+  return { addedTransactions, modifiedTransactions, removedTransactions };
 }
 
 // Refreshes recurring_streams for one item from /transactions/recurring/get.
@@ -126,6 +130,128 @@ async function refreshRecurringForItem(itemRow) {
   }
 
   return streams;
+}
+
+// Persists every synced transaction (not just recurring or review-queued
+// ones) — this is what the Spendings page reads to compute monthly
+// category breakdowns. Also handles Plaid retracting a transaction
+// (pending -> cancelled) by marking it removed rather than deleting it
+// outright, so a month's totals don't silently shift after the fact
+// without a record of why.
+async function storeTransactions(userId, addedTransactions, modifiedTransactions = [], removedTransactions = []) {
+  const rows = addedTransactions.map(txn => ({
+    user_id: userId,
+    plaid_transaction_id: txn.transaction_id,
+    amount: txn.amount,
+    txn_date: txn.date,
+    merchant_name: txn.merchant_name || txn.name || null,
+    plaid_category: txn.personal_finance_category?.primary || null,
+  }));
+
+  if (rows.length) {
+    const { data: linkedAccounts } = await supabaseAdmin.from('linked_accounts').select('id, plaid_account_id').eq('user_id', userId);
+    const accountIdByPlaidId = Object.fromEntries((linkedAccounts || []).map(a => [a.plaid_account_id, a.id]));
+    addedTransactions.forEach((txn, i) => { rows[i].linked_account_id = accountIdByPlaidId[txn.account_id] || null; });
+
+    await supabaseAdmin.from('transactions').upsert(rows, { onConflict: 'plaid_transaction_id' });
+  }
+
+  for (const txn of modifiedTransactions) {
+    await supabaseAdmin.from('transactions').update({
+      amount: txn.amount, txn_date: txn.date, merchant_name: txn.merchant_name || txn.name || null,
+      plaid_category: txn.personal_finance_category?.primary || null,
+    }).eq('plaid_transaction_id', txn.transaction_id);
+  }
+
+  for (const txn of removedTransactions) {
+    await supabaseAdmin.from('transactions').update({ is_removed: true }).eq('plaid_transaction_id', txn.transaction_id);
+  }
+}
+
+// For every newly-added transaction on an account that's mapped to
+// exactly one Dashboard category at 100% (not split across several —
+// attributing a fraction of one transaction to multiple categories isn't
+// a guess worth making), queues a suggested Dashboard log entry: which
+// category, add or subtract based on the sign of the amount, with
+// Plaid's merchant name and category for context. Skips accounts with no
+// mapping or a split mapping, and skips anything already queued.
+async function queueDashboardReviews(userId, addedTransactions) {
+  if (!addedTransactions.length) return 0;
+
+  const { data: linkedAccounts } = await supabaseAdmin
+    .from('linked_accounts')
+    .select('id, plaid_account_id')
+    .eq('user_id', userId);
+  if (!linkedAccounts || !linkedAccounts.length) return 0;
+  const linkedAccountByPlaidId = Object.fromEntries(linkedAccounts.map(a => [a.plaid_account_id, a.id]));
+
+  const { data: splits } = await supabaseAdmin
+    .from('account_category_splits')
+    .select('*')
+    .eq('user_id', userId);
+  if (!splits || !splits.length) return 0;
+
+  const singleCategoryByAccountId = {};
+  linkedAccounts.forEach(a => {
+    const accountSplits = splits.filter(s => s.linked_account_id === a.id);
+    if (accountSplits.length === 1 && Number(accountSplits[0].split_percent) === 100) {
+      singleCategoryByAccountId[a.id] = accountSplits[0].category_id;
+    }
+  });
+  if (!Object.keys(singleCategoryByAccountId).length) return 0;
+
+  const { data: categories } = await supabaseAdmin.from('budget_categories').select('id, name').eq('user_id', userId);
+  const categoryNameById = Object.fromEntries((categories || []).map(c => [c.id, c.name]));
+
+  // Dashboard's finance_log only has columns for the original four
+  // categories — a custom category has nowhere to actually log a
+  // transaction against yet. Suggesting one would be a dead end, so only
+  // queue for accounts mapped to one of these.
+  const LOGGABLE_NAMES = new Set(['savings', 'investment', 'expenses', 'checking']);
+
+  let queuedCount = 0;
+
+  for (const txn of addedTransactions) {
+    // Plaid transfer-type transactions (moving money between the user's
+    // own accounts) aren't real income/spending — suggesting those as
+    // add/subtract would double-count against a transfer already
+    // reflected in both accounts' balances. Skip them.
+    if (txn.personal_finance_category?.primary === 'TRANSFER_IN' || txn.personal_finance_category?.primary === 'TRANSFER_OUT') continue;
+
+    const linkedAccountId = linkedAccountByPlaidId[txn.account_id];
+    if (!linkedAccountId) continue;
+    const categoryId = singleCategoryByAccountId[linkedAccountId];
+    if (!categoryId) continue;
+    const categoryName = categoryNameById[categoryId];
+    if (!categoryName || !LOGGABLE_NAMES.has(categoryName.toLowerCase())) continue;
+
+    const { data: alreadyQueued } = await supabaseAdmin
+      .from('pending_dashboard_reviews')
+      .select('id')
+      .eq('plaid_transaction_id', txn.transaction_id)
+      .maybeSingle();
+    if (alreadyQueued) continue;
+
+    // Plaid's sign convention: positive = money left the account (a
+    // spend), negative = money came in (a deposit).
+    const suggestedAction = txn.amount > 0 ? 'subtract' : 'add';
+
+    const { error: insertError } = await supabaseAdmin.from('pending_dashboard_reviews').insert({
+      user_id: userId,
+      plaid_transaction_id: txn.transaction_id,
+      linked_account_id: linkedAccountId,
+      category_id: categoryId,
+      category_name: categoryNameById[categoryId] || null,
+      suggested_action: suggestedAction,
+      amount: Math.abs(txn.amount),
+      txn_date: txn.date,
+      merchant_name: txn.merchant_name || txn.name || null,
+      plaid_category: txn.personal_finance_category?.primary || null,
+    });
+    if (!insertError) queuedCount++;
+  }
+
+  return queuedCount;
 }
 
 // For every stream the user has actually mapped to a Bills/Income line
@@ -187,12 +313,16 @@ async function matchAndQueueReviews(userId, streams, addedTransactionIds) {
 }
 
 // Full pipeline for one item: sync transactions, refresh recurring streams,
-// queue reviews for anything newly matched to a mapped stream.
+// queue reviews for anything newly matched to a mapped stream, and queue
+// Dashboard suggestions for anything on a single-category-mapped account.
 async function processItemUpdate(itemRow) {
-  const addedIds = await syncTransactionsForItem(itemRow);
+  const { addedTransactions, modifiedTransactions, removedTransactions } = await syncTransactionsForItem(itemRow);
+  const addedIds = addedTransactions.map(t => t.transaction_id);
+  await storeTransactions(itemRow.user_id, addedTransactions, modifiedTransactions, removedTransactions);
   const streams = await refreshRecurringForItem(itemRow);
   const queuedCount = await matchAndQueueReviews(itemRow.user_id, streams, addedIds);
-  return { addedCount: addedIds.length, queuedCount };
+  const dashboardQueuedCount = await queueDashboardReviews(itemRow.user_id, addedTransactions);
+  return { addedCount: addedIds.length, queuedCount, dashboardQueuedCount };
 }
 
 module.exports = {
@@ -200,7 +330,9 @@ module.exports = {
   supabaseAdmin,
   mapAccountType,
   syncTransactionsForItem,
+  storeTransactions,
   refreshRecurringForItem,
   matchAndQueueReviews,
+  queueDashboardReviews,
   processItemUpdate,
 };

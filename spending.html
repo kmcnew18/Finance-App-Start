@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spendings · Arko</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="spending.css" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+</head>
+<body>
+
+  <header class="dash-header">
+    <nav class="nav">
+      <a href="dashboard.html" class="wordmark" style="text-decoration:none;"><span class="wordmark-brand">Arko</span> | Early Access</a>
+      <div class="nav-auth">
+        <span id="user-email" class="user-email"></span>
+        <button type="button" id="view-log-button" class="btn-ghost" onclick="window.location.href='log.html'">View Log</button>
+
+        <div class="settings-wrap">
+          <button type="button" id="ledger-menu-btn" class="btn-icon btn-ledger" aria-label="Premium tools">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <line x1="8.5" y1="7" x2="15.5" y2="7"></line>
+              <line x1="8.5" y1="11" x2="15.5" y2="11"></line>
+            </svg>
+            <span class="lock-badge" id="ledger-lock-badge" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="1"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+            </span>
+          </button>
+          <div class="ledger-dropdown" id="ledger-dropdown">
+            <div class="ledger-dropdown-inner" id="ledger-dropdown-inner"></div>
+          </div>
+        </div>
+
+        <div class="settings-wrap">
+          <button type="button" id="settings-gear" class="btn-icon" aria-label="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+          <div class="settings-dropdown" id="settings-dropdown">
+            <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
+          </div>
+        </div>
+
+        <button type="button" id="logout-button" class="btn-logout">Log out</button>
+      </div>
+    </nav>
+  </header>
+
+  <div class="wip-banner">Early development · some features may not be live</div>
+
+  <main class="dash-main" id="spend-main" style="display:none;">
+
+    <div class="spend-month-nav">
+      <button type="button" id="spend-prev-month" class="spend-month-btn" aria-label="Previous month">‹</button>
+      <span class="spend-month-label" id="spend-month-label">July 2026</span>
+      <button type="button" id="spend-next-month" class="spend-month-btn" aria-label="Next month">›</button>
+    </div>
+
+    <section class="spend-total-card">
+      <span class="spend-total-label">Total spent this month</span>
+      <span class="spend-total-value" id="spend-total-value">$0.00</span>
+    </section>
+
+    <section class="spend-section">
+      <h2 class="spend-section-title">By category</h2>
+      <div id="spend-category-list" class="spend-category-list"></div>
+      <p class="spend-empty-note" id="spend-category-empty" style="display:none;">No spending recorded for this month yet.</p>
+    </section>
+
+    <section class="spend-section">
+      <h2 class="spend-section-title">Subscriptions</h2>
+      <p class="spend-section-sub">Recurring charges detected from your connected accounts. Manage which ones feed your budget from the Connections page.</p>
+      <div id="spend-subscriptions-list" class="spend-subscriptions-list"></div>
+      <p class="spend-empty-note" id="spend-subscriptions-empty" style="display:none;">No subscriptions detected yet.</p>
+    </section>
+
+  </main>
+
+  <p id="loading-message" class="loading-message">Loading your spending...</p>
+
+  <!-- ================= TWO-FACTOR AUTHENTICATION OVERLAY ================= -->
+  <div class="mfa-overlay" id="mfa-overlay">
+    <div class="mfa-modal">
+      <div class="mfa-modal-head">
+        <h2>Two-factor authentication</h2>
+        <button type="button" class="mfa-modal-close" id="mfa-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="mfa-modal-body"></div>
+      <div class="mfa-modal-actions">
+        <button type="button" class="mfa-cancel-btn" id="mfa-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= IDLE SESSION TIMEOUT ================= -->
+  <div class="idle-overlay" id="idle-overlay">
+    <div class="idle-modal">
+      <h2>Still there?</h2>
+      <p>You've been inactive for a while. For your security, we'll sign you out automatically.</p>
+      <div class="idle-countdown" id="idle-countdown">60</div>
+      <button type="button" class="idle-stay-btn" id="idle-stay-btn">Stay signed in</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUserId = null;
+    let currentUserEmail = null;
+    let isPaidUser = false;
+    let viewMonth = new Date(); // first of the currently-viewed month
+
+    function money(n) {
+      const num = Number(n || 0);
+      const sign = num < 0 ? '-' : '';
+      return sign + '$' + Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+
+    function prettyCategory(raw) {
+      if (!raw) return 'Uncategorized';
+      return raw.toLowerCase().split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    function logAuditEvent(eventType, detail) {
+      supabaseClient.from('audit_log').insert({ user_id: currentUserId, event_type: eventType, detail: detail || {} })
+        .then(({ error }) => { if (error) console.error('Audit log write failed:', error); });
+    }
+
+    function monthRange(date) {
+      const start = new Date(date.getFullYear(), date.getMonth(), 1);
+      const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      const toISO = d => d.toISOString().slice(0, 10);
+      return { start: toISO(start), end: toISO(end) };
+    }
+
+    async function init() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+      currentUserId = session.user.id;
+      currentUserEmail = session.user.email;
+      document.getElementById('user-email').textContent = session.user.email;
+
+      const { data: billing } = await supabaseClient.from('user_billing').select('is_paid').eq('user_id', currentUserId).maybeSingle();
+      isPaidUser = !!(billing && billing.is_paid);
+      // Spendings is a paid feature, not part of the free trial (same as
+      // Budget Planner and Connections) — unpaid goes straight to Stripe
+      // checkout, not the trial-expiry paywall page.
+      if (!isPaidUser) { await redirectToCheckout(); return; }
+
+      setupLedgerMenu();
+      setupMfaOverlay();
+      setupIdleTimeout();
+      setupMonthNav();
+
+      const verified = await requireMfaVerified(true);
+      if (!verified) { window.location.href = 'dashboard.html'; return; }
+
+      await loadSpendingData();
+
+      document.getElementById('loading-message').style.display = 'none';
+      document.getElementById('spend-main').style.display = 'block';
+    }
+
+    async function redirectToCheckout() {
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, email: currentUserEmail })
+        });
+        const data = await res.json();
+        if (data.url) { window.location.href = data.url; }
+        else { window.location.href = 'paywall.html'; } // fallback if checkout couldn't start
+      } catch (err) {
+        console.error(err);
+        window.location.href = 'paywall.html'; // fallback
+      }
+    }
+
+    function setupMonthNav() {
+      document.getElementById('spend-prev-month').addEventListener('click', async () => {
+        viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
+        await loadSpendingData();
+      });
+      document.getElementById('spend-next-month').addEventListener('click', async () => {
+        viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
+        await loadSpendingData();
+      });
+    }
+
+    async function loadSpendingData() {
+      document.getElementById('spend-month-label').textContent = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const { start, end } = monthRange(viewMonth);
+
+      const { data: txns, error } = await supabaseClient
+        .from('transactions')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .eq('is_removed', false)
+        .gte('txn_date', start)
+        .lte('txn_date', end);
+
+      if (error) { console.error(error); return; }
+
+      const spends = (txns || []).filter(t => Number(t.amount) > 0);
+      const total = round2(spends.reduce((s, t) => s + Number(t.amount), 0));
+
+      document.getElementById('spend-total-value').textContent = money(total);
+      renderCategoryBreakdown(spends, total);
+      await loadSubscriptions();
+    }
+
+    function renderCategoryBreakdown(spends, total) {
+      const list = document.getElementById('spend-category-list');
+      const empty = document.getElementById('spend-category-empty');
+
+      if (!spends.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      const byCategory = {};
+      spends.forEach(t => {
+        const key = t.plaid_category || 'OTHER';
+        byCategory[key] = (byCategory[key] || 0) + Number(t.amount);
+      });
+
+      const rows = Object.entries(byCategory)
+        .map(([cat, amt]) => ({ cat, amt: round2(amt), pct: total > 0 ? round2((amt / total) * 100) : 0 }))
+        .sort((a, b) => b.amt - a.amt);
+
+      list.innerHTML = rows.map(r => `
+        <div class="spend-cat-row">
+          <div class="spend-cat-head">
+            <span class="spend-cat-name">${prettyCategory(r.cat)}</span>
+            <span class="spend-cat-amt">${money(r.amt)} · ${r.pct}%</span>
+          </div>
+          <div class="spend-cat-bar-track"><div class="spend-cat-bar-fill" style="width:${Math.min(r.pct, 100)}%;"></div></div>
+        </div>
+      `).join('');
+    }
+
+    async function loadSubscriptions() {
+      const { data, error } = await supabaseClient
+        .from('recurring_streams')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .eq('direction', 'outflow')
+        .eq('ignored', false)
+        .order('average_amount', { ascending: false });
+
+      const list = document.getElementById('spend-subscriptions-list');
+      const empty = document.getElementById('spend-subscriptions-empty');
+
+      if (error || !data || !data.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      list.innerHTML = data.map(s => `
+        <div class="spend-sub-row">
+          <span class="spend-sub-name">${(s.description || s.merchant_name || 'Recurring charge').replace(/</g,'&lt;')}</span>
+          <span class="spend-sub-freq">${s.frequency ? s.frequency.toLowerCase() : ''}</span>
+          <span class="spend-sub-amt">${money(s.last_amount || s.average_amount || 0)}</span>
+        </div>
+      `).join('');
+    }
+
+    // ================= TWO-FACTOR AUTHENTICATION (shared pattern) =================
+    let mfaEnrollFactorId = null;
+    let mfaGateActive = false;
+    let mfaResolveQueue = [];
+
+    async function getMfaLevel() {
+      const { data, error } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (error) { console.error(error); return { currentLevel: 'aal1', nextLevel: 'aal1' }; }
+      return data;
+    }
+
+    async function requireMfaVerified(gate) {
+      const { currentLevel, nextLevel } = await getMfaLevel();
+      if (currentLevel === 'aal2') return true;
+      openMfaOverlay(gate);
+      if (nextLevel === 'aal2') { await renderMfaVerifyForm(); } else { await renderMfaEnrollStart(); }
+      return new Promise(resolve => { mfaResolveQueue.push(resolve); });
+    }
+    function resolveMfaGate(success) { mfaResolveQueue.forEach(r => r(success)); mfaResolveQueue = []; }
+    function openMfaOverlay(gate) {
+      mfaGateActive = !!gate;
+      const overlay = document.getElementById('mfa-overlay');
+      overlay.classList.add('open');
+      overlay.classList.toggle('mfa-gated', mfaGateActive);
+    }
+    function cancelMfaOverlay() {
+      mfaGateActive = false;
+      document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
+      mfaEnrollFactorId = null;
+      resolveMfaGate(false);
+    }
+    function closeMfaOverlay() {
+      if (mfaGateActive) return;
+      document.getElementById('mfa-overlay').classList.remove('open');
+      mfaEnrollFactorId = null;
+    }
+    function mfaQrDataUri(qrRaw) {
+      if (!qrRaw) return '';
+      if (qrRaw.startsWith('data:')) {
+        const commaIndex = qrRaw.indexOf(',');
+        const payload = commaIndex >= 0 ? qrRaw.slice(commaIndex + 1) : '';
+        if (payload.includes('<') || payload.includes('"')) return 'data:image/svg+xml;utf-8,' + encodeURIComponent(payload);
+        return qrRaw;
+      }
+      return 'data:image/svg+xml;utf-8,' + encodeURIComponent(qrRaw);
+    }
+    function mfaQrFrameHtml(qrSvg, secret) {
+      const qrDataUri = mfaQrDataUri(qrSvg);
+      return `
+        <div class="mfa-qr-frame">
+          <span class="mfa-qr-label">Scan with your authenticator app</span>
+          <div class="mfa-qr-inner">
+            <img src="${qrDataUri}" alt="Two-factor authentication QR code"
+                 onerror="this.style.display='none'; document.getElementById('mfa-qr-fallback').style.display='block';" />
+            <p class="mfa-qr-fallback" id="mfa-qr-fallback" style="display:none;">Couldn't load the QR code — use the code below to set up manually instead.</p>
+          </div>
+          <div class="mfa-qr-secret-wrap">
+            <span class="mfa-qr-secret-label">Can't scan it? Enter manually</span>
+            <code class="mfa-qr-secret-code">${secret}</code>
+          </div>
+        </div>`;
+    }
+    async function renderMfaManage() {
+      const body = document.getElementById('mfa-modal-body');
+      const { data, error } = await supabaseClient.auth.mfa.listFactors();
+      if (error) { body.innerHTML = `<p class="mfa-modal-sub">Could not load your two-factor settings: ${error.message}</p>`; return; }
+      const totpFactors = (data.totp || []).filter(f => f.status === 'verified');
+      if (!totpFactors.length) { await renderMfaEnrollStart(); return; }
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Two-factor authentication is <strong style="color:var(--vintage-blue-light);">enabled</strong>.</p>
+        <div class="mfa-factor-list">
+          ${totpFactors.map(f => `<div class="mfa-factor-row"><span>Authenticator app${f.friendly_name ? ' — ' + f.friendly_name : ''}</span><button type="button" class="mfa-remove-factor-btn" data-id="${f.id}">Remove</button></div>`).join('')}
+        </div>`;
+      document.querySelectorAll('.mfa-remove-factor-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm("Remove this authenticator? You won't be able to open Connections or Spendings until you enroll a new one.")) return;
+          const factorId = btn.dataset.id;
+          const { currentLevel } = await getMfaLevel();
+          if (currentLevel !== 'aal2') {
+            const verified = await verifyFactorInline(factorId);
+            if (!verified) { await renderMfaManage(); return; }
+          }
+          const { error: unenrollError } = await supabaseClient.auth.mfa.unenroll({ factorId });
+          if (unenrollError) { alert('Could not remove: ' + unenrollError.message); return; }
+          logAuditEvent('mfa_factor_removed', {});
+          await renderMfaManage();
+        });
+      });
+    }
+    function verifyFactorInline(factorId) {
+      return new Promise((resolve) => {
+        const body = document.getElementById('mfa-modal-body');
+        body.innerHTML = `
+          <p class="mfa-modal-sub">Enter your authenticator code to confirm removal.</p>
+          <div class="mfa-field"><label for="mfa-remove-verify-code">6-digit code</label>
+            <input type="text" id="mfa-remove-verify-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" /></div>
+          <button type="button" id="mfa-remove-verify-btn" class="mfa-verify-btn">Confirm</button>
+          <p class="mfa-modal-sub" id="mfa-remove-verify-error" style="color:var(--error); display:none;"></p>`;
+        document.getElementById('mfa-remove-verify-btn').addEventListener('click', async () => {
+          const code = document.getElementById('mfa-remove-verify-code').value.trim();
+          const errorEl = document.getElementById('mfa-remove-verify-error');
+          errorEl.style.display = 'none';
+          if (!code) return;
+          const { data: challengeData, error: challengeError } = await supabaseClient.auth.mfa.challenge({ factorId });
+          if (challengeError) { errorEl.textContent = challengeError.message; errorEl.style.display = 'block'; resolve(false); return; }
+          const { error: verifyError } = await supabaseClient.auth.mfa.verify({ factorId, challengeId: challengeData.id, code });
+          if (verifyError) { errorEl.textContent = 'Incorrect code — try again.'; errorEl.style.display = 'block'; return; }
+          resolve(true);
+        });
+      });
+    }
+    async function renderMfaEnrollStart() {
+      const body = document.getElementById('mfa-modal-body');
+      body.innerHTML = `<p class="mfa-modal-sub">Loading enrollment…</p>`;
+      const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp', issuer: 'Arko Finance', friendlyName: 'totp-' + Date.now() });
+      if (error) { body.innerHTML = `<p class="mfa-modal-sub">Could not start enrollment: ${error.message}</p>`; return; }
+      mfaEnrollFactorId = data.id;
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Two-factor authentication is required to open Spendings. Scan this code with an authenticator app, then enter the 6-digit code it shows.</p>
+        ${mfaQrFrameHtml(data.totp.qr_code, data.totp.secret)}
+        <div class="mfa-field"><label for="mfa-verify-code">6-digit code</label>
+          <input type="text" id="mfa-verify-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" /></div>
+        <button type="button" id="mfa-enroll-verify-btn" class="mfa-verify-btn">Verify & Enable</button>
+        <p class="mfa-modal-sub" id="mfa-enroll-error" style="color:var(--error); display:none;"></p>`;
+      document.getElementById('mfa-enroll-verify-btn').addEventListener('click', async () => {
+        const code = document.getElementById('mfa-verify-code').value.trim();
+        const errorEl = document.getElementById('mfa-enroll-error');
+        errorEl.style.display = 'none';
+        if (!code) return;
+        const { data: challengeData, error: challengeError } = await supabaseClient.auth.mfa.challenge({ factorId: mfaEnrollFactorId });
+        if (challengeError) { errorEl.textContent = challengeError.message; errorEl.style.display = 'block'; return; }
+        const { error: verifyError } = await supabaseClient.auth.mfa.verify({ factorId: mfaEnrollFactorId, challengeId: challengeData.id, code });
+        if (verifyError) { errorEl.textContent = 'Incorrect code — try again.'; errorEl.style.display = 'block'; return; }
+        logAuditEvent('mfa_enrolled', {});
+        mfaEnrollFactorId = null; mfaGateActive = false;
+        document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
+        resolveMfaGate(true);
+      });
+    }
+    async function renderMfaVerifyForm() {
+      const body = document.getElementById('mfa-modal-body');
+      const { data } = await supabaseClient.auth.mfa.listFactors();
+      const factor = (data?.totp || []).find(f => f.status === 'verified');
+      if (!factor) { await renderMfaEnrollStart(); return; }
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Enter the code from your authenticator app to continue.</p>
+        <div class="mfa-field"><label for="mfa-verify-code">6-digit code</label>
+          <input type="text" id="mfa-verify-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" /></div>
+        <button type="button" id="mfa-session-verify-btn" class="mfa-verify-btn">Verify</button>
+        <p class="mfa-modal-sub" id="mfa-verify-error" style="color:var(--error); display:none;"></p>`;
+      document.getElementById('mfa-session-verify-btn').addEventListener('click', async () => {
+        const code = document.getElementById('mfa-verify-code').value.trim();
+        const errorEl = document.getElementById('mfa-verify-error');
+        errorEl.style.display = 'none';
+        if (!code) return;
+        const { data: challengeData, error: challengeError } = await supabaseClient.auth.mfa.challenge({ factorId: factor.id });
+        if (challengeError) { errorEl.textContent = challengeError.message; errorEl.style.display = 'block'; return; }
+        const { error: verifyError } = await supabaseClient.auth.mfa.verify({ factorId: factor.id, challengeId: challengeData.id, code });
+        if (verifyError) { errorEl.textContent = 'Incorrect code — try again.'; errorEl.style.display = 'block'; return; }
+        mfaGateActive = false;
+        document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
+        resolveMfaGate(true);
+      });
+    }
+    function setupMfaOverlay() {
+      document.getElementById('manage-mfa-btn').addEventListener('click', () => {
+        document.getElementById('settings-dropdown').classList.remove('open');
+        openMfaOverlay(false);
+        renderMfaManage();
+      });
+      document.getElementById('mfa-close').addEventListener('click', closeMfaOverlay);
+      document.getElementById('mfa-cancel-btn').addEventListener('click', cancelMfaOverlay);
+      document.getElementById('mfa-overlay').addEventListener('click', (e) => { if (e.target.id === 'mfa-overlay') closeMfaOverlay(); });
+
+      const gearBtn = document.getElementById('settings-gear');
+      const gearDropdown = document.getElementById('settings-dropdown');
+      gearBtn.addEventListener('click', (e) => { e.stopPropagation(); gearDropdown.classList.toggle('open'); });
+      document.addEventListener('click', () => gearDropdown.classList.remove('open'));
+    }
+
+    // ================= IDLE SESSION TIMEOUT (shared pattern) =================
+    const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+    const IDLE_WARNING_MS = 60 * 1000;
+    let idleTimer = null;
+    let idleCountdownInterval = null;
+    function resetIdleTimer() {
+      clearTimeout(idleTimer); clearInterval(idleCountdownInterval);
+      document.getElementById('idle-overlay').classList.remove('open');
+      idleTimer = setTimeout(showIdleWarning, IDLE_TIMEOUT_MS - IDLE_WARNING_MS);
+    }
+    function showIdleWarning() {
+      document.getElementById('idle-overlay').classList.add('open');
+      let secondsLeft = IDLE_WARNING_MS / 1000;
+      document.getElementById('idle-countdown').textContent = secondsLeft;
+      idleCountdownInterval = setInterval(async () => {
+        secondsLeft--;
+        document.getElementById('idle-countdown').textContent = secondsLeft;
+        if (secondsLeft <= 0) {
+          clearInterval(idleCountdownInterval);
+          await supabaseClient.auth.signOut();
+          window.location.href = 'login.html';
+        }
+      }, 1000);
+    }
+    function setupIdleTimeout() {
+      ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => document.addEventListener(evt, resetIdleTimer, { passive: true }));
+      document.getElementById('idle-stay-btn').addEventListener('click', resetIdleTimer);
+      resetIdleTimer();
+    }
+
+    // ================= PREMIUM TOOLS MENU (shared pattern) =================
+    const PREMIUM_TOOLS = [
+      {
+        id: 'dashboard',
+        label: 'Dashboard',
+        desc: 'Your accounts, at a glance.',
+        href: 'dashboard.html',
+        iconClass: 'icon-dashboard',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>'
+      },
+      {
+        id: 'budget',
+        label: 'Budget Planner',
+        desc: 'Plan, track, and archive monthly budgets.',
+        href: 'budget.html',
+        iconClass: 'icon-ledger',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><line x1="8.5" y1="7" x2="15.5" y2="7"></line><line x1="8.5" y1="11" x2="15.5" y2="11"></line></svg>'
+      },
+      {
+        id: 'connections',
+        label: 'Connections',
+        desc: 'Every account, one net worth.',
+        href: 'connections.html',
+        iconClass: 'icon-connections',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
+      },
+      {
+        id: 'spending',
+        label: 'Spendings',
+        desc: 'Monthly breakdown and subscriptions.',
+        href: 'spending.html',
+        iconClass: 'icon-spending',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>'
+      }
+    ];
+
+    function currentFileName() {
+      const seg = window.location.pathname.split('/').pop();
+      const raw = seg && seg.length ? seg : 'dashboard.html';
+      return raw.replace(/\.html?$/i, '');
+    }
+
+    function renderLedgerMenu() {
+      const inner = document.getElementById('ledger-dropdown-inner');
+      const lockBadge = document.getElementById('ledger-lock-badge');
+      lockBadge.style.display = isPaidUser ? 'none' : 'flex';
+
+      const here = currentFileName();
+
+      const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
+        const isCurrent = tool.href.replace(/\.html?$/i, '') === here;
+        const classes = ['ledger-tool-item'];
+        if (isCurrent) classes.push('current');
+        if (!isPaidUser) classes.push('locked-preview');
+        return `
+          <button type="button" class="${classes.join(' ')}" data-href="${tool.href}"
+                  style="animation-delay:${i * 55}ms" ${isCurrent ? 'disabled' : ''}>
+            <span class="ledger-tool-icon ${tool.iconClass}">${tool.icon}</span>
+            <span class="ledger-tool-text">
+              <span class="ledger-tool-title">${tool.label}${isCurrent ? ' <span class="current-pill">current</span>' : ''}</span>
+              <span class="ledger-tool-desc">${tool.desc}</span>
+            </span>
+            <span class="ledger-tool-arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span>
+          </button>`;
+      }).join('');
+
+      inner.innerHTML = `
+        <div class="ledger-heading">Premium Tools</div>
+        <p class="ledger-sub">${isPaidUser
+          ? 'Your unlocked workspace for deeper financial planning.'
+          : 'Full monthly budgeting — with custom categories, saved defaults, and an archive of past months — is part of full access.'}</p>
+        <div class="ledger-tool-list">${itemsHtml}</div>
+        ${isPaidUser ? '' : '<button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">Unlock full access — $10</button>'}
+        <div class="ledger-future-hint">More premium tools are on the way</div>
+      `;
+
+      inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (btn.disabled) return;
+          if (!isPaidUser) { await startCheckoutSilent(); return; }
+          if (btn.dataset.href === 'connections.html' || btn.dataset.href === 'spending.html') {
+            closeLedgerMenu();
+            const verified = await requireMfaVerified(true);
+            if (!verified) return;
+            window.location.href = btn.dataset.href;
+            return;
+          }
+          window.location.href = btn.dataset.href;
+        });
+      });
+
+      if (!isPaidUser) {
+        const unlockBtn = document.getElementById('ledger-unlock-cta');
+        if (unlockBtn) unlockBtn.addEventListener('click', () => startCheckout(unlockBtn));
+      }
+    }
+
+    async function startCheckoutSilent() {
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, email: currentUserEmail })
+        });
+        const data = await res.json();
+        if (data.url) { window.location.href = data.url; }
+        else { alert('Could not start checkout. Please try again.'); }
+      } catch (err) {
+        console.error(err);
+        alert('Network error — please try again.');
+      }
+    }
+
+    async function startCheckout(btn) {
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Redirecting to checkout…';
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, email: currentUserEmail })
+        });
+        const data = await res.json();
+        if (data.url) { window.location.href = data.url; }
+        else { alert('Could not start checkout. Please try again.'); btn.disabled = false; btn.textContent = originalText; }
+      } catch (err) {
+        console.error(err);
+        alert('Network error — please try again.');
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+
+    function closeLedgerMenu() {
+      const dd = document.getElementById('ledger-dropdown');
+      const btn = document.getElementById('ledger-menu-btn');
+      if (dd) dd.classList.remove('open');
+      if (btn) btn.classList.remove('stamp');
+    }
+
+    function setupLedgerMenu() {
+      const btn = document.getElementById('ledger-menu-btn');
+      const dd = document.getElementById('ledger-dropdown');
+      renderLedgerMenu();
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('settings-dropdown').classList.remove('open');
+        const opening = !dd.classList.contains('open');
+        dd.classList.toggle('open', opening);
+        if (opening) {
+          renderLedgerMenu();
+          btn.classList.remove('stamp');
+          void btn.offsetWidth;
+          btn.classList.add('stamp');
+        }
+      });
+      document.addEventListener('click', () => closeLedgerMenu());
+    }
+
+    document.getElementById('logout-button').addEventListener('click', async () => {
+      await supabaseClient.auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    init();
+  </script>
+
+</body>
+</html>

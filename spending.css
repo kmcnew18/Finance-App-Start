@@ -1,0 +1,84 @@
+/* ============= SPENDINGS — coral accent, matches the app's existing
+   spending/subtract color identity used elsewhere (Dashboard's Subtract
+   panel, log stripes). ============= */
+
+.spend-month-nav {
+  display: flex; align-items: center; justify-content: center; gap: 18px;
+  margin-bottom: 22px;
+}
+.spend-month-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  color: var(--tan);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.spend-month-btn:hover { border-color: #E0806A; background: rgba(224,128,106,0.1); }
+.spend-month-label {
+  font-family: 'Fraunces', serif;
+  font-size: 1.1rem;
+  color: var(--tan);
+  min-width: 160px;
+  text-align: center;
+}
+
+.spend-total-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: linear-gradient(135deg, rgba(224,128,106,0.14), rgba(224,128,106,0.04));
+  border: 1px solid rgba(224,128,106,0.35);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.spend-total-label { font-size: 0.78rem; color: var(--silver-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+.spend-total-value {
+  font-family: 'Fraunces', serif;
+  font-size: 2.2rem;
+  color: #E0806A;
+  text-shadow: 0 0 20px rgba(224,128,106,0.3);
+}
+
+.spend-section {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.spend-section-title { font-family: 'Fraunces', serif; font-size: 1.05rem; color: var(--tan); margin-bottom: 4px; }
+.spend-section-sub { font-size: 0.78rem; color: var(--silver-dim); margin-bottom: 14px; }
+.spend-empty-note { font-size: 0.85rem; color: var(--silver-dim); padding: 8px 0; }
+
+.spend-category-list { display: flex; flex-direction: column; gap: 14px; }
+.spend-cat-row {}
+.spend-cat-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.spend-cat-name { font-size: 0.88rem; font-weight: 600; color: var(--tan); }
+.spend-cat-amt { font-size: 0.82rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; }
+.spend-cat-bar-track {
+  height: 6px; border-radius: 4px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.spend-cat-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #E0806A, #EFA88F);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.spend-subscriptions-list { display: flex; flex-direction: column; }
+.spend-sub-row {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center;
+  padding: 11px 2px; border-bottom: 1px solid var(--panel-border);
+}
+.spend-sub-row:last-child { border-bottom: none; }
+.spend-sub-name { font-size: 0.86rem; color: var(--tan); }
+.spend-sub-freq { font-size: 0.72rem; color: var(--silver-dim); text-transform: capitalize; }
+.spend-sub-amt { font-size: 0.86rem; font-family: 'IBM Plex Mono', monospace; color: #E0806A; font-weight: 600; }
+
+@media (max-width: 600px) {
+  .spend-sub-row { grid-template-columns: 1fr auto; }
+  .spend-sub-freq { display: none; }
+}

@@ -1454,6 +1454,14 @@
         href: 'connections.html',
         iconClass: 'icon-connections',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
+      },
+      {
+        id: 'spending',
+        label: 'Spendings',
+        desc: 'Monthly breakdown and subscriptions.',
+        href: 'spending.html',
+        iconClass: 'icon-spending',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>'
       }
       // Future premium tools: add another object here.
     ];
@@ -1487,7 +1495,7 @@
       inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (btn.disabled) return;
-          if (btn.dataset.href === 'connections.html') {
+          if (btn.dataset.href === 'connections.html' || btn.dataset.href === 'spending.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);
             if (!verified) return; // cancelled — stay put, don't navigate
