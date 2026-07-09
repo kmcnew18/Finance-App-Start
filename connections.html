@@ -592,6 +592,20 @@
       const { error } = await supabaseClient.from('linked_accounts').delete().eq('id', id);
       if (error) { console.error(error); alert('Could not remove this account: ' + error.message); return; }
       logAuditEvent('linked_account_removed', { institution_name: acct.institution_name, account_type: acct.account_type, source: acct.source });
+
+      // If this was the last account backed by this Plaid Item, fully
+      // revoke it at Plaid's end too — not just deleting our local record.
+      if (acct.source === 'plaid' && acct.plaid_item_id) {
+        const stillReferenced = accounts.some(a => a.id !== id && a.plaid_item_id === acct.plaid_item_id);
+        if (!stillReferenced) {
+          fetch('/api/plaid-remove-item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ itemId: acct.plaid_item_id, userId: currentUserId })
+          }).catch(err => console.error('Background Plaid item revocation failed:', err));
+        }
+      }
+
       await loadAccounts();
     }
 
@@ -724,9 +738,23 @@
         gearDropdown.classList.remove('open');
         if (!accounts.length) { alert('No accounts to remove.'); return; }
         if (!confirm('Remove every connected account? This cannot be undone. (Manually added and Plaid-linked accounts are both removed — this only clears them from Arko, it does not close any real account.)')) return;
+
+        // Collect distinct Plaid Items before the local rows are gone, so
+        // each one can be fully revoked at Plaid's end too.
+        const itemIds = [...new Set(accounts.filter(a => a.source === 'plaid' && a.plaid_item_id).map(a => a.plaid_item_id))];
+
         const { error } = await supabaseClient.from('linked_accounts').delete().eq('user_id', currentUserId);
         if (error) { console.error(error); alert('Could not remove your accounts: ' + error.message); return; }
         logAuditEvent('all_linked_accounts_removed', { count: accounts.length });
+
+        itemIds.forEach(itemId => {
+          fetch('/api/plaid-remove-item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ itemId, userId: currentUserId })
+          }).catch(err => console.error('Background Plaid item revocation failed:', err));
+        });
+
         await loadAccounts();
       });
     }
