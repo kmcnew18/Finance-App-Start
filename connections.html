@@ -354,6 +354,11 @@
 
       document.getElementById('loading-message').style.display = 'none';
       document.getElementById('vault-shell').style.display = 'flex';
+
+      // If this page load is actually the browser returning from a
+      // bank's OAuth login (mobile web round-trip), resume the Link flow
+      // that was in progress before the redirect.
+      await checkForOAuthReturn();
     }
 
     // Straight to Stripe — no stop at paywall.html, since that page is
@@ -776,6 +781,104 @@
     // ================= PLAID LINK =================
     // Requires backend endpoints (see /api/plaid-create-link-token,
     // /api/plaid-exchange-token) — see setup notes for what to deploy.
+    // ================= OAUTH PERSIST / RESUME =================
+    // On mobile web, completing an OAuth institution's login means the
+    // browser navigates fully away to the bank's site and back — losing
+    // all JS state in the process. This is what lets Link pick back up
+    // where it left off after that round-trip. On desktop, most OAuth
+    // institutions open in a popup instead and never need this at all —
+    // it's a no-op there, but harmless to always set.
+    function persistPlaidLinkState(linkToken, flow, itemId) {
+      sessionStorage.setItem('arko_plaid_link_token', linkToken);
+      sessionStorage.setItem('arko_plaid_link_flow', JSON.stringify({ flow, itemId: itemId || null }));
+    }
+    function clearPlaidLinkState() {
+      sessionStorage.removeItem('arko_plaid_link_token');
+      sessionStorage.removeItem('arko_plaid_link_flow');
+    }
+
+    // Checked once on page load. If the URL carries Plaid's OAuth return
+    // params and we have a persisted token + flow from before the
+    // redirect, resume Link exactly where the user left off — same
+    // success handlers as a normal (non-OAuth) connection, just entered
+    // from a different starting point.
+    async function checkForOAuthReturn() {
+      const isOAuthReturn = /[?&]oauth_state_id=/.test(window.location.href);
+      if (!isOAuthReturn) return;
+
+      const linkToken = sessionStorage.getItem('arko_plaid_link_token');
+      const flowRaw = sessionStorage.getItem('arko_plaid_link_flow');
+      if (!linkToken || !flowRaw) return; // nothing to resume — stray or stale redirect, ignore
+
+      const { flow, itemId } = JSON.parse(flowRaw);
+
+      const handler = Plaid.create({
+        token: linkToken,
+        receivedRedirectUri: window.location.href,
+        onSuccess: async (public_token, metadata) => {
+          clearPlaidLinkState();
+          if (flow === 'new_connection') {
+            await finishNewConnection(public_token, metadata?.institution?.name || 'Bank');
+          } else if (flow === 'reconnect') {
+            await finishReconnect(itemId);
+          } else if (flow === 'add_new_accounts') {
+            await finishAddNewAccounts(itemId);
+          }
+          await loadAccounts();
+        },
+        onExit: (err) => {
+          clearPlaidLinkState();
+          if (err) console.error('Plaid Link (OAuth resume) exit error:', err);
+        },
+      });
+      handler.open();
+    }
+
+    // ---------- shared success handlers (used by both the normal open
+    // and the OAuth-resume path above) ----------
+    async function finishNewConnection(publicToken, institutionName) {
+      try {
+        const exRes = await fetch('/api/plaid-exchange-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, publicToken, institutionName })
+        });
+        if (!exRes.ok) throw new Error('Could not finish linking this account (' + exRes.status + ')');
+        closeConnectModal();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Something went wrong finishing this connection.');
+      }
+    }
+
+    async function finishReconnect(itemId) {
+      try {
+        const confirmRes = await fetch('/api/plaid-confirm-reconnect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, itemId })
+        });
+        if (!confirmRes.ok) throw new Error('Could not confirm the reconnection (' + confirmRes.status + ')');
+      } catch (err) {
+        console.error(err);
+        alert(err.message || `Reconnected, but couldn't finish syncing — try "Sync all accounts" from Settings.`);
+      }
+    }
+
+    async function finishAddNewAccounts(itemId) {
+      try {
+        const addRes = await fetch('/api/plaid-add-new-accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, itemId })
+        });
+        if (!addRes.ok) throw new Error('Could not add the new account (' + addRes.status + ')');
+      } catch (err) {
+        console.error(err);
+        alert(err.message || `Granted access, but couldn't finish adding the account — try "Sync all accounts" from Settings.`);
+      }
+    }
+
     async function startPlaidLink() {
       // No MFA check needed here — the whole page is gated at entry in
       // init(), so reaching this point already means the session is AAL2.
@@ -794,28 +897,20 @@
         const { link_token } = await res.json();
         if (!link_token) throw new Error('No link_token returned from server');
 
+        persistPlaidLinkState(link_token, 'new_connection', null);
+
         const handler = Plaid.create({
           token: link_token,
           onSuccess: async (public_token, metadata) => {
+            clearPlaidLinkState();
             btn.innerHTML = 'Finishing up…';
-            try {
-              const exRes = await fetch('/api/plaid-exchange-token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentUserId, publicToken: public_token, institutionName: metadata?.institution?.name || 'Bank' })
-              });
-              if (!exRes.ok) throw new Error('Could not finish linking this account (' + exRes.status + ')');
-              closeConnectModal();
-              await loadAccounts();
-            } catch (err) {
-              console.error(err);
-              alert(err.message || 'Something went wrong finishing this connection.');
-            } finally {
-              btn.disabled = false;
-              btn.innerHTML = originalText;
-            }
+            await finishNewConnection(public_token, metadata?.institution?.name || 'Bank');
+            await loadAccounts();
+            btn.disabled = false;
+            btn.innerHTML = originalText;
           },
           onExit: (err) => {
+            clearPlaidLinkState();
             btn.disabled = false;
             btn.innerHTML = originalText;
             if (err) console.error('Plaid Link exit error:', err);
@@ -846,29 +941,23 @@
         const { link_token } = await res.json();
         if (!link_token) throw new Error('No link_token returned from server');
 
+        persistPlaidLinkState(link_token, 'reconnect', itemId);
+
         const handler = Plaid.create({
           token: link_token,
           onSuccess: async () => {
             // Update Mode doesn't return a new public_token to exchange —
             // the existing access_token is still valid, it's just been
             // re-authenticated. Just confirm and re-sync.
+            clearPlaidLinkState();
             btn.textContent = 'Finishing up…';
-            try {
-              const confirmRes = await fetch('/api/plaid-confirm-reconnect', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentUserId, itemId })
-              });
-              if (!confirmRes.ok) throw new Error('Could not confirm the reconnection (' + confirmRes.status + ')');
-              await loadAccounts();
-            } catch (err) {
-              console.error(err);
-              alert(err.message || `Reconnected to ${institutionName}, but couldn't finish syncing — try "Sync all accounts" from Settings.`);
-              btn.disabled = false;
-              btn.textContent = originalText;
-            }
+            await finishReconnect(itemId);
+            await loadAccounts();
+            btn.disabled = false;
+            btn.textContent = originalText;
           },
           onExit: (err) => {
+            clearPlaidLinkState();
             btn.disabled = false;
             btn.textContent = originalText;
             if (err) console.error('Plaid Link (update mode) exit error:', err);
@@ -902,26 +991,20 @@
         const { link_token } = await res.json();
         if (!link_token) throw new Error('No link_token returned from server');
 
+        persistPlaidLinkState(link_token, 'add_new_accounts', itemId);
+
         const handler = Plaid.create({
           token: link_token,
           onSuccess: async () => {
+            clearPlaidLinkState();
             btn.textContent = 'Adding…';
-            try {
-              const addRes = await fetch('/api/plaid-add-new-accounts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentUserId, itemId })
-              });
-              if (!addRes.ok) throw new Error('Could not add the new account (' + addRes.status + ')');
-              await loadAccounts();
-            } catch (err) {
-              console.error(err);
-              alert(err.message || `Granted access, but couldn't finish adding the account — try "Sync all accounts" from Settings.`);
-              btn.disabled = false;
-              btn.textContent = originalText;
-            }
+            await finishAddNewAccounts(itemId);
+            await loadAccounts();
+            btn.disabled = false;
+            btn.textContent = originalText;
           },
           onExit: (err) => {
+            clearPlaidLinkState();
             btn.disabled = false;
             btn.textContent = originalText;
             if (err) console.error('Plaid Link (new accounts) exit error:', err);
@@ -1043,6 +1126,14 @@
     // ================= PREMIUM FEATURE MENU =================
     const PREMIUM_TOOLS = [
       {
+        id: 'connections',
+        label: 'Connections',
+        desc: 'Every account, one net worth.',
+        href: 'connections.html',
+        iconClass: 'icon-connections',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
+      },
+      {
         id: 'dashboard',
         label: 'Dashboard',
         desc: 'Your accounts, at a glance.',
@@ -1057,14 +1148,6 @@
         href: 'budget.html',
         iconClass: 'icon-ledger',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><line x1="8.5" y1="7" x2="15.5" y2="7"></line><line x1="8.5" y1="11" x2="15.5" y2="11"></line></svg>'
-      },
-      {
-        id: 'connections',
-        label: 'Connections',
-        desc: 'Every account, one net worth.',
-        href: 'connections.html',
-        iconClass: 'icon-connections',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
       },
       {
         id: 'spending',

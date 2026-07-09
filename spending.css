@@ -3,6 +3,7 @@
    panel, log stripes). ============= */
 
 .spend-month-nav {
+  position: relative;
   display: flex; align-items: center; justify-content: center; gap: 18px;
   margin-bottom: 22px;
 }
@@ -22,7 +23,62 @@
   color: var(--tan);
   min-width: 160px;
   text-align: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
+.spend-month-label:hover { border-color: rgba(224,128,106,0.35); background: rgba(224,128,106,0.06); }
+
+/* Quick-jump picker — for going back several months without repeated
+   clicking. Pick a year, pick a month, done in two taps regardless of
+   how far back it is. */
+.spend-month-picker {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  width: 280px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+  z-index: 50;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+}
+.spend-month-picker.open { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+.spend-month-picker-year {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.spend-month-picker-year button {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--panel-border); background: none; color: var(--silver-dim);
+  font-size: 1rem; cursor: pointer;
+}
+.spend-month-picker-year button:hover { border-color: #E0806A; color: var(--tan); }
+.spend-month-picker-year span { font-family: 'IBM Plex Mono', monospace; font-size: 0.9rem; color: var(--tan); }
+.spend-month-picker-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+}
+.spend-picker-month-btn {
+  padding: 8px 0;
+  border-radius: 7px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,0.02);
+  color: var(--tan);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.spend-picker-month-btn:hover:not(:disabled) { border-color: #E0806A; background: rgba(224,128,106,0.1); }
+.spend-picker-month-btn.active { background: #E0806A; border-color: #E0806A; color: #241812; font-weight: 700; }
+.spend-picker-month-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .spend-total-card {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -51,7 +107,16 @@
 .spend-section-sub { font-size: 0.78rem; color: var(--silver-dim); margin-bottom: 14px; }
 .spend-empty-note { font-size: 0.85rem; color: var(--silver-dim); padding: 8px 0; }
 
-.spend-category-list { display: flex; flex-direction: column; gap: 14px; }
+.spend-chart-wrap {
+  position: relative;
+  height: 280px;
+  margin: 8px 0 22px;
+}
+@media (max-width: 560px) {
+  .spend-chart-wrap { height: 340px; }
+}
+
+.spend-category-list { display: flex; flex-direction: column; gap: 14px; padding-top: 16px; border-top: 1px solid var(--panel-border); }
 .spend-cat-row {}
 .spend-cat-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
 .spend-cat-name { font-size: 0.88rem; font-weight: 600; color: var(--tan); }

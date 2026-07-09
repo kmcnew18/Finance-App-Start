@@ -62,6 +62,17 @@ module.exports = async (req, res) => {
       language: 'en',
     };
 
+    // OAuth institutions (Chase, Bank of America, most large US banks)
+    // require this — Plaid redirects the user to the bank's own login
+    // page, then back here. Only takes effect once PLAID_REDIRECT_URI is
+    // set AND that exact URL is registered as an allowed redirect URI in
+    // the Plaid Dashboard; harmless to leave in place before then; if
+    // unset, this is simply omitted and non-OAuth institutions are
+    // unaffected either way.
+    if (process.env.PLAID_REDIRECT_URI) {
+      linkTokenParams.redirect_uri = process.env.PLAID_REDIRECT_URI;
+    }
+
     if (itemId) {
       // Update Mode — reconnecting an existing, already-linked Item (e.g.
       // the user needs to re-authenticate after a bank password change).

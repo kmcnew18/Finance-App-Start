@@ -192,7 +192,9 @@ h1, h2, h3 {
 }
 
 .card {
-  background: var(--panel-bg);
+  background: linear-gradient(150deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 20px 16px;
@@ -229,7 +231,9 @@ h1, h2, h3 {
 
 /* Transaction review queue */
 .txn-review-section {
-  background: var(--panel-bg);
+  background: linear-gradient(150deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 18px 20px;
@@ -348,7 +352,9 @@ h1, h2, h3 {
 .switch input:checked + .switch-slider::before { transform: translateX(16px); background: var(--tan); }
 
 .panel {
-  background: var(--panel-bg);
+  background: linear-gradient(150deg, rgba(255,255,255,0.045), rgba(255,255,255,0.012));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 26px 24px;
