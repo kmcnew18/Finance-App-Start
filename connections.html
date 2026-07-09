@@ -126,6 +126,8 @@
       Connect a bank, broker, or card above — or add one manually — to start seeing your full net worth in one place.
     </div>
 
+    <div id="new-accounts-banner" style="display:none;"></div>
+
     <div id="account-groups" class="account-group" style="display:flex; flex-direction:column; gap:28px;"></div>
 
     <section class="recurring-section" id="recurring-section" style="display:none;">
@@ -374,8 +376,38 @@
     // ================= RENDER =================
     function renderAll() {
       renderNetWorth();
+      renderNewAccountsBanner();
       renderAccountGroups();
       renderCharts();
+    }
+
+    function renderNewAccountsBanner() {
+      const wrap = document.getElementById('new-accounts-banner');
+      const flagged = connectionStatus.filter(i => i.new_accounts_available);
+
+      if (!flagged.length) {
+        wrap.style.display = 'none';
+        wrap.innerHTML = '';
+        return;
+      }
+
+      wrap.style.display = 'block';
+      wrap.innerHTML = flagged.map(item => `
+        <div class="new-accounts-banner-row">
+          <span class="new-accounts-banner-text">A new account is available at <strong>${(item.institution_name || 'your bank').replace(/</g,'&lt;')}</strong> — want to add it?</span>
+          <div class="new-accounts-banner-actions">
+            <button type="button" class="new-accounts-add-btn" data-item-id="${item.item_id}" data-institution="${(item.institution_name || 'this account').replace(/"/g,'&quot;')}">Add it</button>
+            <button type="button" class="new-accounts-dismiss-btn" data-item-id="${item.item_id}" aria-label="Dismiss">×</button>
+          </div>
+        </div>
+      `).join('');
+
+      wrap.querySelectorAll('.new-accounts-add-btn').forEach(btn => {
+        btn.addEventListener('click', () => addNewAccounts(btn.dataset.itemId, btn.dataset.institution, btn));
+      });
+      wrap.querySelectorAll('.new-accounts-dismiss-btn').forEach(btn => {
+        btn.addEventListener('click', () => dismissNewAccountsPrompt(btn.dataset.itemId));
+      });
     }
 
     function renderNetWorth() {
@@ -763,6 +795,76 @@
         btn.disabled = false;
         btn.textContent = originalText;
       }
+    }
+
+    // ================= NEW ACCOUNTS AVAILABLE =================
+    // Same Update Mode mechanism as reconnectItem(), but for the happy
+    // path — granting access to a newly-opened account at a bank
+    // that's already connected, rather than fixing a broken connection.
+    async function addNewAccounts(itemId, institutionName, btn) {
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Connecting…';
+
+      try {
+        const res = await fetch('/api/plaid-create-link-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, itemId }) // Update Mode
+        });
+        if (!res.ok) throw new Error('Could not start this (' + res.status + ')');
+        const { link_token } = await res.json();
+        if (!link_token) throw new Error('No link_token returned from server');
+
+        const handler = Plaid.create({
+          token: link_token,
+          onSuccess: async () => {
+            btn.textContent = 'Adding…';
+            try {
+              const addRes = await fetch('/api/plaid-add-new-accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, itemId })
+              });
+              if (!addRes.ok) throw new Error('Could not add the new account (' + addRes.status + ')');
+              await loadAccounts();
+            } catch (err) {
+              console.error(err);
+              alert(err.message || `Granted access, but couldn't finish adding the account — try "Sync all accounts" from Settings.`);
+              btn.disabled = false;
+              btn.textContent = originalText;
+            }
+          },
+          onExit: (err) => {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            if (err) console.error('Plaid Link (new accounts) exit error:', err);
+          },
+        });
+        handler.open();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || `Could not add the new account at ${institutionName}.`);
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+
+    // Dismisses the prompt without adding anything — clears the flag
+    // server-side too, so it doesn't reappear on next page load. If the
+    // user changes their mind, a fresh new-account webhook or a manual
+    // sync would surface it again anyway.
+    async function dismissNewAccountsPrompt(itemId) {
+      try {
+        await fetch('/api/plaid-add-new-accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, itemId, dismissOnly: true })
+        });
+      } catch (err) {
+        console.error('Could not dismiss new-accounts prompt:', err);
+      }
+      await loadAccounts();
     }
 
     async function syncAllPlaidAccounts() {

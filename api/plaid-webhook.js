@@ -117,6 +117,22 @@ module.exports = async (req, res) => {
       await supabaseAdmin.from('plaid_items').delete().eq('item_id', item_id);
       await supabaseAdmin.from('recurring_streams').delete().eq('plaid_item_id', item_id);
       console.log(`Item ${item_id} access revoked by user — removed locally`);
+    } else if (webhook_type === 'ITEM' && webhook_code === 'NEW_ACCOUNTS_AVAILABLE') {
+      // A new account has appeared at an already-connected institution
+      // (e.g. the user opened a new savings account at their linked
+      // bank). This is a happy-path prompt, not a broken connection —
+      // flagged separately from needs_reconnect so the UI can frame it
+      // as "want to add this too?" rather than a warning.
+      const { error: flagError } = await supabaseAdmin
+        .from('plaid_items')
+        .update({ new_accounts_available: true })
+        .eq('item_id', item_id);
+
+      if (flagError) {
+        console.error('Could not flag item for new accounts:', flagError);
+      } else {
+        console.log(`Flagged item ${item_id} — new accounts available`);
+      }
     } else {
       // Other webhook types not handled yet — logged so you can see them
       // come through and decide what, if anything, to build for them.

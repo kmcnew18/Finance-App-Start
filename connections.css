@@ -304,6 +304,33 @@
 }
 .account-reconnect-btn:hover { background: #EFC578; }
 .account-reconnect-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* New account available — happy-path prompt, emerald tone (matches the
+   "live/synced" identity) rather than the amber reconnect warning. */
+.new-accounts-banner-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  background: linear-gradient(135deg, rgba(63,174,133,0.14), rgba(63,174,133,0.04));
+  border: 1px solid var(--emerald-dim);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.new-accounts-banner-text { font-size: 0.85rem; color: var(--tan); }
+.new-accounts-banner-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.new-accounts-add-btn {
+  padding: 7px 14px; border: none; border-radius: 7px;
+  background: var(--emerald); color: #0B1512;
+  font-weight: 700; font-size: 0.78rem; cursor: pointer;
+  transition: background 0.15s ease;
+}
+.new-accounts-add-btn:hover { background: var(--emerald-bright); }
+.new-accounts-add-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.new-accounts-dismiss-btn {
+  background: none; border: none; color: var(--silver-dim);
+  font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 2px 4px;
+}
+.new-accounts-dismiss-btn:hover { color: var(--tan); }
 @keyframes liveDotPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }

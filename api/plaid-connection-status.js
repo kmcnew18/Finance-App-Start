@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
 
     const { data, error } = await supabaseAdmin
       .from('plaid_items')
-      .select('item_id, institution_name, needs_reconnect, reconnect_reason')
+      .select('item_id, institution_name, needs_reconnect, reconnect_reason, new_accounts_available')
       .eq('user_id', userId);
 
     if (error) throw error;
