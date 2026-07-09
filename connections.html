@@ -342,6 +342,8 @@
       }
     }
 
+    let connectionStatus = [];
+
     async function loadAccounts() {
       const { data, error } = await supabaseClient
         .from('linked_accounts')
@@ -350,7 +352,23 @@
         .order('created_at', { ascending: true });
       if (error) { console.error(error); accounts = []; return; }
       accounts = data || [];
+      await loadConnectionStatus();
       renderAll();
+    }
+
+    async function loadConnectionStatus() {
+      try {
+        const res = await fetch('/api/plaid-connection-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId })
+        });
+        const data = await res.json();
+        connectionStatus = data.items || [];
+      } catch (err) {
+        console.error('Could not load connection status:', err);
+        connectionStatus = [];
+      }
     }
 
     // ================= RENDER =================
@@ -411,14 +429,30 @@
       container.querySelectorAll('.account-delete-btn').forEach(btn => {
         btn.addEventListener('click', () => deleteAccount(btn.dataset.id));
       });
+      container.querySelectorAll('.account-reconnect-btn').forEach(btn => {
+        btn.addEventListener('click', () => reconnectItem(btn.dataset.itemId, btn.dataset.institution, btn));
+      });
     }
 
     function accountCardHtml(a, t) {
-      const synced = a.source === 'plaid'
-        ? `<span class="account-card-live-badge"><span class="dot"></span>Synced via Plaid</span>`
-        : `<span class="account-card-synced">Added manually</span>`;
+      const brokenItem = a.source === 'plaid' && a.plaid_item_id
+        ? connectionStatus.find(i => i.item_id === a.plaid_item_id && i.needs_reconnect)
+        : null;
+
+      const synced = brokenItem
+        ? `<span class="account-card-reconnect-badge"><span class="dot"></span>Needs reconnecting</span>`
+        : a.source === 'plaid'
+          ? `<span class="account-card-live-badge"><span class="dot"></span>Synced via Plaid</span>`
+          : `<span class="account-card-synced">Added manually</span>`;
+
+      const reconnectBlock = brokenItem ? `
+          <div class="account-card-reconnect-block">
+            <p>${(brokenItem.reconnect_reason || 'This connection needs to be renewed.').replace(/</g,'&lt;')}</p>
+            <button type="button" class="account-reconnect-btn" data-item-id="${brokenItem.item_id}" data-institution="${(brokenItem.institution_name || 'this account').replace(/"/g,'&quot;')}">Reconnect</button>
+          </div>` : '';
+
       return `
-        <div class="account-card type-${a.account_type}">
+        <div class="account-card type-${a.account_type}${brokenItem ? ' needs-reconnect' : ''}">
           <div class="account-card-head">
             <div>
               <div class="account-card-institution">${(a.institution_name || '').replace(/</g,'&lt;')}</div>
@@ -428,6 +462,7 @@
           </div>
           <div class="account-card-balance">${money(a.balance)}</div>
           ${synced}
+          ${reconnectBlock}
           <div class="account-card-actions" style="margin-top:10px;">
             <button type="button" class="account-edit-btn" data-id="${a.id}">Edit</button>
             <button type="button" class="account-delete-btn danger" data-id="${a.id}">Remove</button>
@@ -674,6 +709,59 @@
         alert(err.message || 'Could not start Plaid Link. Make sure the backend endpoints are deployed — see setup notes.');
         btn.disabled = false;
         btn.innerHTML = originalText;
+      }
+    }
+
+    // ================= UPDATE MODE (RECONNECTING A BROKEN CONNECTION) =================
+    async function reconnectItem(itemId, institutionName, btn) {
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Connecting…';
+
+      try {
+        const res = await fetch('/api/plaid-create-link-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, itemId }) // itemId present = Update Mode
+        });
+        if (!res.ok) throw new Error('Could not start reconnection (' + res.status + ')');
+        const { link_token } = await res.json();
+        if (!link_token) throw new Error('No link_token returned from server');
+
+        const handler = Plaid.create({
+          token: link_token,
+          onSuccess: async () => {
+            // Update Mode doesn't return a new public_token to exchange —
+            // the existing access_token is still valid, it's just been
+            // re-authenticated. Just confirm and re-sync.
+            btn.textContent = 'Finishing up…';
+            try {
+              const confirmRes = await fetch('/api/plaid-confirm-reconnect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, itemId })
+              });
+              if (!confirmRes.ok) throw new Error('Could not confirm the reconnection (' + confirmRes.status + ')');
+              await loadAccounts();
+            } catch (err) {
+              console.error(err);
+              alert(err.message || `Reconnected to ${institutionName}, but couldn't finish syncing — try "Sync all accounts" from Settings.`);
+              btn.disabled = false;
+              btn.textContent = originalText;
+            }
+          },
+          onExit: (err) => {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            if (err) console.error('Plaid Link (update mode) exit error:', err);
+          },
+        });
+        handler.open();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || `Could not start reconnecting ${institutionName}.`);
+        btn.disabled = false;
+        btn.textContent = originalText;
       }
     }
 

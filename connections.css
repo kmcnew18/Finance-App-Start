@@ -263,6 +263,47 @@
   box-shadow: 0 0 6px rgba(99,217,170,0.8);
   animation: liveDotPulse 1.8s ease-in-out infinite;
 }
+
+/* Broken connection — needs the user to re-authenticate via Update Mode */
+.account-card.needs-reconnect {
+  border-color: rgba(224, 178, 92, 0.5);
+  box-shadow: 0 0 0 1px rgba(224, 178, 92, 0.15);
+}
+.account-card-reconnect-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  color: #E0B25C;
+  margin-top: 6px;
+}
+.account-card-reconnect-badge .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #E0B25C;
+  box-shadow: 0 0 6px rgba(224, 178, 92, 0.7);
+}
+.account-card-reconnect-block {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(224, 178, 92, 0.08);
+  border: 1px solid rgba(224, 178, 92, 0.3);
+  border-radius: 8px;
+}
+.account-card-reconnect-block p {
+  font-size: 0.76rem; color: #D8C9A8; line-height: 1.45; margin-bottom: 8px;
+}
+.account-reconnect-btn {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 7px;
+  background: #E0B25C;
+  color: #241C0E;
+  font-weight: 700;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.account-reconnect-btn:hover { background: #EFC578; }
+.account-reconnect-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 @keyframes liveDotPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
