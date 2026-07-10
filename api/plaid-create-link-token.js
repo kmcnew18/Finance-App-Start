@@ -91,34 +91,27 @@ module.exports = async (req, res) => {
 
       linkTokenParams.access_token = decryptToken(itemRow.access_token);
     } else {
-      // Normal mode — starting a brand new connection. Different
-      // institution types support wildly different products (a bank
-      // doesn't support Investments; a brokerage like Robinhood doesn't
-      // support Auth; a lender may not support Investments at all), so
-      // the products we require depend on what kind of account the
-      // person is actually trying to connect. The frontend sends this
-      // via accountCategory based on which "Connect with Plaid" button
-      // they clicked (bank / investments / debt).
-      const accountCategory = req.body.accountCategory || 'bank';
-
-      const PRODUCT_SETS = {
-        bank: {
-          products: [Products.Auth, Products.Transactions],
-          optional_products: [Products.Liabilities],
-        },
-        investments: {
-          products: [Products.Investments, Products.Transactions],
-          optional_products: [],
-        },
-        debt: {
-          products: [Products.Liabilities, Products.Transactions],
-          optional_products: [],
-        },
-      };
-
-      const chosen = PRODUCT_SETS[accountCategory] || PRODUCT_SETS.bank;
-      linkTokenParams.products = chosen.products;
-      linkTokenParams.optional_products = chosen.optional_products;
+      // Normal mode — starting a brand new connection. Previously this
+      // branched on an accountCategory the frontend sent (bank /
+      // investments / debt) and requested a narrow product set per
+      // category. That's gone now: there's a single "Connect with
+      // Plaid" button, and institutions like Robinhood can expose both
+      // a brokerage account (investments) and a credit card (liabilities)
+      // on the very same Item — restricting products up front would
+      // have hidden one or the other.
+      //
+      // `products` are the ones Plaid requires the institution to
+      // support just to show up in Link's search results at all — kept
+      // to Transactions since that's supported almost everywhere.
+      // `optional_products` are requested opportunistically: Plaid
+      // includes them only when the selected institution actually
+      // supports them, so an institution missing Investments or
+      // Liabilities doesn't get excluded or fail, it just doesn't
+      // return that piece. Link's own account-selection screen is what
+      // then lets the person pick exactly which accounts (checking,
+      // brokerage, credit card, etc.) to share.
+      linkTokenParams.products = [Products.Transactions];
+      linkTokenParams.optional_products = [Products.Auth, Products.Investments, Products.Liabilities];
       linkTokenParams.transactions = { days_requested: 180 }; // Recurring Transactions wants 180+ days for good results
     }
 

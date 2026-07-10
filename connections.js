@@ -429,9 +429,7 @@ function openAddModal() {
   editingAccountId = null;
   document.getElementById('connect-modal-title').textContent = 'Connect an account';
   document.getElementById('connect-modal-sub').textContent = "Link instantly with Plaid, or add an account by hand if it's not supported.";
-  document.getElementById('plaid-connect-bank-btn').style.display = 'flex';
-  document.getElementById('plaid-connect-invest-btn').style.display = 'flex';
-  document.getElementById('plaid-connect-debt-btn').style.display = 'flex';
+  document.getElementById('plaid-connect-btn').style.display = 'flex';
   document.querySelector('.vault-divider').style.display = 'flex';
   document.getElementById('manual-save-btn').textContent = 'Save account';
   document.getElementById('acct-institution').value = '';
@@ -449,9 +447,7 @@ function openEditModal(id) {
   document.getElementById('connect-modal-sub').textContent = acct.source === 'plaid'
     ? 'This account syncs automatically via Plaid — you can still rename it or adjust the balance if needed.'
     : 'Update this account\'s details.';
-  document.getElementById('plaid-connect-bank-btn').style.display = 'none';
-  document.getElementById('plaid-connect-invest-btn').style.display = 'none';
-  document.getElementById('plaid-connect-debt-btn').style.display = 'none';
+  document.getElementById('plaid-connect-btn').style.display = 'none';
   document.querySelector('.vault-divider').style.display = 'none';
   document.getElementById('manual-save-btn').textContent = 'Save changes';
   document.getElementById('acct-institution').value = acct.institution_name || '';
@@ -523,9 +519,7 @@ function setupConnectOverlay() {
     if (e.target.id === 'connect-overlay') closeConnectModal();
   });
   document.getElementById('manual-save-btn').addEventListener('click', saveManualAccount);
-  document.getElementById('plaid-connect-bank-btn').addEventListener('click', () => startPlaidLink('bank'));
-  document.getElementById('plaid-connect-invest-btn').addEventListener('click', () => startPlaidLink('investments'));
-  document.getElementById('plaid-connect-debt-btn').addEventListener('click', () => startPlaidLink('debt'));
+  document.getElementById('plaid-connect-btn').addEventListener('click', () => startPlaidLink());
 }
 
 // ================= PLAID LINK =================
@@ -629,11 +623,15 @@ async function finishAddNewAccounts(itemId) {
   }
 }
 
-async function startPlaidLink(accountCategory) {
+async function startPlaidLink() {
   // No MFA check needed here — the whole page is gated at entry in
   // init(), so reaching this point already means the session is AAL2.
-  const btnId = 'plaid-connect-' + (accountCategory === 'bank' ? 'bank' : accountCategory === 'investments' ? 'invest' : 'debt') + '-btn';
-  const btn = document.getElementById(btnId);
+  // Single button now — the backend requests every product Plaid
+  // supports, so Link's own account-selection screen is what lets
+  // someone pick checking, investments, a credit card, etc. all from
+  // the same institution in one pass (e.g. Robinhood's brokerage +
+  // Robinhood Gold card), rather than us pre-restricting by category.
+  const btn = document.getElementById('plaid-connect-btn');
   btn.disabled = true;
   const originalText = btn.innerHTML;
   btn.innerHTML = 'Connecting…';
@@ -642,7 +640,7 @@ async function startPlaidLink(accountCategory) {
     const res = await fetch('/api/plaid-create-link-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: currentUserId, accountCategory })
+      body: JSON.stringify({ userId: currentUserId })
     });
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}));
