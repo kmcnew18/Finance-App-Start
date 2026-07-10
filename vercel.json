@@ -29,6 +29,10 @@
         {
           "key": "Permissions-Policy",
           "value": "geolocation=(), microphone=(), camera=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' https://cdn.plaid.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://cdn.jsdelivr.net; connect-src 'self' https://*.plaid.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://*.supabase.co; frame-src 'self' https://cdn.plaid.com https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.plaid.com; object-src 'none'; base-uri 'self';"
         }
       ]
     }
