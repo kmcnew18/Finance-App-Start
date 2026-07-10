@@ -101,8 +101,9 @@ module.exports = async (req, res) => {
       // date, interest rate) beyond the raw balance. Transactions is
       // required before Recurring Transactions (bill/income detection) can
       // work at all — see /api/plaid-sync-recurring.js.
-      linkTokenParams.products = [Products.Auth, Products.Investments, Products.Liabilities, Products.Transactions];
-      linkTokenParams.transactions = { days_requested: 180 }; // Recurring Transactions wants 180+ days for good results
+      linkTokenParams.products = [Products.Auth, Products.Transactions];
+linkTokenParams.optional_products = [Products.Investments, Products.Liabilities];
+linkTokenParams.transactions = { days_requested: 180 }; // Recurring Transactions wants 180+ days for good results
     }
 
     const response = await plaidClient.linkTokenCreate(linkTokenParams);
