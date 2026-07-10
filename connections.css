@@ -680,3 +680,47 @@
   .manage-cat-name-input { flex-basis: 100%; }
   .recurring-subhead-row { flex-wrap: wrap; }
 }
+
+/* Envelopes — money set aside within an account, tracked separately
+   from its main category mapping. */
+.category-pill-envelope {
+  background: rgba(216, 188, 122, 0.1);
+  color: #D8BC7A;
+  border-color: rgba(216, 188, 122, 0.28);
+  margin-left: 6px;
+}
+.category-pill-envelope:hover { background: rgba(216, 188, 122, 0.16); }
+
+.envelope-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--vault-line);
+}
+.envelope-section-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--tan);
+  margin-bottom: 4px;
+}
+.envelope-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.envelope-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--vault-line);
+  border-radius: 8px;
+  background: rgba(216, 188, 122, 0.05);
+}
+.envelope-name { font-size: 0.82rem; color: var(--tan); font-weight: 600; flex-shrink: 0; }
+.envelope-amount { font-size: 0.78rem; color: var(--silver-dim); flex: 1; font-family: 'IBM Plex Mono', monospace; }
+.envelope-topup-btn {
+  padding: 5px 10px; border-radius: 6px; border: 1px solid #D8BC7A44;
+  background: none; color: #D8BC7A; font-size: 0.72rem; cursor: pointer;
+  transition: background 0.15s ease;
+}
+.envelope-topup-btn:hover { background: rgba(216, 188, 122, 0.12); }
+.envelope-remove-btn {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: none; background: none; color: var(--silver-dim);
+  font-size: 1rem; line-height: 1; cursor: pointer; flex-shrink: 0;
+}
+.envelope-remove-btn:hover { color: var(--liability-bright); }

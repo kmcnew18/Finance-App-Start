@@ -287,7 +287,8 @@ const CONN_ACCENT_COLORS = {
 };
 
 function categoryPillHtml(accountId) {
-  const splits = accountSplits.filter(s => s.linked_account_id === accountId);
+  const splits = accountSplits.filter(s => s.linked_account_id === accountId && s.split_type !== 'envelope');
+  const envelopeCount = accountSplits.filter(s => s.linked_account_id === accountId && s.split_type === 'envelope').length;
   const totalPercent = splits.reduce((s, x) => s + Number(x.split_percent), 0);
 
   let label, cls, accentColor = null;
@@ -303,7 +304,11 @@ function categoryPillHtml(accountId) {
   if (splits.length && totalPercent < 100) label += ` (${Math.round(100 - totalPercent)}% unassigned)`;
 
   const style = accentColor ? ` style="color:${accentColor}; border-color:${accentColor}44; background:${accentColor}1A;"` : '';
-  return `<button type="button" class="category-pill ${cls}" data-account-id="${accountId}"${style}>${label}</button>`;
+  const pill = `<button type="button" class="category-pill ${cls}" data-account-id="${accountId}"${style}>${label}</button>`;
+  const envelopeBadge = envelopeCount
+    ? `<button type="button" class="category-pill category-pill-envelope" data-account-id="${accountId}">${envelopeCount === 1 ? '1 amount set aside' : envelopeCount + ' amounts set aside'}</button>`
+    : '';
+  return pill + envelopeBadge;
 }
 
 function accountCardHtml(a, t) {
@@ -1622,6 +1627,9 @@ const ACTIVITY_LABELS = {
   txn_review_dismissed: (d) => `Dismissed a suggested transaction${d.merchant_name ? ' — ' + d.merchant_name : ''}`,
   budget_preset_created: (d) => `Set up auto-filing for ${d.plaid_category ? d.plaid_category.toLowerCase().replace(/_/g,' ') : 'a category'} → ${d.target_line_name || 'a budget line'}`,
   transaction_history_cleared: () => `Cleared transaction history`,
+  envelope_created: (d) => `Set aside ${d.amount ? money(d.amount) : 'an amount'} for ${d.category || 'a category'}`,
+  envelope_adjusted: (d) => `Updated the ${d.category || ''} set-aside amount to ${d.amount ? money(d.amount) : '?'}`,
+  envelope_removed: (d) => `Removed the ${d.category || ''} set-aside amount`,
 };
 
 function formatActivityEvent(row) {
@@ -1694,9 +1702,24 @@ function renderCategorySimpleMode() {
   if (!acct) { closeCategoryOverlay(); return; }
   const body = document.getElementById('category-modal-body');
   const suggested = suggestCategoryName(acct.account_type);
-  const currentSplits = accountSplits.filter(s => s.linked_account_id === categoryMappingAccountId);
+  const currentSplits = accountSplits.filter(s => s.linked_account_id === categoryMappingAccountId && s.split_type !== 'envelope');
+  const envelopes = accountSplits.filter(s => s.linked_account_id === categoryMappingAccountId && s.split_type === 'envelope');
   const currentSingleCatId = currentSplits.length === 1 && Number(currentSplits[0].split_percent) === 100 ? currentSplits[0].category_id : null;
   const displayName = (acct.nickname || acct.institution_name || 'this account').replace(/</g, '&lt;');
+
+  const envelopesHtml = envelopes.length ? `
+    <div class="envelope-list">
+      ${envelopes.map(e => {
+        const cat = categories.find(c => c.id === e.category_id);
+        return `
+          <div class="envelope-row">
+            <span class="envelope-name">${(cat ? cat.name : 'Category').replace(/</g,'&lt;')}</span>
+            <span class="envelope-amount">${money(e.envelope_balance)} set aside</span>
+            <button type="button" class="envelope-topup-btn" data-id="${e.id}" title="Add or remove money">Adjust</button>
+            <button type="button" class="envelope-remove-btn" data-id="${e.id}" title="Remove this envelope">×</button>
+          </div>`;
+      }).join('')}
+    </div>` : '';
 
   body.innerHTML = `
     <p class="mfa-modal-sub">Which category should <strong style="color:var(--tan);">${displayName}</strong> count toward on your Dashboard?</p>
@@ -1710,6 +1733,13 @@ function renderCategorySimpleMode() {
     <button type="button" class="category-text-link" id="category-add-new-btn">+ Add a new category</button>
     <button type="button" class="category-text-link" id="category-split-link">Split this account across categories instead</button>
     ${currentSplits.length ? `<button type="button" class="category-text-link category-clear-link" id="category-clear-btn">Remove categorization</button>` : ''}
+
+    <div class="envelope-section">
+      <p class="envelope-section-label">Set aside money within this account</p>
+      <p class="mfa-modal-sub" style="margin-bottom:10px;">For money that stays in this account but you mentally set aside for something else — like $200 of checking earmarked for weekly expenses. Tracked separately, doesn't affect this account's main category above.</p>
+      ${envelopesHtml}
+      <button type="button" class="category-text-link" id="envelope-add-btn">+ Set aside an amount for another category</button>
+    </div>
   `;
 
   body.querySelectorAll('.category-choice-btn').forEach(btn => {
@@ -1719,12 +1749,112 @@ function renderCategorySimpleMode() {
   document.getElementById('category-split-link').addEventListener('click', renderCategorySplitMode);
   const clearBtn = document.getElementById('category-clear-btn');
   if (clearBtn) clearBtn.addEventListener('click', clearCategoryMapping);
+
+  document.getElementById('envelope-add-btn').addEventListener('click', renderEnvelopeCreateForm);
+  body.querySelectorAll('.envelope-topup-btn').forEach(btn => {
+    btn.addEventListener('click', () => renderEnvelopeAdjustForm(btn.dataset.id));
+  });
+  body.querySelectorAll('.envelope-remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => removeEnvelope(btn.dataset.id));
+  });
+}
+
+// ---------- envelopes ----------
+function renderEnvelopeCreateForm() {
+  const body = document.getElementById('category-modal-body');
+  const existingEnvelopeCatIds = accountSplits
+    .filter(s => s.linked_account_id === categoryMappingAccountId && s.split_type === 'envelope')
+    .map(s => s.category_id);
+  const eligibleCategories = categories.filter(c => !existingEnvelopeCatIds.includes(c.id));
+
+  if (!eligibleCategories.length) {
+    body.innerHTML = `<p class="mfa-modal-sub">Every category already has an envelope on this account. <button type="button" class="category-text-link" id="envelope-back-btn" style="display:inline;padding:0;">Go back</button></p>`;
+    document.getElementById('envelope-back-btn').addEventListener('click', renderCategorySimpleMode);
+    return;
+  }
+
+  body.innerHTML = `
+    <p class="mfa-modal-sub">Set aside a specific dollar amount for a category, without changing this account's main category.</p>
+    <div class="mfa-field">
+      <label for="envelope-cat-select">Category</label>
+      <select id="envelope-cat-select">
+        ${eligibleCategories.map(c => `<option value="${c.id}">${c.name.replace(/</g,'&lt;')}</option>`).join('')}
+      </select>
+    </div>
+    <div class="mfa-field" style="margin-top:12px;">
+      <label for="envelope-amount-input">Amount to set aside</label>
+      <input type="number" id="envelope-amount-input" min="0.01" step="0.01" placeholder="200.00" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif;" />
+    </div>
+    <button type="button" class="mfa-verify-btn" id="envelope-save-btn" style="margin-top:12px;">Set aside this amount</button>
+    <button type="button" class="category-text-link" id="envelope-cancel-btn">Cancel</button>
+  `;
+
+  document.getElementById('envelope-cancel-btn').addEventListener('click', renderCategorySimpleMode);
+  document.getElementById('envelope-save-btn').addEventListener('click', async () => {
+    const categoryId = document.getElementById('envelope-cat-select').value;
+    const amount = round2(Math.abs(parseFloat(document.getElementById('envelope-amount-input').value) || 0));
+    if (!amount) { alert('Enter an amount greater than $0.'); return; }
+
+    const { error } = await supabaseClient.from('account_category_splits').insert({
+      user_id: currentUserId,
+      linked_account_id: categoryMappingAccountId,
+      category_id: categoryId,
+      split_type: 'envelope',
+      envelope_balance: amount,
+    });
+    if (error) { alert('Could not save: ' + error.message); return; }
+
+    const cat = categories.find(c => c.id === categoryId);
+    logAuditEvent('envelope_created', { category: cat?.name, amount });
+    await loadAccounts();
+    openCategoryMapping(categoryMappingAccountId);
+  });
+}
+
+function renderEnvelopeAdjustForm(splitId) {
+  const envelope = accountSplits.find(s => s.id === splitId);
+  if (!envelope) { renderCategorySimpleMode(); return; }
+  const cat = categories.find(c => c.id === envelope.category_id);
+  const body = document.getElementById('category-modal-body');
+
+  body.innerHTML = `
+    <p class="mfa-modal-sub">Currently <strong style="color:var(--tan);">${money(envelope.envelope_balance)}</strong> set aside for ${(cat ? cat.name : 'this category').replace(/</g,'&lt;')}.</p>
+    <div class="mfa-field">
+      <label for="envelope-adjust-input">New amount</label>
+      <input type="number" id="envelope-adjust-input" min="0" step="0.01" value="${envelope.envelope_balance}" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif;" />
+    </div>
+    <p class="mfa-modal-sub" style="margin-top:6px;">Set this to whatever the real, current set-aside amount is — for example, after adding this week's amount, or after spending some of it outside of an approved Dashboard transaction.</p>
+    <button type="button" class="mfa-verify-btn" id="envelope-adjust-save-btn" style="margin-top:12px;">Save</button>
+    <button type="button" class="category-text-link" id="envelope-adjust-cancel-btn">Cancel</button>
+  `;
+
+  document.getElementById('envelope-adjust-cancel-btn').addEventListener('click', renderCategorySimpleMode);
+  document.getElementById('envelope-adjust-save-btn').addEventListener('click', async () => {
+    const newAmount = round2(Math.abs(parseFloat(document.getElementById('envelope-adjust-input').value) || 0));
+    const { error } = await supabaseClient.from('account_category_splits').update({ envelope_balance: newAmount }).eq('id', splitId);
+    if (error) { alert('Could not save: ' + error.message); return; }
+    logAuditEvent('envelope_adjusted', { category: cat?.name, amount: newAmount });
+    await loadAccounts();
+    openCategoryMapping(categoryMappingAccountId);
+  });
+}
+
+async function removeEnvelope(splitId) {
+  const envelope = accountSplits.find(s => s.id === splitId);
+  if (!envelope) return;
+  const cat = categories.find(c => c.id === envelope.category_id);
+  if (!confirm(`Remove the ${cat ? cat.name : ''} envelope on this account? This only stops tracking it — doesn't move any real money.`)) return;
+  const { error } = await supabaseClient.from('account_category_splits').delete().eq('id', splitId);
+  if (error) { alert('Could not remove: ' + error.message); return; }
+  logAuditEvent('envelope_removed', { category: cat?.name });
+  await loadAccounts();
+  openCategoryMapping(categoryMappingAccountId);
 }
 
 async function assignSingleCategory(categoryId) {
-  await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId);
+  await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId).eq('split_type', 'percent');
   const { error } = await supabaseClient.from('account_category_splits').insert({
-    user_id: currentUserId, linked_account_id: categoryMappingAccountId, category_id: categoryId, split_percent: 100,
+    user_id: currentUserId, linked_account_id: categoryMappingAccountId, category_id: categoryId, split_percent: 100, split_type: 'percent',
   });
   if (error) { alert('Could not save: ' + error.message); return; }
   logAuditEvent('account_categorized', {});
@@ -1733,7 +1863,7 @@ async function assignSingleCategory(categoryId) {
 }
 
 async function clearCategoryMapping() {
-  await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId);
+  await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId).eq('split_type', 'percent');
   closeCategoryOverlay();
   await loadAccounts();
 }
@@ -1769,7 +1899,7 @@ function renderAddCategoryForm() {
 function renderCategorySplitMode() {
   const acct = accounts.find(a => a.id === categoryMappingAccountId);
   if (!acct) { closeCategoryOverlay(); return; }
-  const currentSplits = accountSplits.filter(s => s.linked_account_id === categoryMappingAccountId);
+  const currentSplits = accountSplits.filter(s => s.linked_account_id === categoryMappingAccountId && s.split_type !== 'envelope');
   const body = document.getElementById('category-modal-body');
   const displayName = (acct.nickname || acct.institution_name || 'this account').replace(/</g, '&lt;');
 
@@ -1811,11 +1941,11 @@ function renderCategorySplitMode() {
     body.querySelectorAll('.category-split-input').forEach(i => {
       const pct = Number(i.value) || 0;
       total += pct;
-      if (pct > 0) rows.push({ user_id: currentUserId, linked_account_id: categoryMappingAccountId, category_id: i.dataset.catId, split_percent: pct });
+      if (pct > 0) rows.push({ user_id: currentUserId, linked_account_id: categoryMappingAccountId, category_id: i.dataset.catId, split_percent: pct, split_type: 'percent' });
     });
     if (total > 100) { alert("That adds up to more than 100% — adjust the numbers before saving."); return; }
 
-    await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId);
+    await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId).eq('split_type', 'percent');
     if (rows.length) {
       const { error } = await supabaseClient.from('account_category_splits').insert(rows);
       if (error) { alert('Could not save: ' + error.message); return; }
