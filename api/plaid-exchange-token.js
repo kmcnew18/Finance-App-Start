@@ -77,7 +77,7 @@ module.exports = async (req, res) => {
     });
 
     // Pull balances immediately so the new accounts show up right away.
-    const balancesRes = await plaidClient.accountsBalanceGet({ access_token: accessToken });
+    const balancesRes = await plaidClient.accountsGet({ access_token: accessToken });
     const plaidAccounts = balancesRes.data.accounts || [];
 
     const rows = plaidAccounts.map(a => ({
