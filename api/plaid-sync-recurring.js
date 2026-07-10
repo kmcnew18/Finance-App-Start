@@ -8,7 +8,7 @@
 //
 // Requires: npm install plaid @supabase/supabase-js
 
-const { supabaseAdmin, processItemUpdate } = require('./_plaid-helpers');
+const { supabaseAdmin, processItemUpdate } = require('../lib/plaid-helpers');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {

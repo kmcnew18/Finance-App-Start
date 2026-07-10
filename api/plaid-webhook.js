@@ -21,7 +21,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const jwkToPem = require('jwk-to-pem');
-const { plaidClient, supabaseAdmin, processItemUpdate } = require('./_plaid-helpers');
+const { plaidClient, supabaseAdmin, processItemUpdate } = require('../lib/plaid-helpers');
 
 async function verifyWebhook(req) {
   const signedJwt = req.headers['plaid-verification'];

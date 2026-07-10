@@ -27,7 +27,7 @@
 
 const { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } = require('plaid');
 const { createClient } = require('@supabase/supabase-js');
-const { decryptToken } = require('./_crypto-helpers');
+const { decryptToken } = require('../lib/crypto-helpers');
 
 const plaidClient = new PlaidApi(new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -109,7 +109,16 @@ module.exports = async (req, res) => {
 
     res.status(200).json({ link_token: response.data.link_token });
   } catch (err) {
-    console.error('plaid-create-link-token error:', err?.response?.data || err);
-    res.status(500).json({ error: 'Could not create a Plaid link token' });
+    const plaidError = err?.response?.data;
+    console.error('plaid-create-link-token error:', plaidError || err);
+    // Surfacing Plaid's actual error_code/error_message here (not just a
+    // generic message) — none of this is sensitive, it's diagnostic
+    // detail about the request itself, and without it this class of
+    // error is unfixable from the browser alone.
+    res.status(500).json({
+      error: plaidError?.error_message || 'Could not create a Plaid link token',
+      error_code: plaidError?.error_code || null,
+      error_type: plaidError?.error_type || null,
+    });
   }
 };

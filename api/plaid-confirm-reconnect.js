@@ -8,8 +8,8 @@
 //
 // Requires: npm install plaid @supabase/supabase-js
 
-const { supabaseAdmin, processItemUpdate } = require('./_plaid-helpers');
-const { decryptToken } = require('./_crypto-helpers');
+const { supabaseAdmin, processItemUpdate } = require('../lib/plaid-helpers');
+const { decryptToken } = require('../lib/crypto-helpers');
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 
 const plaidClient = new PlaidApi(new Configuration({

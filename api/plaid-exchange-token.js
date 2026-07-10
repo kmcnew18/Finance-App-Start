@@ -22,8 +22,8 @@
 
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 const { createClient } = require('@supabase/supabase-js');
-const { encryptToken } = require('./_crypto-helpers');
-const { mapAccountType } = require('./_plaid-helpers');
+const { encryptToken } = require('../lib/crypto-helpers');
+const { mapAccountType } = require('../lib/plaid-helpers');
 
 const plaidClient = new PlaidApi(new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],

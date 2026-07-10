@@ -10,8 +10,8 @@
 //
 // Requires: npm install plaid @supabase/supabase-js
 
-const { plaidClient, supabaseAdmin } = require('./_plaid-helpers');
-const { decryptToken } = require('./_crypto-helpers');
+const { plaidClient, supabaseAdmin } = require('../lib/plaid-helpers');
+const { decryptToken } = require('../lib/crypto-helpers');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
