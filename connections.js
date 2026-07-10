@@ -76,7 +76,6 @@ async function init() {
   setupLedgerMenu();
   setupSettingsGear();
   setupConnectOverlay();
-  setupRecurringSection();
   setupMfaOverlay();
   setupActivityPanel();
   setupCategoryOverlay();
@@ -94,7 +93,6 @@ async function init() {
 
   document.getElementById('loading-message').textContent = 'Loading your accounts...';
   await loadAccounts();
-  await loadRecurringData();
 
   document.getElementById('loading-message').style.display = 'none';
   document.getElementById('vault-shell').style.display = 'flex';
@@ -814,13 +812,14 @@ async function syncAllPlaidAccounts() {
 
     // Best-effort — balances syncing successfully is the important part,
     // so a recurring-refresh hiccup here shouldn't surface as an error.
+    // Recurring streams are displayed in Spendings now, not here, so
+    // there's nothing local to re-render — just keeping the data fresh.
     try {
       await fetch('/api/plaid-sync-recurring', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUserId })
       });
-      await loadRecurringData();
     } catch (recurringErr) {
       console.error('Recurring refresh failed during full sync:', recurringErr);
     }
@@ -872,7 +871,6 @@ function setupSettingsGear() {
     }
     logAuditEvent('transaction_history_cleared', {});
     alert('Your transaction history has been cleared.');
-    await loadRecurringData();
   });
 
   document.getElementById('remove-all-btn').addEventListener('click', async () => {
@@ -1005,305 +1003,6 @@ function setupLedgerMenu() {
   });
 
   dd.addEventListener('click', (e) => e.stopPropagation());
-}
-
-// ================= RECURRING TRANSACTIONS =================
-// Detection is fully automatic (webhook -> sync -> match). Writing into
-// your Bills/Income budget lines is not — every match sits in
-// pending_transaction_reviews until you click Approve here.
-let recurringStreams = [];
-let pendingReviews = [];
-let activeBudgetPeriod = null;
-
-async function fetchActiveBudgetPeriod() {
-  const { data } = await supabaseClient
-    .from('budget_periods')
-    .select('*')
-    .eq('user_id', currentUserId)
-    .eq('status', 'active')
-    .order('start_date', { ascending: false });
-  if (!data || !data.length) return null;
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-  return data.find(p => p.start_date <= today && p.end_date >= today) || data[0];
-}
-
-async function loadRecurringData() {
-  const [{ data: streams }, { data: reviews }] = await Promise.all([
-    supabaseClient.from('recurring_streams').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false }),
-    supabaseClient.from('pending_transaction_reviews').select('*').eq('user_id', currentUserId).eq('status', 'pending').order('created_at', { ascending: false }),
-  ]);
-  recurringStreams = streams || [];
-  pendingReviews = reviews || [];
-  activeBudgetPeriod = await fetchActiveBudgetPeriod();
-  renderRecurringSection();
-}
-
-function renderRecurringSection() {
-  const section = document.getElementById('recurring-section');
-  if (!recurringStreams.length && !pendingReviews.length) {
-    section.style.display = 'none';
-    return;
-  }
-  section.style.display = 'block';
-
-  const pendingWrap = document.getElementById('pending-reviews-wrap');
-  pendingWrap.style.display = pendingReviews.length ? 'block' : 'none';
-  document.getElementById('pending-reviews-list').innerHTML = pendingReviews.map(reviewCardHtml).join('');
-  document.getElementById('recurring-approve-all-btn').style.display = pendingReviews.length > 1 ? 'inline-block' : 'none';
-
-  document.getElementById('recurring-streams-list').innerHTML = recurringStreams.length
-    ? recurringStreams.map(streamCardHtml).join('')
-    : '<p class="recurring-empty-note">No recurring transactions detected yet — they show up here automatically once enough history is available.</p>';
-
-  wireRecurringEvents();
-}
-
-function reviewCardHtml(r) {
-  return `
-    <div class="recurring-card review-card" data-id="${r.id}">
-      <div class="recurring-card-main">
-        <div>
-          <div class="recurring-card-desc">${(r.merchant_name || 'Transaction').replace(/</g,'&lt;')}</div>
-          <div class="recurring-card-meta">${r.txn_date} · ${money(r.amount)} → ${r.mapped_line_name || r.mapped_cat}</div>
-        </div>
-      </div>
-      <div class="recurring-card-actions">
-        <button type="button" class="recurring-approve-btn" data-id="${r.id}">Approve</button>
-        <button type="button" class="recurring-dismiss-btn" data-id="${r.id}">Dismiss</button>
-      </div>
-    </div>`;
-}
-
-function streamCardHtml(s) {
-  const isMapped = !!s.mapped_cat;
-  const dirLabel = s.direction === 'inflow' ? 'Income' : 'Expense';
-  const amt = money(s.last_amount || s.average_amount || 0);
-  return `
-    <div class="recurring-card" data-id="${s.id}">
-      <div class="recurring-card-main">
-        <div>
-          <div class="recurring-card-desc">${(s.description || s.merchant_name || 'Recurring transaction').replace(/</g,'&lt;')}</div>
-          <div class="recurring-card-meta">${dirLabel} · ${s.frequency ? s.frequency.toLowerCase() : 'unknown frequency'} · ${amt}</div>
-        </div>
-        ${isMapped ? `<span class="recurring-mapped-pill">→ ${(s.mapped_line_name || s.mapped_cat).replace(/</g,'&lt;')}</span>` : (s.ignored ? '<span class="recurring-ignored-pill">Ignored</span>' : '')}
-      </div>
-      <div class="recurring-card-actions">
-        ${isMapped
-          ? `<button type="button" class="recurring-unmap-btn" data-id="${s.id}">Unmap</button>`
-          : s.ignored
-            ? `<button type="button" class="recurring-unignore-btn" data-id="${s.id}">Un-ignore</button>`
-            : `<button type="button" class="recurring-map-btn" data-id="${s.id}">Map to budget</button>
-               <button type="button" class="recurring-ignore-btn" data-id="${s.id}">Ignore</button>`}
-      </div>
-      <div class="recurring-map-form" id="recurring-map-form-${s.id}" style="display:none;">
-        <select class="recurring-map-cat" data-id="${s.id}">
-          <option value="bills">Bills</option>
-          <option value="income">Income</option>
-        </select>
-        <select class="recurring-map-line" data-id="${s.id}"></select>
-        <button type="button" class="recurring-map-save" data-id="${s.id}">Save</button>
-        <button type="button" class="recurring-map-cancel" data-id="${s.id}">Cancel</button>
-      </div>
-    </div>`;
-}
-
-function populateLineSelect(streamId, cat) {
-  const select = document.querySelector(`.recurring-map-line[data-id="${streamId}"]`);
-  if (!select) return;
-  const lines = (activeBudgetPeriod && activeBudgetPeriod.categories[cat]) || [];
-  select.innerHTML = lines.length
-    ? lines.map(l => `<option value="${l.id}">${(l.name || '(unnamed line)').replace(/</g,'&lt;')}</option>`).join('')
-    : '<option value="">No lines in this category yet</option>';
-}
-
-function wireRecurringEvents() {
-  document.querySelectorAll('.recurring-map-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      if (!activeBudgetPeriod) { alert('No active budget period found. Open the Budget Planner once to create one.'); return; }
-      document.querySelectorAll('.recurring-map-form').forEach(f => f.style.display = 'none');
-      const form = document.getElementById('recurring-map-form-' + id);
-      form.style.display = 'flex';
-      populateLineSelect(id, 'bills');
-    });
-  });
-
-  document.querySelectorAll('.recurring-map-cat').forEach(sel => {
-    sel.addEventListener('change', () => populateLineSelect(sel.dataset.id, sel.value));
-  });
-
-  document.querySelectorAll('.recurring-map-cancel').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.getElementById('recurring-map-form-' + btn.dataset.id).style.display = 'none';
-    });
-  });
-
-  document.querySelectorAll('.recurring-map-save').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.dataset.id;
-      const cat = document.querySelector(`.recurring-map-cat[data-id="${id}"]`).value;
-      const lineSelect = document.querySelector(`.recurring-map-line[data-id="${id}"]`);
-      const lineId = lineSelect.value;
-      if (!lineId) { alert('That category has no lines yet — add one in the Budget Planner first.'); return; }
-      const lineName = lineSelect.options[lineSelect.selectedIndex].textContent;
-
-      const { error } = await supabaseClient
-        .from('recurring_streams')
-        .update({ mapped_cat: cat, mapped_line_id: lineId, mapped_line_name: lineName, ignored: false, updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) { alert('Could not save this mapping: ' + error.message); return; }
-      logAuditEvent('recurring_stream_mapped', { mapped_cat: cat, mapped_line_name: lineName });
-      await loadRecurringData();
-    });
-  });
-
-  document.querySelectorAll('.recurring-unmap-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const { error } = await supabaseClient
-        .from('recurring_streams')
-        .update({ mapped_cat: null, mapped_line_id: null, mapped_line_name: null, updated_at: new Date().toISOString() })
-        .eq('id', btn.dataset.id);
-      if (error) { alert('Could not unmap this stream: ' + error.message); return; }
-      await loadRecurringData();
-    });
-  });
-
-  document.querySelectorAll('.recurring-ignore-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const { error } = await supabaseClient
-        .from('recurring_streams')
-        .update({ ignored: true, updated_at: new Date().toISOString() })
-        .eq('id', btn.dataset.id);
-      if (error) { alert('Could not ignore this stream: ' + error.message); return; }
-      await loadRecurringData();
-    });
-  });
-
-  document.querySelectorAll('.recurring-unignore-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const { error } = await supabaseClient
-        .from('recurring_streams')
-        .update({ ignored: false, updated_at: new Date().toISOString() })
-        .eq('id', btn.dataset.id);
-      if (error) { alert('Could not restore this stream: ' + error.message); return; }
-      await loadRecurringData();
-    });
-  });
-
-  document.querySelectorAll('.recurring-approve-btn').forEach(btn => {
-    btn.addEventListener('click', () => approveReview(btn.dataset.id));
-  });
-  document.querySelectorAll('.recurring-dismiss-btn').forEach(btn => {
-    btn.addEventListener('click', () => dismissReview(btn.dataset.id));
-  });
-}
-
-async function approveReview(reviewId) {
-  const review = pendingReviews.find(r => r.id === reviewId);
-  if (!review) return;
-  if (!activeBudgetPeriod) { alert('No active budget period found.'); return; }
-
-  const lines = activeBudgetPeriod.categories[review.mapped_cat] || [];
-  const line = lines.find(l => l.id === review.mapped_line_id);
-  if (!line) { alert('That budget line no longer exists — unmap and remap this stream.'); return; }
-
-  if (!Array.isArray(line.entries)) line.entries = [];
-  const amount = round2(Math.abs(Number(review.amount) || 0));
-  line.entries.push({ id: uid(), amount, note: review.merchant_name || '', date: review.txn_date });
-  line.actual = round2((Number(line.actual) || 0) + amount);
-  if (review.mapped_cat === 'bills' && (Number(line.budget) || 0) > 0 && line.actual >= Number(line.budget)) {
-    line.done = true;
-  }
-
-  const { error: budgetError } = await supabaseClient
-    .from('budget_periods')
-    .update({ categories: activeBudgetPeriod.categories, updated_at: new Date().toISOString() })
-    .eq('id', activeBudgetPeriod.id);
-  if (budgetError) { alert('Could not add this to your budget: ' + budgetError.message); return; }
-
-  await supabaseClient.from('pending_transaction_reviews').update({ status: 'approved' }).eq('id', reviewId);
-  logAuditEvent('recurring_review_approved', { amount, mapped_cat: review.mapped_cat, mapped_line_name: review.mapped_line_name, merchant_name: review.merchant_name });
-  await loadRecurringData();
-}
-
-async function approveAllReviews() {
-  const count = pendingReviews.length;
-  if (!confirm(`Approve all ${count} pending transaction${count === 1 ? '' : 's'}? This adds them all to your budget.`)) return;
-  if (!activeBudgetPeriod) { alert('No active budget period found.'); return; }
-
-  const btn = document.getElementById('recurring-approve-all-btn');
-  btn.disabled = true;
-  btn.textContent = 'Approving…';
-
-  // All the JSONB mutation happens in memory first, then one single
-  // budget_periods write and one single bulk status update at the
-  // end — not a network round trip per item.
-  const approvedIds = [];
-  for (const review of [...pendingReviews]) {
-    const lines = activeBudgetPeriod.categories[review.mapped_cat] || [];
-    const line = lines.find(l => l.id === review.mapped_line_id);
-    if (!line) continue; // line since removed — leave this one pending rather than losing the entry silently
-
-    if (!Array.isArray(line.entries)) line.entries = [];
-    const amount = round2(Math.abs(Number(review.amount) || 0));
-    line.entries.push({ id: uid(), amount, note: review.merchant_name || '', date: review.txn_date });
-    line.actual = round2((Number(line.actual) || 0) + amount);
-    if (review.mapped_cat === 'bills' && (Number(line.budget) || 0) > 0 && line.actual >= Number(line.budget)) {
-      line.done = true;
-    }
-    approvedIds.push(review.id);
-    logAuditEvent('recurring_review_approved', { amount, mapped_cat: review.mapped_cat, mapped_line_name: review.mapped_line_name, merchant_name: review.merchant_name });
-  }
-
-  const { error: budgetError } = await supabaseClient
-    .from('budget_periods')
-    .update({ categories: activeBudgetPeriod.categories, updated_at: new Date().toISOString() })
-    .eq('id', activeBudgetPeriod.id);
-  if (budgetError) {
-    alert('Could not save to your budget: ' + budgetError.message);
-    btn.disabled = false;
-    btn.textContent = 'Approve all';
-    return;
-  }
-
-  if (approvedIds.length) {
-    await supabaseClient.from('pending_transaction_reviews').update({ status: 'approved' }).in('id', approvedIds);
-  }
-
-  await loadRecurringData();
-  btn.disabled = false;
-  btn.textContent = 'Approve all';
-}
-
-async function dismissReview(reviewId) {
-  const review = pendingReviews.find(r => r.id === reviewId);
-  await supabaseClient.from('pending_transaction_reviews').update({ status: 'dismissed' }).eq('id', reviewId);
-  logAuditEvent('recurring_review_dismissed', { merchant_name: review?.merchant_name, amount: review?.amount });
-  await loadRecurringData();
-}
-
-function setupRecurringSection() {
-  document.getElementById('recurring-approve-all-btn').addEventListener('click', approveAllReviews);
-  document.getElementById('refresh-recurring-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('refresh-recurring-btn');
-    btn.textContent = 'Refreshing…';
-    btn.disabled = true;
-    try {
-      const res = await fetch('/api/plaid-sync-recurring', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUserId })
-      });
-      if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
-      await loadRecurringData();
-    } catch (err) {
-      console.error(err);
-      alert(err.message || 'Could not refresh recurring transactions right now.');
-    } finally {
-      btn.textContent = 'Refresh';
-      btn.disabled = false;
-    }
-  });
 }
 
 // ================= TWO-FACTOR AUTHENTICATION =================
