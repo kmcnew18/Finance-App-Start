@@ -43,10 +43,35 @@ module.exports = async (req, res) => {
       .eq('user_id', userId);
     if (itemsError) throw itemsError;
 
+    const { data: linkedAccounts } = await supabaseAdmin
+      .from('linked_accounts')
+      .select('plaid_item_id')
+      .eq('user_id', userId);
+    const activeItemIds = new Set((linkedAccounts || []).map(a => a.plaid_item_id).filter(Boolean));
+
     let updatedCount = 0;
     let flaggedCount = 0;
+    let orphansCleaned = 0;
 
     for (const item of items || []) {
+      // Same cleanup as plaid-sync-recurring.js — a plaid_items row with
+      // no linked_accounts referencing it is left over from an account
+      // removal that didn't fully complete in the background. Syncing it
+      // anyway would just waste a Plaid call and could report a nonzero
+      // updatedCount without actually updating any account the user can
+      // see, which is more confusing than just finishing the cleanup.
+      if (!activeItemIds.has(item.item_id)) {
+        try {
+          await plaidClient.itemRemove({ access_token: decryptToken(item.access_token) });
+        } catch (plaidErr) {
+          console.error('Orphaned item Plaid revocation failed (proceeding with local cleanup anyway):', item.item_id, plaidErr?.response?.data || plaidErr);
+        }
+        await supabaseAdmin.from('recurring_streams').delete().eq('plaid_item_id', item.item_id).eq('user_id', userId);
+        await supabaseAdmin.from('plaid_items').delete().eq('item_id', item.item_id).eq('user_id', userId);
+        orphansCleaned++;
+        continue;
+      }
+
       try {
         const balancesRes = await plaidClient.accountsBalanceGet({ access_token: decryptToken(item.access_token) });
         const plaidAccounts = balancesRes.data.accounts || [];
@@ -85,7 +110,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    res.status(200).json({ success: true, updatedCount, flaggedCount });
+    res.status(200).json({ success: true, updatedCount, flaggedCount, orphansCleaned });
   } catch (err) {
     console.error('plaid-sync-accounts error:', err?.response?.data || err);
     res.status(500).json({ error: 'Could not sync accounts' });
