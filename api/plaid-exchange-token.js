@@ -77,14 +77,7 @@ module.exports = async (req, res) => {
     });
 
     // Pull balances immediately so the new accounts show up right away.
-    // Using accountsGet (not accountsBalanceGet) — balance data comes back
-    // as part of the standard account object here, and this doesn't
-    // require separate authorization for the dedicated Balance product
-    // the way accountsBalanceGet does. accountsBalanceGet forces a
-    // real-time refresh from the bank; accountsGet returns Plaid's most
-    // recent cached balance, which is effectively identical this soon
-    // after a brand-new Item was just created.
-    const balancesRes = await plaidClient.accountsGet({ access_token: accessToken });
+    const balancesRes = await plaidClient.accountsBalanceGet({ access_token: accessToken });
     const plaidAccounts = balancesRes.data.accounts || [];
 
     const rows = plaidAccounts.map(a => ({
@@ -105,21 +98,40 @@ module.exports = async (req, res) => {
 
     // Transactions/webhooks won't start firing for this item until
     // /transactions/sync has been called on it at least once — Plaid's docs
-    // are explicit about this. The very first call typically returns no
-    // transactions yet (historical data is still being prepared), so we
-    // just capture whatever cursor comes back and let the webhook take it
-    // from there once real data is ready.
+    // are explicit about this. Deliberately not storing any of what comes
+    // back here: the whole point of this call is to catch the cursor up
+    // past all of Plaid's historical backlog for this account, so nothing
+    // that happened before the moment of connecting ever gets treated as
+    // a "new" transaction by a later sync. Only real, ongoing activity
+    // going forward gets processed once this fast-forward is done.
+    //
+    // Critically, this loops through every page (has_more) rather than
+    // calling sync just once — Plaid's historical backlog often spans
+    // multiple pages, and stopping after the first one would leave the
+    // cursor partway through history. The *next* real sync (via webhook)
+    // would then pick up that leftover historical page and process it as
+    // if it were new activity — which is exactly what caused old,
+    // seemingly-random transactions to show up in reviews after the fact.
     try {
-      const syncRes = await plaidClient.transactionsSync({ access_token: accessToken });
+      let cursor = undefined;
+      let hasMore = true;
+      let pageCount = 0;
+      while (hasMore) {
+        const syncRes = await plaidClient.transactionsSync({ access_token: accessToken, cursor });
+        cursor = syncRes.data.next_cursor;
+        hasMore = syncRes.data.has_more;
+        pageCount++;
+        if (pageCount > 50) break; // safety valve — should never realistically hit this
+      }
       await supabaseAdmin
         .from('plaid_items')
-        .update({ transactions_cursor: syncRes.data.next_cursor })
+        .update({ transactions_cursor: cursor })
         .eq('item_id', itemId);
     } catch (syncErr) {
       // Not fatal — balances are already saved above. Transactions/
       // Recurring Transactions just won't be available for this item until
       // a later sync succeeds (e.g. via the webhook once data is ready).
-      console.error('Initial transactions/sync failed (non-fatal):', syncErr?.response?.data || syncErr);
+      console.error('Initial transactions catch-up failed (non-fatal):', syncErr?.response?.data || syncErr);
     }
 
     res.status(200).json({ success: true, accountsAdded: rows.length });

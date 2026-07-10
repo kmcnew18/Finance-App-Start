@@ -39,6 +39,12 @@ const ACCOUNT_TYPES = [
 function typeConfig(key) { return ACCOUNT_TYPES.find(t => t.key === key) || ACCOUNT_TYPES[ACCOUNT_TYPES.length - 1]; }
 
 function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+function uid() {
+  return (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  }));
+}
 function money(n) {
   const num = Number(n || 0);
   const sign = num < 0 ? '-' : '';
@@ -846,6 +852,24 @@ function setupSettingsGear() {
     syncAllPlaidAccounts();
   });
 
+  document.getElementById('clear-transactions-btn').addEventListener('click', async () => {
+    gearDropdown.classList.remove('open');
+    if (!confirm("Clear your transaction history? This removes everything Spendings and Dashboard have detected so far — nothing about your connected accounts or balances changes. Going forward, only new transactions from this point on will show up.")) return;
+
+    const [{ error: txnError }, { error: dashError }, { error: recurError }] = await Promise.all([
+      supabaseClient.from('transactions').delete().eq('user_id', currentUserId),
+      supabaseClient.from('pending_dashboard_reviews').delete().eq('user_id', currentUserId),
+      supabaseClient.from('pending_transaction_reviews').delete().eq('user_id', currentUserId),
+    ]);
+    if (txnError || dashError || recurError) {
+      alert('Could not fully clear your transaction history: ' + (txnError || dashError || recurError).message);
+      return;
+    }
+    logAuditEvent('transaction_history_cleared', {});
+    alert('Your transaction history has been cleared.');
+    await loadRecurringData();
+  });
+
   document.getElementById('remove-all-btn').addEventListener('click', async () => {
     gearDropdown.classList.remove('open');
     if (!accounts.length) { alert('No accounts to remove.'); return; }
@@ -1597,6 +1621,7 @@ const ACTIVITY_LABELS = {
   txn_review_approved: (d) => `Added ${d.merchant_name || 'a transaction'} to ${d.category || 'Dashboard'}`,
   txn_review_dismissed: (d) => `Dismissed a suggested transaction${d.merchant_name ? ' — ' + d.merchant_name : ''}`,
   budget_preset_created: (d) => `Set up auto-filing for ${d.plaid_category ? d.plaid_category.toLowerCase().replace(/_/g,' ') : 'a category'} → ${d.target_line_name || 'a budget line'}`,
+  transaction_history_cleared: () => `Cleared transaction history`,
 };
 
 function formatActivityEvent(row) {
