@@ -9,6 +9,10 @@
   <link rel="stylesheet" href="dashboard.css" />
   <link rel="stylesheet" href="spending.css" />
   <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 </head>
 <body>
 
@@ -150,10 +154,17 @@
     }
 
     function monthRange(date) {
+      // Deliberately not using toISOString() here — it converts through
+      // UTC, which can shift a local calendar date to the previous or
+      // next day depending on the viewer's timezone offset. Since
+      // txn_date is a plain calendar date with no time component, the
+      // month boundary should be built directly from local Y/M/D, with
+      // no UTC conversion involved at all.
+      const pad = n => String(n).padStart(2, '0');
+      const toLocalISO = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
       const start = new Date(date.getFullYear(), date.getMonth(), 1);
       const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      const toISO = d => d.toISOString().slice(0, 10);
-      return { start: toISO(start), end: toISO(end) };
+      return { start: toLocalISO(start), end: toLocalISO(end) };
     }
 
     async function init() {
@@ -206,6 +217,9 @@
         await loadSpendingData();
       });
       document.getElementById('spend-next-month').addEventListener('click', async () => {
+        const now = new Date();
+        const isAtCurrentMonth = viewMonth.getFullYear() === now.getFullYear() && viewMonth.getMonth() === now.getMonth();
+        if (isAtCurrentMonth) return; // nothing to show for a future month
         viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
         pickerYear = viewMonth.getFullYear();
         await loadSpendingData();
@@ -250,6 +264,14 @@
 
     async function loadSpendingData() {
       document.getElementById('spend-month-label').textContent = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      const now = new Date();
+      const isAtCurrentMonth = viewMonth.getFullYear() === now.getFullYear() && viewMonth.getMonth() === now.getMonth();
+      const nextBtn = document.getElementById('spend-next-month');
+      nextBtn.disabled = isAtCurrentMonth;
+      nextBtn.style.opacity = isAtCurrentMonth ? '0.35' : '1';
+      nextBtn.style.cursor = isAtCurrentMonth ? 'not-allowed' : 'pointer';
+
       const { start, end } = monthRange(viewMonth);
 
       const { data: txns, error } = await supabaseClient
@@ -742,6 +764,24 @@
     document.getElementById('logout-button').addEventListener('click', async () => {
       await supabaseClient.auth.signOut();
       window.location.href = 'login.html';
+    });
+
+    // Escape closes whichever overlay is currently open. The real MFA
+    // overlay uses its own guarded close (which already refuses to
+    // dismiss a required/gated step) — every other overlay on this page
+    // is always freely dismissable. idle-overlay is deliberately
+    // excluded: it's a security prompt, not something Escape should
+    // wave away without an actual choice.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const mfaOverlay = document.getElementById('mfa-overlay');
+      if (mfaOverlay && mfaOverlay.classList.contains('open')) {
+        if (typeof closeMfaOverlay === 'function') closeMfaOverlay();
+        return;
+      }
+      document.querySelectorAll('.mfa-overlay.open, .history-overlay.open, .vault-overlay.open').forEach(el => {
+        if (el.id !== 'idle-overlay') el.classList.remove('open');
+      });
     });
 
     init();

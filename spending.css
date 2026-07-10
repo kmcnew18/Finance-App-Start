@@ -117,7 +117,6 @@
 }
 
 .spend-category-list { display: flex; flex-direction: column; gap: 14px; padding-top: 16px; border-top: 1px solid var(--panel-border); }
-.spend-cat-row {}
 .spend-cat-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
 .spend-cat-name { font-size: 0.88rem; font-weight: 600; color: var(--tan); }
 .spend-cat-amt { font-size: 0.82rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; }

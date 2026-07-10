@@ -56,6 +56,7 @@
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
             <button type="button" id="view-activity-btn" class="dropdown-item">Recent activity</button>
+            <button type="button" id="manage-categories-btn" class="dropdown-item">Manage categories</button>
             <div class="dropdown-divider"></div>
             <button type="button" id="sync-all-btn" class="dropdown-item">Sync all accounts</button>
             <div class="dropdown-divider"></div>
@@ -140,7 +141,10 @@
       </div>
 
       <div id="pending-reviews-wrap" style="display:none;">
-        <h3 class="recurring-subhead">Pending review</h3>
+        <div class="recurring-subhead-row">
+          <h3 class="recurring-subhead" style="margin:0;">Pending review</h3>
+          <button type="button" class="txn-approve-all-btn" id="recurring-approve-all-btn" style="display:none;">Approve all</button>
+        </div>
         <div id="pending-reviews-list" class="recurring-list"></div>
       </div>
 
@@ -257,6 +261,19 @@
     </div>
   </div>
 
+  <!-- ================= MANAGE CATEGORIES ================= -->
+  <div class="mfa-overlay" id="manage-categories-overlay">
+    <div class="mfa-modal" style="max-width: 440px;">
+      <div class="mfa-modal-head">
+        <h2>Manage categories</h2>
+        <button type="button" class="mfa-modal-close" id="manage-categories-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="manage-categories-body" style="max-height: 60vh;">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -337,6 +354,7 @@
       setupMfaOverlay();
       setupActivityPanel();
       setupCategoryOverlay();
+      setupManageCategories();
       setupIdleTimeout();
 
       // Blocks here until the user has enrolled AND verified a second
@@ -538,22 +556,28 @@
       });
     }
 
+    const CONN_ACCENT_COLORS = {
+      sage: '#6EC496', blue: '#6E8FA3', coral: '#E0806A', gold: '#D8BC7A', violet: '#A88FD8', teal: '#6EC4B8',
+    };
+
     function categoryPillHtml(accountId) {
       const splits = accountSplits.filter(s => s.linked_account_id === accountId);
       const totalPercent = splits.reduce((s, x) => s + Number(x.split_percent), 0);
 
-      let label, cls;
+      let label, cls, accentColor = null;
       if (!splits.length) {
         label = 'Tap to categorize'; cls = 'category-pill-empty';
       } else if (splits.length === 1) {
         const cat = categories.find(c => c.id === splits[0].category_id);
         label = cat ? cat.name : 'Categorized'; cls = 'category-pill-set';
+        accentColor = cat ? CONN_ACCENT_COLORS[cat.accent] : null;
       } else {
         label = `Split across ${splits.length}`; cls = 'category-pill-set';
       }
       if (splits.length && totalPercent < 100) label += ` (${Math.round(100 - totalPercent)}% unassigned)`;
 
-      return `<button type="button" class="category-pill ${cls}" data-account-id="${accountId}">${label}</button>`;
+      const style = accentColor ? ` style="color:${accentColor}; border-color:${accentColor}44; background:${accentColor}1A;"` : '';
+      return `<button type="button" class="category-pill ${cls}" data-account-id="${accountId}"${style}>${label}</button>`;
     }
 
     function accountCardHtml(a, t) {
@@ -1267,6 +1291,7 @@
       const pendingWrap = document.getElementById('pending-reviews-wrap');
       pendingWrap.style.display = pendingReviews.length ? 'block' : 'none';
       document.getElementById('pending-reviews-list').innerHTML = pendingReviews.map(reviewCardHtml).join('');
+      document.getElementById('recurring-approve-all-btn').style.display = pendingReviews.length > 1 ? 'inline-block' : 'none';
 
       document.getElementById('recurring-streams-list').innerHTML = recurringStreams.length
         ? recurringStreams.map(streamCardHtml).join('')
@@ -1443,6 +1468,55 @@
       await loadRecurringData();
     }
 
+    async function approveAllReviews() {
+      const count = pendingReviews.length;
+      if (!confirm(`Approve all ${count} pending transaction${count === 1 ? '' : 's'}? This adds them all to your budget.`)) return;
+      if (!activeBudgetPeriod) { alert('No active budget period found.'); return; }
+
+      const btn = document.getElementById('recurring-approve-all-btn');
+      btn.disabled = true;
+      btn.textContent = 'Approving…';
+
+      // All the JSONB mutation happens in memory first, then one single
+      // budget_periods write and one single bulk status update at the
+      // end — not a network round trip per item.
+      const approvedIds = [];
+      for (const review of [...pendingReviews]) {
+        const lines = activeBudgetPeriod.categories[review.mapped_cat] || [];
+        const line = lines.find(l => l.id === review.mapped_line_id);
+        if (!line) continue; // line since removed — leave this one pending rather than losing the entry silently
+
+        if (!Array.isArray(line.entries)) line.entries = [];
+        const amount = round2(Math.abs(Number(review.amount) || 0));
+        line.entries.push({ id: uid(), amount, note: review.merchant_name || '', date: review.txn_date });
+        line.actual = round2((Number(line.actual) || 0) + amount);
+        if (review.mapped_cat === 'bills' && (Number(line.budget) || 0) > 0 && line.actual >= Number(line.budget)) {
+          line.done = true;
+        }
+        approvedIds.push(review.id);
+        logAuditEvent('recurring_review_approved', { amount, mapped_cat: review.mapped_cat, mapped_line_name: review.mapped_line_name, merchant_name: review.merchant_name });
+      }
+
+      const { error: budgetError } = await supabaseClient
+        .from('budget_periods')
+        .update({ categories: activeBudgetPeriod.categories, updated_at: new Date().toISOString() })
+        .eq('id', activeBudgetPeriod.id);
+      if (budgetError) {
+        alert('Could not save to your budget: ' + budgetError.message);
+        btn.disabled = false;
+        btn.textContent = 'Approve all';
+        return;
+      }
+
+      if (approvedIds.length) {
+        await supabaseClient.from('pending_transaction_reviews').update({ status: 'approved' }).in('id', approvedIds);
+      }
+
+      await loadRecurringData();
+      btn.disabled = false;
+      btn.textContent = 'Approve all';
+    }
+
     async function dismissReview(reviewId) {
       const review = pendingReviews.find(r => r.id === reviewId);
       await supabaseClient.from('pending_transaction_reviews').update({ status: 'dismissed' }).eq('id', reviewId);
@@ -1451,6 +1525,7 @@
     }
 
     function setupRecurringSection() {
+      document.getElementById('recurring-approve-all-btn').addEventListener('click', approveAllReviews);
       document.getElementById('refresh-recurring-btn').addEventListener('click', async () => {
         const btn = document.getElementById('refresh-recurring-btn');
         btn.textContent = 'Refreshing…';
@@ -1786,6 +1861,13 @@
       recurring_stream_mapped: (d) => `Mapped a recurring ${d.mapped_cat || 'transaction'} to your budget`,
       mfa_enrolled: () => `Enabled two-factor authentication`,
       mfa_factor_removed: () => `Removed a two-factor authenticator`,
+      plaid_item_revoked: (d) => `Fully disconnected ${d.institution_name || 'an account'} from Plaid`,
+      plaid_item_reconnected: (d) => `Reconnected ${d.institution_name || 'an account'}`,
+      account_categorized: () => `Categorized a linked account`,
+      category_created: (d) => `Created the "${d.name || 'new'}" category`,
+      txn_review_approved: (d) => `Added ${d.merchant_name || 'a transaction'} to ${d.category || 'Dashboard'}`,
+      txn_review_dismissed: (d) => `Dismissed a suggested transaction${d.merchant_name ? ' — ' + d.merchant_name : ''}`,
+      budget_preset_created: (d) => `Set up auto-filing for ${d.plaid_category ? d.plaid_category.toLowerCase().replace(/_/g,' ') : 'a category'} → ${d.target_line_name || 'a budget line'}`,
     };
 
     function formatActivityEvent(row) {
@@ -1997,6 +2079,99 @@
       });
     }
 
+    // ================= MANAGE CATEGORIES =================
+    // Rename or remove any category, default or custom. Removing one
+    // never touches the underlying accounts — they just fall back to
+    // "Tap to categorize" again, same as if they'd never been mapped.
+    function renderManageCategories() {
+      const body = document.getElementById('manage-categories-body');
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Rename or remove a category. Removing one won't touch any accounts — they'll just show as uncategorized again.</p>
+        <div class="manage-cat-list">
+          ${categories.map(c => `
+            <div class="manage-cat-row">
+              <input type="text" class="manage-cat-name-input" data-id="${c.id}" data-original="${c.name.replace(/"/g,'&quot;')}" value="${c.name.replace(/"/g,'&quot;')}" maxlength="30" />
+              <button type="button" class="manage-cat-save-btn" data-id="${c.id}" style="display:none;">Save</button>
+              <button type="button" class="manage-cat-delete-btn" data-id="${c.id}">Remove</button>
+            </div>
+          `).join('')}
+        </div>
+        <div class="mfa-field" style="margin-top:14px;">
+          <label for="new-manage-category-name">Add a new category</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="new-manage-category-name" placeholder="e.g. Emergency Fund" maxlength="30" style="flex:1; text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
+            <button type="button" class="mfa-verify-btn" id="add-manage-category-btn" style="width:auto; padding:0 16px;">Add</button>
+          </div>
+        </div>
+      `;
+
+      body.querySelectorAll('.manage-cat-name-input').forEach(input => {
+        input.addEventListener('input', () => {
+          const saveBtn = document.querySelector(`.manage-cat-save-btn[data-id="${input.dataset.id}"]`);
+          const changed = input.value.trim() && input.value.trim() !== input.dataset.original;
+          saveBtn.style.display = changed ? 'inline-block' : 'none';
+        });
+      });
+
+      body.querySelectorAll('.manage-cat-save-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const input = document.querySelector(`.manage-cat-name-input[data-id="${btn.dataset.id}"]`);
+          const newName = input.value.trim();
+          if (!newName) return;
+          const { error } = await supabaseClient.from('budget_categories').update({ name: newName }).eq('id', btn.dataset.id);
+          if (error) { alert('Could not rename: ' + error.message); return; }
+          logAuditEvent('category_renamed', { name: newName });
+          await loadCategories();
+          renderManageCategories();
+          renderAll();
+        });
+      });
+
+      body.querySelectorAll('.manage-cat-delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const cat = categories.find(c => c.id === btn.dataset.id);
+          if (!cat) return;
+          if (!confirm(`Remove "${cat.name}"? Any accounts mapped to it will become uncategorized.`)) return;
+          const { error } = await supabaseClient.from('budget_categories').delete().eq('id', btn.dataset.id);
+          if (error) { alert('Could not remove: ' + error.message); return; }
+          logAuditEvent('category_deleted', { name: cat.name });
+          await loadCategories();
+          renderManageCategories();
+          renderAll();
+        });
+      });
+
+      document.getElementById('add-manage-category-btn').addEventListener('click', async () => {
+        const nameInput = document.getElementById('new-manage-category-name');
+        const name = nameInput.value.trim();
+        if (!name) return;
+        const accentPalette = ['sage', 'blue', 'coral', 'gold', 'violet', 'teal'];
+        const accent = accentPalette[categories.length % accentPalette.length];
+        const { error } = await supabaseClient.from('budget_categories').insert({
+          user_id: currentUserId, name, accent, is_default: false, sort_order: categories.length,
+        });
+        if (error) { alert('Could not add category: ' + error.message); return; }
+        logAuditEvent('category_created', { name });
+        await loadCategories();
+        renderManageCategories();
+        renderAll();
+      });
+    }
+
+    function setupManageCategories() {
+      document.getElementById('manage-categories-btn').addEventListener('click', () => {
+        document.getElementById('settings-dropdown').classList.remove('open');
+        document.getElementById('manage-categories-overlay').classList.add('open');
+        renderManageCategories();
+      });
+      document.getElementById('manage-categories-close').addEventListener('click', () => {
+        document.getElementById('manage-categories-overlay').classList.remove('open');
+      });
+      document.getElementById('manage-categories-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'manage-categories-overlay') document.getElementById('manage-categories-overlay').classList.remove('open');
+      });
+    }
+
     // ================= IDLE SESSION TIMEOUT =================
     // 10 minutes of no activity triggers a 60-second countdown warning
     // before automatically signing out — this page handles linked
@@ -2036,6 +2211,24 @@
       document.getElementById('idle-stay-btn').addEventListener('click', resetIdleTimer);
       resetIdleTimer();
     }
+
+    // Escape closes whichever overlay is currently open. The real MFA
+    // overlay uses its own guarded close (which already refuses to
+    // dismiss a required/gated step) — every other overlay on this page
+    // is always freely dismissable. idle-overlay is deliberately
+    // excluded: it's a security prompt, not something Escape should
+    // wave away without an actual choice.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const mfaOverlay = document.getElementById('mfa-overlay');
+      if (mfaOverlay && mfaOverlay.classList.contains('open')) {
+        if (typeof closeMfaOverlay === 'function') closeMfaOverlay();
+        return;
+      }
+      document.querySelectorAll('.mfa-overlay.open, .history-overlay.open, .vault-overlay.open').forEach(el => {
+        if (el.id !== 'idle-overlay') el.classList.remove('open');
+      });
+    });
 
     init();
   </script>

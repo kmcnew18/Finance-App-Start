@@ -426,6 +426,52 @@
   margin-bottom: 10px;
 }
 .category-split-total.over { color: var(--liability-bright); }
+
+/* Manage categories */
+.manage-cat-list { display: flex; flex-direction: column; gap: 8px; }
+.manage-cat-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0;
+}
+.manage-cat-name-input {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--vault-line);
+  background: #0B120F;
+  color: var(--tan);
+  font-size: 0.85rem;
+  font-family: 'Public Sans', sans-serif;
+}
+.manage-cat-name-input:focus { outline: none; border-color: var(--emerald-dim); }
+.manage-cat-save-btn {
+  padding: 8px 12px; border: none; border-radius: 7px;
+  background: var(--emerald); color: #0B1512;
+  font-weight: 700; font-size: 0.74rem; cursor: pointer; white-space: nowrap;
+}
+.manage-cat-save-btn:hover { background: var(--emerald-bright); }
+.manage-cat-delete-btn {
+  padding: 8px 12px; border: 1px solid var(--liability); border-radius: 7px;
+  background: none; color: var(--liability-bright);
+  font-size: 0.74rem; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s ease;
+}
+.manage-cat-delete-btn:hover { background: rgba(224,128,106,0.1); }
+
+.recurring-subhead-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 18px 0 10px;
+}
+.recurring-subhead-row .recurring-subhead { margin: 0 !important; }
+/* Override the shared (vintage-blue) bulk-approve button styling with
+   Connections' own emerald identity, so it doesn't look imported from
+   another room. */
+#recurring-approve-all-btn {
+  border-color: var(--emerald-dim) !important;
+  background: rgba(63,174,133,0.14) !important;
+  color: var(--emerald-bright) !important;
+}
+#recurring-approve-all-btn:hover { background: rgba(63,174,133,0.24) !important; }
 @keyframes liveDotPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -630,4 +676,7 @@
   .networth-card { padding: 20px; }
   .networth-value { font-size: 2rem; }
   .account-cards { grid-template-columns: 1fr; }
+  .manage-cat-row { flex-wrap: wrap; }
+  .manage-cat-name-input { flex-basis: 100%; }
+  .recurring-subhead-row { flex-wrap: wrap; }
 }

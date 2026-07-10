@@ -2006,6 +2006,24 @@
       resetIdleTimer();
     }
 
+    // Escape closes whichever overlay is currently open. The real MFA
+    // overlay uses its own guarded close (which already refuses to
+    // dismiss a required/gated step) — every other overlay on this page
+    // is always freely dismissable. idle-overlay is deliberately
+    // excluded: it's a security prompt, not something Escape should
+    // wave away without an actual choice.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const mfaOverlay = document.getElementById('mfa-overlay');
+      if (mfaOverlay && mfaOverlay.classList.contains('open')) {
+        if (typeof closeMfaOverlay === 'function') closeMfaOverlay();
+        return;
+      }
+      document.querySelectorAll('.mfa-overlay.open, .history-overlay.open, .vault-overlay.open').forEach(el => {
+        if (el.id !== 'idle-overlay') el.classList.remove('open');
+      });
+    });
+
     init();
   </script>
 

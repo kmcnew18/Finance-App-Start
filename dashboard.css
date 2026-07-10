@@ -91,6 +91,20 @@ h1, h2, h3 {
 .wordmark img { height: 28px; width: auto; }
 .wordmark-brand { font-family: 'Jura', 'Fraunces', serif; letter-spacing: 0.08em; color: var(--tan); }
 
+/* Shared here (not just per-page) so any page loading dashboard.css gets
+   this automatically — previously only defined inline on each page
+   individually, which is exactly how Spendings ended up missing it. */
+.wip-banner {
+  text-align: center;
+  padding: 5px 20px;
+  background: transparent;
+  border-bottom: 1px solid rgba(139,111,71,0.25);
+  font-family: 'Public Sans', sans-serif;
+  font-size: 11px;
+  color: #b3ae9f;
+  letter-spacing: .15px;
+}
+
 .nav-auth { display: flex; align-items: center; gap: 12px; }
 .user-email { font-size: 0.85rem; color: var(--silver-dim); }
 
@@ -239,7 +253,15 @@ h1, h2, h3 {
   padding: 18px 20px;
   margin-bottom: 20px;
 }
-.txn-review-head { margin-bottom: 12px; }
+.txn-review-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
+.txn-approve-all-btn {
+  padding: 7px 14px; border: 1px solid var(--vintage-blue); border-radius: 7px;
+  background: rgba(46,84,114,0.14); color: var(--vintage-blue-light);
+  font-size: 0.76rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.txn-approve-all-btn:hover { background: rgba(46,84,114,0.24); }
+.txn-approve-all-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .txn-review-title { display: block; font-family: 'Fraunces', serif; font-size: 1rem; color: var(--tan); margin-bottom: 3px; }
 .txn-review-sub { font-size: 0.78rem; color: var(--silver-dim); }
 .txn-review-list { display: flex; flex-direction: column; gap: 10px; }
@@ -820,6 +842,14 @@ input[type="number"]::-webkit-outer-spin-button {
     font-size: 0.78rem;
   }
   .log-table td.notes-cell { font-size: 0.8rem; }
+
+  /* Transaction review queue and budget preset prompt */
+  .txn-review-head { flex-direction: column; align-items: stretch; }
+  .txn-approve-all-btn { width: 100%; }
+  .txn-review-info { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .txn-review-change-form { flex-direction: column; }
+  .txn-review-actions { flex-wrap: wrap; }
+  .mfa-field > div[style*="flex"] { flex-direction: column; }
 }
 
 /* ==========================================================================

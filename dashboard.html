@@ -95,8 +95,11 @@
 
     <div class="txn-review-section" id="txn-review-section" style="display:none;">
       <div class="txn-review-head">
-        <span class="txn-review-title">New transactions to review</span>
-        <span class="txn-review-sub">Detected automatically from your connected accounts — nothing is added until you approve it.</span>
+        <div>
+          <span class="txn-review-title">New transactions to review</span>
+          <span class="txn-review-sub">Detected automatically from your connected accounts — nothing is added until you approve it.</span>
+        </div>
+        <button type="button" class="txn-approve-all-btn" id="txn-approve-all-btn" style="display:none;">Approve all</button>
       </div>
       <div class="txn-review-list" id="txn-review-list"></div>
     </div>
@@ -129,7 +132,7 @@
       <div class="card card-total"><span class="card-label">Total</span><span class="card-value" id="val-total">$0.00</span></div>
     </section>
 
-    <p class="override-hint" id="override-hint" style="display:none;">Override mode is on — click a category amount above to type in an exact total.</p>
+    <p class="override-hint" id="override-hint" style="display:none;">Override mode is on — click a category amount above to type in the manually-tracked portion. Any amount synced from Connections is added on top of what you enter here, not replaced by it.</p>
 
     <!-- ================= ADD / DEPOSIT ================= -->
     <section class="panel panel-add">
@@ -371,6 +374,10 @@
       renderCustomCategoryCards();
     }
 
+    const ACCENT_COLORS = {
+      sage: '#6EC496', blue: '#6E8FA3', coral: '#E0806A', gold: '#D8BC7A', violet: '#A88FD8', teal: '#6EC4B8',
+    };
+
     function renderCustomCategoryCards() {
       const existing = document.querySelectorAll('.card-custom-category');
       existing.forEach(el => el.remove());
@@ -379,10 +386,12 @@
 
       const totalCard = document.querySelector('.card-total');
       customCategoryCards.forEach(cat => {
+        const accentColor = ACCENT_COLORS[cat.accent] || ACCENT_COLORS.sage;
         const card = document.createElement('div');
         card.className = 'card card-custom-category';
+        card.style.borderLeft = `3px solid ${accentColor}`;
         card.innerHTML = `
-          <span class="card-label">${cat.name.replace(/</g,'&lt;')}</span>
+          <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
           <span class="card-value">${money(cat.total)}</span>
           <span class="sync-hint" style="display:block;">Synced from Connections</span>
         `;
@@ -515,6 +524,10 @@
       section.style.display = 'block';
 
       document.getElementById('txn-review-list').innerHTML = pendingReviews.map(txnReviewRowHtml).join('');
+
+      const approveAllBtn = document.getElementById('txn-approve-all-btn');
+      approveAllBtn.style.display = pendingReviews.length > 1 ? 'inline-block' : 'none';
+
       wireTxnReviewEvents();
     }
 
@@ -565,7 +578,7 @@
       });
     }
 
-    async function approveTxnReview(reviewId) {
+    async function approveTxnReview(reviewId, skipPrompt) {
       const review = pendingReviews.find(r => r.id === reviewId);
       if (!review) return;
 
@@ -587,20 +600,70 @@
       await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
       logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, category: cat, action });
 
-      await applyBudgetAutomation(review, amount);
+      await applyBudgetAutomation(review, amount, skipPrompt);
 
       renderTotals();
       await loadPendingReviews();
     }
 
-    async function applyBudgetAutomation(review, amount) {
+    // Approves every pending suggestion using its default guess, in one
+    // pass — for when several transactions have come in at once and
+    // reviewing each individually would just be repetitive clicking.
+    // Skips the "set up a budget preset?" prompt during the batch (it
+    // would otherwise pop up and get silently replaced mid-loop if
+    // several different uncategorized types show up together) — presets
+    // can still be set up normally afterward, one at a time, same as any
+    // single approval.
+    async function approveAllTxnReviews() {
+      const count = pendingReviews.length;
+      if (!confirm(`Approve all ${count} suggested transaction${count === 1 ? '' : 's'} using their default guesses? This adds them all to your totals — you can still edit or remove individual log entries afterward.`)) return;
+
+      const btn = document.getElementById('txn-approve-all-btn');
+      btn.disabled = true;
+      btn.textContent = 'Approving…';
+
+      // Batched rather than calling approveTxnReview() per item — that
+      // would trigger a full save + re-render + re-fetch after every
+      // single approval, which is wasteful and causes visible flicker
+      // when there are several at once. Here, totals accumulate locally
+      // and only get saved/re-rendered once, at the end.
+      const reviewsToApprove = [...pendingReviews];
+      for (const review of reviewsToApprove) {
+        const cat = (review.category_name || '').toLowerCase();
+        if (!CATEGORY_LABELS[cat]) continue; // shouldn't happen — backend only queues loggable categories — but skip safely if it does
+
+        const amount = round2(Number(review.amount) || 0);
+        const action = review.suggested_action;
+        totals[cat] = round2(action === 'add' ? totals[cat] + amount : totals[cat] - amount);
+
+        const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+        logRow[cat] = amount;
+        await logEntry({ amount, ...logRow, notes: review.merchant_name || '', action_type: action });
+
+        await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', review.id);
+        logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, category: cat, action });
+
+        await applyBudgetAutomation(review, amount, true); // skip the preset prompt during a bulk pass
+      }
+
+      await saveTotals();
+      renderTotals();
+      await loadPendingReviews();
+
+      btn.disabled = false;
+      btn.textContent = 'Approve all';
+    }
+
+    async function applyBudgetAutomation(review, amount, skipPrompt) {
       if (!review.plaid_category || !activeBudgetPeriod) return;
 
       const preset = budgetPresets.find(p => p.plaid_category === review.plaid_category);
       if (preset) {
-        await fileIntoBudgetLine(preset.target_cat, preset.target_line_id, amount, review.merchant_name, review.txn_date);
+        await fileIntoBudgetLine(preset.target_cat, preset.target_line_id, preset.target_line_name, amount, review.merchant_name, review.txn_date);
         return;
       }
+
+      if (skipPrompt) return;
 
       // No preset for this category yet — offer to set one up. Entirely
       // skippable; declining just means this one (and future ones in
@@ -608,10 +671,20 @@
       openPresetPrompt(review, amount);
     }
 
-    async function fileIntoBudgetLine(targetCat, targetLineId, amount, merchantName, txnDate) {
+    async function fileIntoBudgetLine(targetCat, targetLineId, targetLineName, amount, merchantName, txnDate) {
       const lines = activeBudgetPeriod.categories[targetCat] || [];
-      const line = lines.find(l => l.id === targetLineId);
-      if (!line) return; // preset points at a line that's since been removed — silently skip rather than error
+      // A new budget period generates a fresh id for every line even when
+      // the name carries over from the template (see
+      // cloneTemplateForNewPeriod in budget.html) — so a preset's stored
+      // id only remains valid for the period it was created in. Try the
+      // id first (covers approving multiple transactions within the same
+      // still-active period), then fall back to matching by name, which
+      // is what actually persists once a new period rolls over.
+      let line = lines.find(l => l.id === targetLineId);
+      if (!line && targetLineName) {
+        line = lines.find(l => (l.name || '').trim().toLowerCase() === targetLineName.trim().toLowerCase());
+      }
+      if (!line) return; // genuinely gone (renamed and no longer matches, or removed) — silently skip rather than error
 
       if (!Array.isArray(line.entries)) line.entries = [];
       line.entries.push({ id: uid(), amount, note: merchantName || '', date: txnDate });
@@ -691,7 +764,7 @@
         });
         if (error) { alert('Could not save this preset: ' + error.message); return; }
 
-        await fileIntoBudgetLine(targetCat, targetLineId, presetPromptAmount, presetPromptReview.merchant_name, presetPromptReview.txn_date);
+        await fileIntoBudgetLine(targetCat, targetLineId, targetLineName, presetPromptAmount, presetPromptReview.merchant_name, presetPromptReview.txn_date);
         logAuditEvent('budget_preset_created', { plaid_category: presetPromptReview.plaid_category, target_cat: targetCat, target_line_name: targetLineName });
 
         budgetPresets.push({ plaid_category: presetPromptReview.plaid_category, target_cat: targetCat, target_line_id: targetLineId, target_line_name: targetLineName });
@@ -709,6 +782,7 @@
       document.getElementById('preset-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'preset-overlay') closePresetPrompt();
       });
+      document.getElementById('txn-approve-all-btn').addEventListener('click', approveAllTxnReviews);
     }
 
     async function skipTxnReview(reviewId) {
@@ -1109,7 +1183,11 @@
     }
 
     document.getElementById('reset-categories-btn').addEventListener('click', async () => {
-      if (!confirm('Reset all category totals to $0.00? This cannot be undone.')) return;
+      const hasAnyConnected = Object.values(connectedTotals).some(v => v > 0);
+      const msg = hasAnyConnected
+        ? 'Reset your manually-tracked category totals to $0.00? Amounts synced from Connections aren\'t affected and will still show. This cannot be undone.'
+        : 'Reset all category totals to $0.00? This cannot be undone.';
+      if (!confirm(msg)) return;
       totals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       await saveTotals();
       renderTotals();
@@ -1117,7 +1195,11 @@
     });
 
     document.getElementById('clear-log-btn').addEventListener('click', async () => {
-      if (!confirm('This will clear your entire log and reset all category totals to $0.00 \u2014 just like a fresh account. This cannot be undone.')) return;
+      const hasAnyConnected = Object.values(connectedTotals).some(v => v > 0);
+      const msg = hasAnyConnected
+        ? 'This will clear your entire log and reset your manually-tracked totals to $0.00 — amounts synced from Connections aren\'t affected. This cannot be undone.'
+        : 'This will clear your entire log and reset all category totals to $0.00 — just like a fresh account. This cannot be undone.';
+      if (!confirm(msg)) return;
 
       const { count: beforeCount } = await supabaseClient
         .from('finance_log')
@@ -1158,6 +1240,10 @@
     overrideToggle.addEventListener('change', () => {
       if (overrideToggle.checked) {
         dashMain.classList.add('override-mode');
+        const hasAnyConnected = Object.values(connectedTotals).some(v => v > 0);
+        overrideHint.textContent = hasAnyConnected
+          ? 'Override mode is on — click a category amount above to type in the manually-tracked portion. Any amount synced from Connections is added on top of what you enter here, not replaced by it.'
+          : 'Override mode is on — click a category amount above to type in an exact total.';
         overrideHint.style.display = 'block';
         document.querySelectorAll('.card-value-input').forEach(input => {
           input.value = totals[input.dataset.cat];
@@ -1612,6 +1698,24 @@
       document.getElementById('idle-stay-btn').addEventListener('click', resetIdleTimer);
       resetIdleTimer();
     }
+
+    // Escape closes whichever overlay is currently open. The real MFA
+    // overlay uses its own guarded close (which already refuses to
+    // dismiss a required/gated step) — every other overlay on this page
+    // is always freely dismissable. idle-overlay is deliberately
+    // excluded: it's a security prompt, not something Escape should
+    // wave away without an actual choice.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const mfaOverlay = document.getElementById('mfa-overlay');
+      if (mfaOverlay && mfaOverlay.classList.contains('open')) {
+        if (typeof closeMfaOverlay === 'function') closeMfaOverlay();
+        return;
+      }
+      document.querySelectorAll('.mfa-overlay.open, .history-overlay.open, .vault-overlay.open').forEach(el => {
+        if (el.id !== 'idle-overlay') el.classList.remove('open');
+      });
+    });
 
     init();
   </script>
