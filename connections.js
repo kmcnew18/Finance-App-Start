@@ -944,15 +944,16 @@ function setupSettingsGear() {
 
   document.getElementById('clear-transactions-btn').addEventListener('click', async () => {
     gearDropdown.classList.remove('open');
-    if (!confirm("Clear your transaction history? This removes everything Spendings and Dashboard have detected so far — nothing about your connected accounts or balances changes. Going forward, only new transactions from this point on will show up.")) return;
+    if (!confirm("Clear your transaction history? This removes everything Spendings and Dashboard have detected so far, including subscriptions — nothing about your connected accounts or balances changes. Going forward, only new activity from this point on will show up.")) return;
 
-    const [{ error: txnError }, { error: dashError }, { error: recurError }] = await Promise.all([
+    const [{ error: txnError }, { error: dashError }, { error: recurError }, { error: streamError }] = await Promise.all([
       supabaseClient.from('transactions').delete().eq('user_id', currentUserId),
       supabaseClient.from('pending_dashboard_reviews').delete().eq('user_id', currentUserId),
       supabaseClient.from('pending_transaction_reviews').delete().eq('user_id', currentUserId),
+      supabaseClient.from('recurring_streams').delete().eq('user_id', currentUserId),
     ]);
-    if (txnError || dashError || recurError) {
-      alert('Could not fully clear your transaction history: ' + (txnError || dashError || recurError).message);
+    if (txnError || dashError || recurError || streamError) {
+      alert('Could not fully clear your transaction history: ' + (txnError || dashError || recurError || streamError).message);
       return;
     }
     logAuditEvent('transaction_history_cleared', {});
