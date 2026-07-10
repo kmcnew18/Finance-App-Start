@@ -646,12 +646,28 @@
             body: JSON.stringify({ userId: currentUserId })
           });
           if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
+          const result = await res.json().catch(() => ({}));
+          const before = document.querySelectorAll('.spend-sub-row').length;
           await loadSubscriptions();
+          const after = document.querySelectorAll('.spend-sub-row').length;
+
+          // Recurring-pattern detection depends on Plaid having enough
+          // real transaction history to work with — it won't surface
+          // something new just because the button was clicked, so a
+          // "nothing changed" result is often entirely correct, not a
+          // sign the refresh failed. Making that explicit here so it
+          // doesn't read as the button silently doing nothing.
+          if (after > before) {
+            btn.textContent = `Found ${after - before} new`;
+          } else {
+            btn.textContent = 'Up to date';
+          }
+          setTimeout(() => { btn.textContent = originalText; }, 2000);
         } catch (err) {
           console.error(err);
           alert(err.message || 'Could not refresh subscriptions right now.');
-        } finally {
           btn.textContent = originalText;
+        } finally {
           btn.disabled = false;
         }
       });

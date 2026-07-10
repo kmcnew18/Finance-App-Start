@@ -98,10 +98,32 @@ async function init() {
   document.getElementById('loading-message').style.display = 'none';
   document.getElementById('vault-shell').style.display = 'flex';
 
+  // Balances only ever get fresh numbers from Plaid on initial connection
+  // or an explicit manual sync — nothing was proactively keeping them
+  // current otherwise. Rather than block the page on a Plaid round-trip
+  // every single time someone opens Connections, show what's already
+  // stored first (fast), then quietly refresh in the background and
+  // re-render once real numbers come back — balances catch up within a
+  // second or two of landing here, without adding a wait to get in.
+  refreshBalancesInBackground();
+
   // If this page load is actually the browser returning from a
   // bank's OAuth login (mobile web round-trip), resume the Link flow
   // that was in progress before the redirect.
   await checkForOAuthReturn();
+}
+
+async function refreshBalancesInBackground() {
+  try {
+    const res = await fetch('/api/plaid-sync-accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUserId })
+    });
+    if (res.ok) await loadAccounts(); // silent — just re-renders with fresh numbers, no loading state shown
+  } catch (err) {
+    console.error('Background balance refresh failed:', err);
+  }
 }
 
 // Straight to Stripe — no stop at paywall.html, since that page is

@@ -475,6 +475,29 @@
       loadingMessage.style.display = 'none';
       dashMain.style.display = 'block';
       renderTotals();
+
+      // Same pattern as Connections: show cached numbers immediately
+      // (fast), then quietly refresh account balances in the background
+      // and re-render once real numbers come back — nothing was
+      // otherwise keeping these current beyond the moment of connecting
+      // or an explicit manual sync in Connections.
+      refreshConnectedBalancesInBackground();
+    }
+
+    async function refreshConnectedBalancesInBackground() {
+      try {
+        const res = await fetch('/api/plaid-sync-accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId })
+        });
+        if (res.ok) {
+          await loadConnectedTotals();
+          renderTotals();
+        }
+      } catch (err) {
+        console.error('Background balance refresh failed:', err);
+      }
     }
 
     // ================= TRANSACTION REVIEW QUEUE =================
