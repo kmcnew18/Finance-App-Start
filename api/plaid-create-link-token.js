@@ -5,12 +5,6 @@
 // PLAID_CLIENT_ID + PLAID_SECRET, which should never be shipped to the
 // browser.
 //
-// Deploy path: same place your existing /api/create-checkout-session.js
-// (or .ts) lives — same platform, same conventions. If that file uses a
-// different export style (e.g. `export default` instead of
-// `module.exports`), match this file to it so your build doesn't choke on
-// mixed module formats.
-//
 // Requires the "plaid" npm package:
 //   npm install plaid
 //
@@ -24,6 +18,10 @@
 //                         "https://yourapp.com/api/plaid-webhook"
 //                         Must be publicly reachable — Plaid calls it, your
 //                         browser never does.
+//   PLAID_REDIRECT_URI    (optional) your registered OAuth redirect URI,
+//                         must exactly match an entry under Developers >
+//                         API > Allowed redirect URIs in the Plaid
+//                         Dashboard for the matching environment.
 
 const { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } = require('plaid');
 const { createClient } = require('@supabase/supabase-js');
@@ -93,17 +91,35 @@ module.exports = async (req, res) => {
 
       linkTokenParams.access_token = decryptToken(itemRow.access_token);
     } else {
-      // Normal mode — starting a brand new connection.
-      // Auth covers checking/savings/credit accounts (the standard baseline
-      // product for depository connections). Investments is required for
-      // brokerage/retirement account balances to come through at all.
-      // Liabilities adds richer loan/credit card data (minimum payment, due
-      // date, interest rate) beyond the raw balance. Transactions is
-      // required before Recurring Transactions (bill/income detection) can
-      // work at all — see /api/plaid-sync-recurring.js.
-      linkTokenParams.products = [Products.Auth, Products.Transactions];
-linkTokenParams.optional_products = [Products.Investments, Products.Liabilities];
-linkTokenParams.transactions = { days_requested: 180 }; // Recurring Transactions wants 180+ days for good results
+      // Normal mode — starting a brand new connection. Different
+      // institution types support wildly different products (a bank
+      // doesn't support Investments; a brokerage like Robinhood doesn't
+      // support Auth; a lender may not support Investments at all), so
+      // the products we require depend on what kind of account the
+      // person is actually trying to connect. The frontend sends this
+      // via accountCategory based on which "Connect with Plaid" button
+      // they clicked (bank / investments / debt).
+      const accountCategory = req.body.accountCategory || 'bank';
+
+      const PRODUCT_SETS = {
+        bank: {
+          products: [Products.Auth, Products.Transactions],
+          optional_products: [Products.Liabilities],
+        },
+        investments: {
+          products: [Products.Investments, Products.Transactions],
+          optional_products: [],
+        },
+        debt: {
+          products: [Products.Liabilities, Products.Transactions],
+          optional_products: [],
+        },
+      };
+
+      const chosen = PRODUCT_SETS[accountCategory] || PRODUCT_SETS.bank;
+      linkTokenParams.products = chosen.products;
+      linkTokenParams.optional_products = chosen.optional_products;
+      linkTokenParams.transactions = { days_requested: 180 }; // Recurring Transactions wants 180+ days for good results
     }
 
     const response = await plaidClient.linkTokenCreate(linkTokenParams);

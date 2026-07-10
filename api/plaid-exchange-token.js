@@ -77,6 +77,13 @@ module.exports = async (req, res) => {
     });
 
     // Pull balances immediately so the new accounts show up right away.
+    // Using accountsGet (not accountsBalanceGet) — balance data comes back
+    // as part of the standard account object here, and this doesn't
+    // require separate authorization for the dedicated Balance product
+    // the way accountsBalanceGet does. accountsBalanceGet forces a
+    // real-time refresh from the bank; accountsGet returns Plaid's most
+    // recent cached balance, which is effectively identical this soon
+    // after a brand-new Item was just created.
     const balancesRes = await plaidClient.accountsGet({ access_token: accessToken });
     const plaidAccounts = balancesRes.data.accounts || [];
 
