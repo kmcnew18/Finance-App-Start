@@ -80,6 +80,7 @@ async function init() {
   setupActivityPanel();
   setupCategoryOverlay();
   setupManageCategories();
+  setupFeedback();
   setupIdleTimeout();
 
   // Blocks here until the user has enrolled AND verified a second
@@ -136,7 +137,20 @@ async function loadAccounts() {
   accounts = data || [];
   await loadConnectionStatus();
   await loadCategories();
+  await cleanUpCreditCardCategorySplits();
   renderAll();
+}
+
+// Credit cards no longer map to a category (see openCategoryMapping) —
+// this quietly clears out any mapping made before that rule existed,
+// so old data doesn't linger inconsistently with what's shown now.
+async function cleanUpCreditCardCategorySplits() {
+  const creditCardIds = accounts.filter(a => a.account_type === 'credit_card').map(a => a.id);
+  if (!creditCardIds.length) return;
+  const staleSplitIds = accountSplits.filter(s => creditCardIds.includes(s.linked_account_id)).map(s => s.id);
+  if (!staleSplitIds.length) return;
+  await supabaseClient.from('account_category_splits').delete().in('id', staleSplitIds);
+  accountSplits = accountSplits.filter(s => !staleSplitIds.includes(s.id));
 }
 
 async function loadCategories() {
@@ -337,7 +351,7 @@ function accountCardHtml(a, t) {
       </div>
       <div class="account-card-balance">${money(a.balance)}</div>
       ${synced}
-      ${categoryPillHtml(a.id)}
+      ${a.account_type === 'credit_card' ? '' : categoryPillHtml(a.id)}
       ${reconnectBlock}
       <div class="account-card-actions" style="margin-top:10px;">
         <button type="button" class="account-edit-btn" data-id="${a.id}">Edit</button>
@@ -1393,7 +1407,25 @@ function closeCategoryOverlay() {
 function openCategoryMapping(accountId) {
   categoryMappingAccountId = accountId;
   document.getElementById('category-overlay').classList.add('open');
+
+  const acct = accounts.find(a => a.id === accountId);
+  if (acct && acct.account_type === 'credit_card') {
+    renderCreditCardCategoryBlock();
+    return;
+  }
+
   renderCategorySimpleMode();
+}
+
+// Credit cards are already tracked as a liability (in "Owed", part of
+// net worth) and as a transaction source — mapping one to a spending
+// category too would double-count the same debt as if it were money
+// you have, not money you owe.
+function renderCreditCardCategoryBlock() {
+  const body = document.getElementById('category-modal-body');
+  body.innerHTML = `
+    <p class="mfa-modal-sub">Credit cards aren't mapped to a category — they're already counted as a liability, and used to detect transactions. Mapping one to a category would count the same debt twice.</p>
+  `;
 }
 
 function renderCategorySimpleMode() {
@@ -1752,6 +1784,82 @@ function setupManageCategories() {
   });
   document.getElementById('manage-categories-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'manage-categories-overlay') document.getElementById('manage-categories-overlay').classList.remove('open');
+  });
+}
+
+// ================= FEEDBACK =================
+function renderFeedbackForm() {
+  const body = document.getElementById('feedback-modal-body');
+  body.innerHTML = `
+    <p class="mfa-modal-sub">Goes straight to the team — bugs, ideas, anything.</p>
+    <div class="mfa-field">
+      <label for="feedback-name">Name (optional)</label>
+      <input type="text" id="feedback-name" placeholder="Your name" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
+    </div>
+    <div class="mfa-field" style="margin-top:12px;">
+      <label for="feedback-type">Type</label>
+      <select id="feedback-type">
+        <option value="bug">Bug report</option>
+        <option value="improvement">Improvement idea</option>
+        <option value="question">Question</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="mfa-field" style="margin-top:12px;">
+      <label for="feedback-message">What's on your mind?</label>
+      <textarea id="feedback-message" rows="5" placeholder="Tell us what happened, or what you'd like to see…" style="width:100%; padding:12px 14px; border-radius:8px; border:1px solid var(--vault-line); background:#0B120F; color:var(--tan); font-size:0.85rem; font-family:'Public Sans',sans-serif; resize:vertical;"></textarea>
+    </div>
+    <button type="button" class="mfa-verify-btn" id="feedback-send-btn" style="margin-top:14px;">Send feedback</button>
+    <p class="mfa-modal-sub" id="feedback-error" style="color:var(--liability-bright); display:none; margin-top:8px;"></p>
+  `;
+
+  document.getElementById('feedback-send-btn').addEventListener('click', async () => {
+    const name = document.getElementById('feedback-name').value.trim();
+    const type = document.getElementById('feedback-type').value;
+    const message = document.getElementById('feedback-message').value.trim();
+    const errorEl = document.getElementById('feedback-error');
+    errorEl.style.display = 'none';
+
+    if (!message) {
+      errorEl.textContent = 'Add a message before sending.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const btn = document.getElementById('feedback-send-btn');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    try {
+      const res = await fetch('/api/send-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, type, message, userEmail: currentUserEmail }),
+      });
+      if (!res.ok) throw new Error('Could not send feedback right now — try again in a bit.');
+
+      const body = document.getElementById('feedback-modal-body');
+      body.innerHTML = `<p class="mfa-modal-sub">Thanks — that's on its way to the team.</p>`;
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Send feedback';
+    }
+  });
+}
+
+function setupFeedback() {
+  document.getElementById('send-feedback-btn').addEventListener('click', () => {
+    document.getElementById('settings-dropdown').classList.remove('open');
+    document.getElementById('feedback-overlay').classList.add('open');
+    renderFeedbackForm();
+  });
+  document.getElementById('feedback-close').addEventListener('click', () => {
+    document.getElementById('feedback-overlay').classList.remove('open');
+  });
+  document.getElementById('feedback-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'feedback-overlay') document.getElementById('feedback-overlay').classList.remove('open');
   });
 }
 

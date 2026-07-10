@@ -61,6 +61,8 @@
             <button type="button" id="sync-all-btn" class="dropdown-item">Sync all accounts</button>
             <button type="button" id="clear-transactions-btn" class="dropdown-item">Clear transaction history</button>
             <div class="dropdown-divider"></div>
+            <button type="button" id="send-feedback-btn" class="dropdown-item">Send feedback</button>
+            <div class="dropdown-divider"></div>
             <button type="button" id="remove-all-btn" class="dropdown-item danger">Remove all accounts</button>
           </div>
         </div>
@@ -249,6 +251,19 @@
         <button type="button" class="mfa-modal-close" id="manage-categories-close">×</button>
       </div>
       <div class="mfa-modal-body" id="manage-categories-body" style="max-height: 60vh;">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= FEEDBACK ================= -->
+  <div class="mfa-overlay" id="feedback-overlay">
+    <div class="mfa-modal" style="max-width: 420px;">
+      <div class="mfa-modal-head">
+        <h2>Send feedback</h2>
+        <button type="button" class="mfa-modal-close" id="feedback-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="feedback-modal-body">
         <!-- populated by JS -->
       </div>
     </div>
