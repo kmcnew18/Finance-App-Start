@@ -23,7 +23,7 @@
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 const { createClient } = require('@supabase/supabase-js');
 const { encryptToken } = require('../lib/crypto-helpers');
-const { mapAccountType } = require('../lib/plaid-helpers');
+const { mapAccountType, storeTransactions, startOfPreviousMonth } = require('../lib/plaid-helpers');
 
 const plaidClient = new PlaidApi(new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -91,38 +91,58 @@ module.exports = async (req, res) => {
       plaid_account_id: a.account_id,
     }));
 
+    let insertedAccountIds = [];
     if (rows.length) {
-      const { error: acctError } = await supabaseAdmin.from('linked_accounts').insert(rows);
+      const { data: insertedRows, error: acctError } = await supabaseAdmin.from('linked_accounts').insert(rows).select('id');
       if (acctError) throw acctError;
+      insertedAccountIds = (insertedRows || []).map(r => r.id);
     }
 
     // Transactions/webhooks won't start firing for this item until
-    // /transactions/sync has been called on it at least once — Plaid's docs
-    // are explicit about this. Deliberately not storing any of what comes
-    // back here: the whole point of this call is to catch the cursor up
-    // past all of Plaid's historical backlog for this account, so nothing
-    // that happened before the moment of connecting ever gets treated as
-    // a "new" transaction by a later sync. Only real, ongoing activity
-    // going forward gets processed once this fast-forward is done.
+    // /transactions/sync has been called on it at least once — Plaid's
+    // docs are explicit about this. This loops through every page
+    // (has_more) since Plaid's historical backlog often spans multiple
+    // pages — stopping after the first would leave the cursor partway
+    // through history, and the *next* real sync (via webhook) would
+    // then pick up the leftover page and treat old activity as new.
     //
-    // Critically, this loops through every page (has_more) rather than
-    // calling sync just once — Plaid's historical backlog often spans
-    // multiple pages, and stopping after the first one would leave the
-    // cursor partway through history. The *next* real sync (via webhook)
-    // would then pick up that leftover historical page and process it as
-    // if it were new activity — which is exactly what caused old,
-    // seemingly-random transactions to show up in reviews after the fact.
+    // Unlike before, this now actually stores what it finds — but only
+    // a bounded window (the previous calendar month onward, so
+    // "this month + last month"), and only into the transactions table
+    // that feeds Spendings. It deliberately does NOT queue any of this
+    // for Dashboard's review — Dashboard only ever suggests genuinely
+    // new activity from the moment of connecting forward; this initial
+    // batch is purely historical backfill for Spendings' charts. The
+    // frontend uses the counts returned here to ask whether to keep or
+    // remove that backfill before continuing.
+    let historicalImport = { count: 0, windowStart: null };
     try {
+      const connectedDate = new Date().toISOString().slice(0, 10);
+      const storageCutoff = startOfPreviousMonth(connectedDate);
+      const eligibleAccountIds = new Set(
+        rows.filter(r => r.account_type === 'checking' || r.account_type === 'credit_card').map(r => r.plaid_account_id)
+      );
+
       let cursor = undefined;
       let hasMore = true;
       let pageCount = 0;
+      const collected = [];
       while (hasMore) {
         const syncRes = await plaidClient.transactionsSync({ access_token: accessToken, cursor });
+        for (const txn of syncRes.data.added || []) {
+          if (txn.date >= storageCutoff && eligibleAccountIds.has(txn.account_id)) collected.push(txn);
+        }
         cursor = syncRes.data.next_cursor;
         hasMore = syncRes.data.has_more;
         pageCount++;
         if (pageCount > 50) break; // safety valve — should never realistically hit this
       }
+
+      if (collected.length) {
+        await storeTransactions(userId, collected, [], []);
+      }
+      historicalImport = { count: collected.length, windowStart: storageCutoff };
+
       await supabaseAdmin
         .from('plaid_items')
         .update({ transactions_cursor: cursor })
@@ -134,7 +154,13 @@ module.exports = async (req, res) => {
       console.error('Initial transactions catch-up failed (non-fatal):', syncErr?.response?.data || syncErr);
     }
 
-    res.status(200).json({ success: true, accountsAdded: rows.length });
+    res.status(200).json({
+      success: true,
+      accountsAdded: rows.length,
+      itemId,
+      linkedAccountIds: insertedAccountIds,
+      historicalImport,
+    });
   } catch (err) {
     console.error('plaid-exchange-token error:', err?.response?.data || err);
     res.status(500).json({ error: 'Could not finish linking this account' });

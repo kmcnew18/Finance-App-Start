@@ -230,10 +230,25 @@ h1, h2, h3 {
 }
 .card:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0,0,0,0.35); }
 
+.card { position: relative; }
 .sync-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 20px;
+  right: 20px;
   font-size: 0.68rem;
   color: var(--emerald-bright, #63D9AA);
   font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card:hover .sync-hint,
+.card:focus-within .sync-hint {
+  opacity: 1;
 }
 .card-custom-category {
   border-color: rgba(63,174,133,0.3);
@@ -243,51 +258,157 @@ h1, h2, h3 {
   font-weight: 500;
 }
 
-/* Transaction review queue */
+/* Automated section header — sits above the category cards, making
+   clear this is the synced/primary view of your money. */
+.overview-section { margin-bottom: 8px; }
+.overview-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+.overview-section-title {
+  font-family: 'Fraunces', serif;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--tan);
+}
+.overview-section-sub {
+  font-size: 0.74rem;
+  color: var(--silver-dim);
+  letter-spacing: 0.2px;
+}
+
+/* Manual entry — deliberately a <details> element, collapsed by
+   default. This used to be three permanently-open panels sitting at
+   the same visual weight as the automated totals above; now it reads
+   as a secondary, opt-in tool rather than the main event. */
+.manual-entry-section {
+  margin-top: 28px;
+  border-top: 1px solid var(--panel-border, rgba(232,225,211,0.1));
+  padding-top: 4px;
+}
+.manual-entry-summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 4px;
+  user-select: none;
+}
+.manual-entry-summary::-webkit-details-marker { display: none; }
+.manual-entry-summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--silver-dim);
+  transition: transform 0.15s ease;
+}
+.manual-entry-section[open] .manual-entry-summary::before {
+  transform: rotate(90deg);
+}
+.manual-entry-summary-title {
+  font-family: 'Public Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--silver-dim);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.manual-entry-summary-sub {
+  font-size: 0.74rem;
+  color: var(--silver-dim);
+  opacity: 0.75;
+  margin-left: 18px;
+}
+.manual-entry-section .panel { opacity: 0.96; }
+
+/* Transaction review queue — redesigned to be the most polished thing
+   on the site, since it's meant to be the most-used. Warmer gradient,
+   a glowing accent bar per row color-coded by add/subtract, and softer
+   motion throughout. */
 .txn-review-section {
-  background: linear-gradient(150deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012));
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  padding: 18px 20px;
-  margin-bottom: 20px;
+  background: linear-gradient(155deg, rgba(110,143,163,0.09), rgba(255,255,255,0.02) 55%, rgba(99,217,170,0.05));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(232,225,211,0.14);
+  border-radius: 16px;
+  padding: 22px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04);
 }
-.txn-review-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
+.txn-review-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.txn-review-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Fraunces', serif;
+  font-size: 1.08rem;
+  font-weight: 500;
+  color: var(--tan);
+  margin-bottom: 4px;
+}
+.txn-review-title::before {
+  content: '';
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--emerald-bright, #63D9AA);
+  box-shadow: 0 0 8px var(--emerald-bright, #63D9AA);
+}
+.txn-review-sub { font-size: 0.79rem; color: var(--silver-dim); line-height: 1.4; max-width: 480px; }
 .txn-approve-all-btn {
-  padding: 7px 14px; border: 1px solid var(--vintage-blue); border-radius: 7px;
-  background: rgba(46,84,114,0.14); color: var(--vintage-blue-light);
-  font-size: 0.76rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0;
-  transition: background 0.15s ease;
+  padding: 8px 16px; border: 1px solid var(--vintage-blue-light); border-radius: 8px;
+  background: linear-gradient(135deg, var(--vintage-blue), #24455e); color: var(--tan);
+  font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 3px 10px rgba(46,84,114,0.35);
 }
-.txn-approve-all-btn:hover { background: rgba(46,84,114,0.24); }
-.txn-approve-all-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.txn-review-title { display: block; font-family: 'Fraunces', serif; font-size: 1rem; color: var(--tan); margin-bottom: 3px; }
-.txn-review-sub { font-size: 0.78rem; color: var(--silver-dim); }
+.txn-approve-all-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(46,84,114,0.45); }
+.txn-approve-all-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
 .txn-review-list { display: flex; flex-direction: column; gap: 10px; }
 .txn-review-row {
-  padding: 12px 14px;
-  border: 1px solid var(--panel-border);
-  border-radius: 9px;
-  background: rgba(255,255,255,0.02);
+  position: relative;
+  padding: 14px 16px 14px 20px;
+  border: 1px solid rgba(232,225,211,0.1);
+  border-radius: 11px;
+  background: rgba(255,255,255,0.025);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
-.txn-review-info { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
-.txn-review-merchant { font-weight: 600; color: var(--tan); font-size: 0.9rem; }
-.txn-review-meta { font-size: 0.76rem; color: var(--silver-dim); }
-.txn-review-suggestion-text { font-size: 0.85rem; color: var(--silver); margin-bottom: 10px; }
-.txn-review-suggestion-text strong { color: var(--tan); }
-.txn-review-change-form { display: none; gap: 8px; margin-bottom: 10px; }
+.txn-review-row::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--emerald-bright, #63D9AA);
+  opacity: 0.75;
+}
+.txn-review-row:has(.txn-action-select option[value="add"]:checked)::before,
+.txn-review-row[data-suggested="add"]::before { background: var(--emerald-bright, #63D9AA); }
+.txn-review-row[data-suggested="subtract"]::before { background: var(--coral, #E0806A); }
+.txn-review-row:hover { background: rgba(255,255,255,0.045); border-color: rgba(232,225,211,0.18); }
+
+.txn-review-info { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; gap: 10px; }
+.txn-review-merchant { font-weight: 600; color: var(--tan); font-size: 0.92rem; }
+.txn-review-meta { font-size: 0.76rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+.txn-review-suggestion-text { font-size: 0.86rem; color: var(--silver); margin-bottom: 11px; line-height: 1.45; }
+.txn-review-suggestion-text strong { color: var(--tan); font-weight: 600; }
+.txn-review-change-form { display: none; gap: 8px; margin-bottom: 11px; }
 .txn-review-change-form select {
-  flex: 1; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--panel-border);
+  flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--panel-border);
   background: #12181F; color: var(--tan); font-size: 0.8rem;
 }
 .txn-review-actions { display: flex; gap: 8px; }
 .txn-approve-btn, .txn-change-btn, .txn-skip-btn {
-  padding: 6px 13px; border-radius: 7px; font-size: 0.76rem; font-weight: 600; cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  padding: 7px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
-.txn-approve-btn { background: var(--vintage-blue); color: var(--tan); border: none; }
-.txn-approve-btn:hover { background: var(--vintage-blue-light); }
+.txn-approve-btn { background: linear-gradient(135deg, var(--emerald-bright, #63D9AA), #3fae85); color: #0B1410; border: none; }
+.txn-approve-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
 .txn-change-btn, .txn-skip-btn { background: none; border: 1px solid var(--panel-border); color: var(--silver-dim); }
 .txn-change-btn:hover, .txn-skip-btn:hover { color: var(--tan); border-color: var(--silver-dim); }
 
@@ -581,6 +702,68 @@ input[type="number"]::-webkit-outer-spin-button {
 /* ---------- LOG PAGE ---------- */
 .log-title { margin-bottom: 22px; font-size: 1.7rem; letter-spacing: 0.01em; }
 
+.log-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.log-filter-search {
+  position: relative;
+  flex: 1;
+  min-width: 180px;
+}
+.log-filter-search svg {
+  position: absolute;
+  left: 11px; top: 50%;
+  transform: translateY(-50%);
+  width: 15px; height: 15px;
+  color: var(--silver-dim);
+  pointer-events: none;
+}
+.log-filter-search input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,0.02);
+  color: var(--tan);
+  font-size: 0.83rem;
+  font-family: 'Public Sans', sans-serif;
+}
+.log-filter-search input:focus { outline: none; border-color: var(--vintage-blue-light); }
+.log-filter-dates {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.log-filter-dates input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,0.02);
+  color: var(--tan);
+  font-size: 0.8rem;
+  font-family: 'Public Sans', sans-serif;
+  color-scheme: dark;
+}
+.log-filter-dash { color: var(--silver-dim); font-size: 0.8rem; }
+#log-filter-type {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,0.02);
+  color: var(--tan);
+  font-size: 0.8rem;
+  font-family: 'Public Sans', sans-serif;
+}
+.log-filter-count {
+  font-size: 0.78rem;
+  color: var(--silver-dim);
+  white-space: nowrap;
+}
+
 .log-toolbar {
   display: flex;
   justify-content: space-between;
@@ -834,6 +1017,10 @@ input[type="number"]::-webkit-outer-spin-button {
 
   /* Log page */
   .log-title { font-size: 1.35rem; margin-bottom: 16px; }
+  .log-filter-bar { flex-direction: column; align-items: stretch; }
+  .log-filter-dates { width: 100%; }
+  .log-filter-dates input { flex: 1; min-width: 0; }
+  #log-filter-type { width: 100%; }
   .log-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
   .log-toolbar .btn-danger { width: 100%; }
 

@@ -76,6 +76,9 @@
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
             <div class="dropdown-divider"></div>
             <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
+            <div class="dropdown-divider"></div>
+            <button type="button" id="send-feedback-btn" class="dropdown-item">Send feedback</button>
+            <div class="dropdown-divider"></div>
             <button type="button" id="clear-log-btn" class="dropdown-item danger">Clear entire log</button>
           </div>
         </div>
@@ -89,11 +92,31 @@
   <main class="dash-main">
     <h1 class="log-title">Full Log</h1>
 
+    <div class="log-filter-bar">
+      <div class="log-filter-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="log-search-input" placeholder="Search notes…" />
+      </div>
+      <div class="log-filter-dates">
+        <input type="date" id="log-filter-start" aria-label="From date" />
+        <span class="log-filter-dash">–</span>
+        <input type="date" id="log-filter-end" aria-label="To date" />
+      </div>
+      <select id="log-filter-type" aria-label="Filter by type">
+        <option value="">All types</option>
+        <option value="add">Add</option>
+        <option value="subtract">Subtract</option>
+        <option value="transfer">Transfer</option>
+      </select>
+      <button type="button" id="log-filter-clear" class="btn-ghost" style="display:none;">Clear filters</button>
+    </div>
+
     <div class="log-toolbar">
       <label class="log-check-label">
         <span class="log-check"><input type="checkbox" id="select-all" /><span class="check-box"></span></span>
         Select all
       </label>
+      <span class="log-filter-count" id="log-filter-count"></span>
       <button type="button" id="delete-selected-btn" class="btn-danger">Delete selected</button>
     </div>
 
@@ -144,6 +167,17 @@
     </div>
   </div>
 
+  <!-- ================= FEEDBACK ================= -->
+  <div class="mfa-overlay" id="feedback-overlay">
+    <div class="mfa-modal" style="max-width: 420px;">
+      <div class="mfa-modal-head">
+        <h2>Send feedback</h2>
+        <button type="button" class="mfa-modal-close" id="feedback-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="feedback-modal-body"></div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
@@ -166,8 +200,6 @@
     }
 
     function isFirstOfMonth(d) {
-      // d is an ISO date string like "2026-07-01" — check the day segment directly
-      // to avoid timezone parsing issues shifting the date.
       const day = d.split('-')[2];
       return day === '01';
     }
@@ -177,6 +209,8 @@
       subtract: 'log-row-subtract',
       transfer: 'log-row-transfer'
     };
+
+    let allLogRows = [];
 
     async function loadLog() {
       const tbody = document.getElementById('log-body');
@@ -192,8 +226,45 @@
         return;
       }
 
-      if (!rows || rows.length === 0) {
+      allLogRows = rows || [];
+      renderLogTable();
+    }
+
+    function getActiveFilters() {
+      return {
+        search: document.getElementById('log-search-input').value.trim().toLowerCase(),
+        start: document.getElementById('log-filter-start').value,
+        end: document.getElementById('log-filter-end').value,
+        type: document.getElementById('log-filter-type').value,
+      };
+    }
+
+    function renderLogTable() {
+      const tbody = document.getElementById('log-body');
+      const countEl = document.getElementById('log-filter-count');
+      const clearBtn = document.getElementById('log-filter-clear');
+      const f = getActiveFilters();
+      const anyFilterActive = !!(f.search || f.start || f.end || f.type);
+      clearBtn.style.display = anyFilterActive ? 'inline-block' : 'none';
+
+      if (!allLogRows.length) {
         tbody.innerHTML = '<tr><td colspan="8">No entries yet.</td></tr>';
+        countEl.textContent = '';
+        return;
+      }
+
+      const rows = allLogRows.filter(r => {
+        if (f.search && !(r.notes || '').toLowerCase().includes(f.search)) return false;
+        if (f.start && r.entry_date < f.start) return false;
+        if (f.end && r.entry_date > f.end) return false;
+        if (f.type && r.action_type !== f.type) return false;
+        return true;
+      });
+
+      countEl.textContent = anyFilterActive ? `${rows.length} of ${allLogRows.length} shown` : '';
+
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="8">No entries match your filters.</td></tr>';
         return;
       }
 
@@ -216,6 +287,24 @@
       }).join('');
     }
 
+    function setupLogFilters() {
+      let searchDebounce = null;
+      document.getElementById('log-search-input').addEventListener('input', () => {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(renderLogTable, 150);
+      });
+      document.getElementById('log-filter-start').addEventListener('change', renderLogTable);
+      document.getElementById('log-filter-end').addEventListener('change', renderLogTable);
+      document.getElementById('log-filter-type').addEventListener('change', renderLogTable);
+      document.getElementById('log-filter-clear').addEventListener('click', () => {
+        document.getElementById('log-search-input').value = '';
+        document.getElementById('log-filter-start').value = '';
+        document.getElementById('log-filter-end').value = '';
+        document.getElementById('log-filter-type').value = '';
+        renderLogTable();
+      });
+    }
+
     async function init() {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) { window.location.href = 'login.html'; return; }
@@ -235,6 +324,8 @@
       setupLedgerMenu();
       setupMfaOverlay();
       setupIdleTimeout();
+      setupFeedback();
+      setupLogFilters();
 
       await loadLog();
     }
@@ -318,11 +409,6 @@
       overlay.classList.add('open');
       overlay.classList.toggle('mfa-gated', mfaGateActive);
     }
-    // Dismisses the overlay without completing verification. Always
-    // available via the Cancel button, even during a required gate —
-    // there's no reason to trap someone in a broken or unwanted flow.
-    // Backdrop-click and the × button still respect the gate, so an
-    // accidental click elsewhere can't dismiss a required step.
     function cancelMfaOverlay() {
       mfaGateActive = false;
       document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
@@ -337,19 +423,13 @@
 
     function mfaQrDataUri(qrRaw) {
       if (!qrRaw) return '';
-      // Handle either shape Supabase might hand back, and don't just trust
-      // a "data:" prefix blindly — some versions return a data: URI whose
-      // payload is still raw, unescaped SVG markup (literal quotes and
-      // angle brackets), which corrupts the surrounding HTML exactly like
-      // unencoded raw SVG does. Check the actual payload, not just the
-      // prefix, and re-encode it if it isn't actually safe.
       if (qrRaw.startsWith('data:')) {
         const commaIndex = qrRaw.indexOf(',');
         const payload = commaIndex >= 0 ? qrRaw.slice(commaIndex + 1) : '';
         if (payload.includes('<') || payload.includes('"')) {
           return 'data:image/svg+xml;utf-8,' + encodeURIComponent(payload);
         }
-        return qrRaw; // genuinely already safe (percent-encoded or base64)
+        return qrRaw;
       }
       return 'data:image/svg+xml;utf-8,' + encodeURIComponent(qrRaw);
     }
@@ -371,12 +451,6 @@
         </div>`;
     }
 
-    // Prompts for a code from an already-verified factor and resolves
-    // true/false — used before removing a factor, since Supabase requires
-    // AAL2 to do that. Deliberately separate from requireMfaVerified(),
-    // which closes the whole overlay on success (right for "gate before
-    // navigating away", wrong here where the goal is to stay put and
-    // continue the removal).
     function verifyFactorInline(factorId) {
       return new Promise((resolve) => {
         const body = document.getElementById('mfa-modal-body');
@@ -434,13 +508,6 @@
         btn.addEventListener('click', async () => {
           if (!confirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
 
-          // Supabase requires the session to already be AAL2 (a completed
-          // 2FA challenge this session) before it'll let you remove a
-          // verified factor — a safeguard so removal can't happen without
-          // proving you still have access to it. If this session hasn't
-          // done that yet (e.g. you came straight from Dashboard/Log/
-          // Budget, where MFA isn't required to just use the page),
-          // prompt for the code inline before actually removing anything.
           const factorId = btn.dataset.id;
           const { currentLevel } = await getMfaLevel();
           if (currentLevel !== 'aal2') {
@@ -460,25 +527,12 @@
       const body = document.getElementById('mfa-modal-body');
       body.innerHTML = `<p class="mfa-modal-sub">Loading enrollment…</p>`;
 
-      // Every open used to call enroll() fresh, which hands back a brand
-      // new secret/QR each time — so closing before verifying and
-      // reopening orphaned whatever was already scanned into an
-      // authenticator app (the old code no longer matched anything).
-      // Clean up any unverified attempt left over from a previous
-      // open/close first, so each open is a single, clean, working
-      // attempt no matter how many times it's been opened before.
       const { data: existingFactors } = await supabaseClient.auth.mfa.listFactors();
       const danglingFactors = (existingFactors?.totp || []).filter(f => f.status === 'unverified');
       for (const f of danglingFactors) {
         await supabaseClient.auth.mfa.unenroll({ factorId: f.id });
       }
 
-      // friendlyName must be unique per user — Supabase defaults it to an
-      // empty string when omitted, and rejects a second enroll() with
-      // "already exists" once anything (even a since-removed factor) has
-      // used that same empty default. Generating a fresh one each time
-      // sidesteps that entirely, regardless of whether the cleanup above
-      // fully succeeded.
       const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp', issuer: 'Arko Finance', friendlyName: 'totp-' + Date.now() });
       if (error) {
         body.innerHTML = `<p class="mfa-modal-sub">Could not start enrollment: ${error.message}</p>`;
@@ -619,10 +673,82 @@
       }
     });
 
+    // ================= FEEDBACK =================
+    function renderFeedbackForm() {
+      const body = document.getElementById('feedback-modal-body');
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Goes straight to the team — bugs, ideas, anything.</p>
+        <div class="mfa-field">
+          <label for="feedback-name">Name (optional)</label>
+          <input type="text" id="feedback-name" placeholder="Your name" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
+        </div>
+        <div class="mfa-field" style="margin-top:12px;">
+          <label for="feedback-type">Type</label>
+          <select id="feedback-type">
+            <option value="bug">Bug report</option>
+            <option value="improvement">Improvement idea</option>
+            <option value="question">Question</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="mfa-field" style="margin-top:12px;">
+          <label for="feedback-message">What's on your mind?</label>
+          <textarea id="feedback-message" rows="5" placeholder="Tell us what happened, or what you'd like to see…" style="width:100%; padding:12px 14px; border-radius:8px; border:1px solid var(--panel-border); background:#0F151C; color:var(--tan); font-size:0.85rem; font-family:'Public Sans',sans-serif; resize:vertical;"></textarea>
+        </div>
+        <button type="button" class="mfa-verify-btn" id="feedback-send-btn" style="margin-top:14px;">Send feedback</button>
+        <p class="mfa-modal-sub" id="feedback-error" style="color:var(--error); display:none; margin-top:8px;"></p>
+      `;
+
+      document.getElementById('feedback-send-btn').addEventListener('click', async () => {
+        const name = document.getElementById('feedback-name').value.trim();
+        const type = document.getElementById('feedback-type').value;
+        const message = document.getElementById('feedback-message').value.trim();
+        const errorEl = document.getElementById('feedback-error');
+        errorEl.style.display = 'none';
+
+        if (!message) {
+          errorEl.textContent = 'Add a message before sending.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        const btn = document.getElementById('feedback-send-btn');
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+
+        try {
+          const res = await fetch('/api/send-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, type, message, userEmail: currentUserEmail }),
+          });
+          if (!res.ok) throw new Error('Could not send feedback right now — try again in a bit.');
+
+          document.getElementById('feedback-modal-body').innerHTML = `<p class="mfa-modal-sub">Thanks — that's on its way to the team.</p>`;
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Send feedback';
+        }
+      });
+    }
+
+    function setupFeedback() {
+      document.getElementById('send-feedback-btn').addEventListener('click', () => {
+        gearDropdown.classList.remove('open');
+        document.getElementById('feedback-overlay').classList.add('open');
+        renderFeedbackForm();
+      });
+      document.getElementById('feedback-close').addEventListener('click', () => {
+        document.getElementById('feedback-overlay').classList.remove('open');
+      });
+      document.getElementById('feedback-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'feedback-overlay') document.getElementById('feedback-overlay').classList.remove('open');
+      });
+    }
+
     // ================= PREMIUM FEATURE MENU =================
-    // Data-driven so future premium tools are a one-line addition. Each tool
-    // needs: id, label, desc, href, an iconClass for its own visual identity,
-    // and an icon (raw inline SVG markup).
     const PREMIUM_TOOLS = [
       {
         id: 'connections',
@@ -701,14 +827,11 @@
       inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (btn.disabled) return;
-          // Budget Planner and Connections are paid features, not covered
-          // by the free trial — unpaid goes straight to Stripe checkout,
-          // not the trial-expiry paywall page.
           if (!isPaidUser) { await startCheckoutSilent(); return; }
           if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);
-            if (!verified) return; // cancelled — stay put, don't navigate
+            if (!verified) return;
             window.location.href = btn.dataset.href;
             return;
           }
@@ -722,10 +845,6 @@
       }
     }
 
-    // Straight to Stripe without touching the clicked element's content —
-    // unlike the "Unlock full access" CTA (a plain text button), the menu
-    // items have icons/labels inside them that startCheckout()'s
-    // textContent swap would wipe out.
     async function startCheckoutSilent() {
       try {
         const res = await fetch('/api/create-checkout-session', {
@@ -745,7 +864,6 @@
       }
     }
 
-    // Goes straight to Stripe checkout — no stop at paywall.html first.
     async function startCheckout(btn) {
       const originalText = btn.textContent;
       btn.disabled = true;
@@ -805,8 +923,6 @@
 
 
     // ================= IDLE SESSION TIMEOUT =================
-    // 10 minutes of no activity triggers a 60-second countdown warning
-    // before automatically signing out.
     const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
     const IDLE_WARNING_MS = 60 * 1000;
     let idleTimer = null;
@@ -842,12 +958,6 @@
       resetIdleTimer();
     }
 
-    // Escape closes whichever overlay is currently open. The real MFA
-    // overlay uses its own guarded close (which already refuses to
-    // dismiss a required/gated step) — every other overlay on this page
-    // is always freely dismissable. idle-overlay is deliberately
-    // excluded: it's a security prompt, not something Escape should
-    // wave away without an actual choice.
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       const mfaOverlay = document.getElementById('mfa-overlay');

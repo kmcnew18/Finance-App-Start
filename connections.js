@@ -611,11 +611,61 @@ async function finishNewConnection(publicToken, institutionName) {
       body: JSON.stringify({ userId: currentUserId, publicToken, institutionName })
     });
     if (!exRes.ok) throw new Error('Could not finish linking this account (' + exRes.status + ')');
+    const result = await exRes.json().catch(() => ({}));
     closeConnectModal();
+
+    if (result.historicalImport && result.historicalImport.count > 0) {
+      showHistoricalImportConsent(result.linkedAccountIds || [], result.historicalImport, institutionName);
+    }
   } catch (err) {
     console.error(err);
     alert(err.message || 'Something went wrong finishing this connection.');
   }
+}
+
+// Right after a new connection, we pull in a bounded window of past
+// transactions (this month + last month) purely so Spendings has real
+// history to show instead of starting completely blank — but that's a
+// meaningful decision to make on someone's behalf, so it's surfaced
+// explicitly here rather than done silently. This never affects
+// Dashboard either way — Dashboard only ever suggests genuinely new
+// activity from the moment of connecting forward, regardless of this
+// choice.
+function showHistoricalImportConsent(linkedAccountIds, historicalImport, institutionName) {
+  const overlay = document.getElementById('historical-import-overlay');
+  const body = document.getElementById('historical-import-body');
+  const windowLabel = historicalImport.windowStart
+    ? new Date(historicalImport.windowStart + 'T00:00:00').toLocaleDateString('en-US', { month: 'long' }) + ' onward'
+    : 'recent history';
+
+  body.innerHTML = `
+    <p class="mfa-modal-sub">
+      We pulled in ${historicalImport.count} transaction${historicalImport.count === 1 ? '' : 's'} from ${(institutionName || 'this account').replace(/</g,'&lt;')}
+      (${windowLabel}) so your Spendings page has real history to show right away.
+      This only affects Spendings — your Dashboard only ever shows brand-new activity from today forward, either way.
+    </p>
+    <p class="mfa-modal-sub">Keep this history, or start Spendings fresh from today?</p>
+    <button type="button" class="mfa-verify-btn" id="historical-import-keep-btn">Keep it</button>
+    <button type="button" class="category-text-link" id="historical-import-remove-btn" style="width:100%; margin-top:8px;">Start fresh instead</button>
+  `;
+  overlay.classList.add('open');
+
+  document.getElementById('historical-import-keep-btn').addEventListener('click', () => {
+    overlay.classList.remove('open');
+  });
+  document.getElementById('historical-import-remove-btn').addEventListener('click', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (linkedAccountIds.length) {
+      await supabaseClient
+        .from('transactions')
+        .delete()
+        .eq('user_id', currentUserId)
+        .in('linked_account_id', linkedAccountIds)
+        .lt('txn_date', today);
+    }
+    logAuditEvent('historical_import_removed', { institution_name: institutionName, count: historicalImport.count });
+    overlay.classList.remove('open');
+  });
 }
 
 async function finishReconnect(itemId) {

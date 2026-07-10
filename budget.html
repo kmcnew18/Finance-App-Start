@@ -74,6 +74,8 @@
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
             <div class="dropdown-divider"></div>
+            <button type="button" id="send-feedback-btn" class="dropdown-item">Send feedback</button>
+            <div class="dropdown-divider"></div>
             <button type="button" id="clear-archives-btn" class="dropdown-item danger">Clear budget archives</button>
           </div>
         </div>
@@ -319,6 +321,17 @@
     </div>
   </div>
 
+  <!-- ================= FEEDBACK ================= -->
+  <div class="mfa-overlay" id="feedback-overlay">
+    <div class="mfa-modal" style="max-width: 420px;">
+      <div class="mfa-modal-head">
+        <h2>Send feedback</h2>
+        <button type="button" class="mfa-modal-close" id="feedback-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="feedback-modal-body"></div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
@@ -339,8 +352,6 @@
     ];
     const SIGN = { income: 1, bills: -1, expenses: -1, savings: -1, debt: -1 };
 
-    // Categories that get the per-line transaction log ("+ Log …" / "+ From
-    // log") widget, with a label tailored to what that category represents.
     const LOG_LABELS = {
       income: 'income',
       bills: 'payment',
@@ -349,11 +360,6 @@
       debt: 'payment',
     };
 
-    // Each line's logged history shows only its most recent 5 entries by
-    // default — capped and predictable — with a "+ Show N more" toggle to
-    // expand. Keeps category panels from growing tall just because one line
-    // has a long history, so getting to the next category never means
-    // scrolling past someone's entire transaction log.
     const VISIBLE_LOG_ENTRIES = 3;
     const expandedLogLines = new Set();
 
@@ -396,12 +402,11 @@
       return out;
     }
 
-    // ================= STATE =================
-    let periods = [];       // all periods for this user, newest first
-    let current = null;     // currently loaded period row
-    let unlocked = false;   // manual unlock for a finalized period
+    let periods = [];
+    let current = null;
+    let unlocked = false;
     let saveTimer = null;
-    let updateScrollSpy = () => {}; // assigned once the rail listeners are set up
+    let updateScrollSpy = () => {};
 
     async function loadBillingAndGate() {
       const { data: { session } } = await supabaseClient.auth.getSession();
@@ -412,9 +417,6 @@
       const { data: billing } = await supabaseClient
         .from('user_billing').select('is_paid').eq('user_id', currentUserId).maybeSingle();
 
-      // Budget Planner is a paid feature, not part of the free trial —
-      // being unpaid sends straight to Stripe checkout, not the
-      // trial-expiry paywall page (that page is for Dashboard/Log only).
       if (!billing || !billing.is_paid) {
         await redirectToCheckout(currentUserId, currentUserEmail);
         return false;
@@ -422,8 +424,6 @@
       return true;
     }
 
-    // Straight to Stripe — no stop at paywall.html, since that page is
-    // specifically for "your trial ended," and this isn't that.
     async function redirectToCheckout(userId, email) {
       try {
         const res = await fetch('/api/create-checkout-session', {
@@ -435,11 +435,11 @@
         if (data.url) {
           window.location.href = data.url;
         } else {
-          window.location.href = 'paywall.html'; // fallback if checkout couldn't start
+          window.location.href = 'paywall.html';
         }
       } catch (err) {
         console.error(err);
-        window.location.href = 'paywall.html'; // fallback
+        window.location.href = 'paywall.html';
       }
     }
 
@@ -491,13 +491,13 @@
       renderAll();
       setupStaticListeners();
       setupIdleTimeout();
+      setupFeedback();
 
       if (new URLSearchParams(window.location.search).get('history') === '1') {
         document.getElementById('history-button').click();
       }
     }
 
-    // ================= RENDER =================
     function isLocked() { return current.status === 'finalized' && !unlocked; }
 
     function computeTotals() {
@@ -514,9 +514,6 @@
       return { totals, leftBudget, leftActual };
     }
 
-    // ---- rollover chain: each period's Rollover = the prior period's own
-    // (rollover-inclusive) Left. Computed on the fly from `periods`, so
-    // there's no new column and nothing extra to save or keep in sync. ----
     function computeRolloverChain() {
       const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
       const map = {};
@@ -537,7 +534,6 @@
     }
 
     function renderAll() {
-      // title + dates
       const isCalendarMonth = current.start_date === firstOfMonthISO(current.start_date) && current.end_date === lastOfMonthISO(current.start_date);
       document.getElementById('period-title').textContent = isCalendarMonth
         ? new Date(current.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -578,7 +574,7 @@
 
       const noun = LOG_LABELS[cat];
       const entries = line.entries || [];
-      const allEntriesDesc = entries.slice().sort((a,b) => (b.date || '').localeCompare(a.date || '')); // newest first
+      const allEntriesDesc = entries.slice().sort((a,b) => (b.date || '').localeCompare(a.date || ''));
       const isExpanded = expandedLogLines.has(line.id);
       const visibleEntries = isExpanded ? allEntriesDesc : allEntriesDesc.slice(0, VISIBLE_LOG_ENTRIES);
       const hiddenCount = allEntriesDesc.length - visibleEntries.length;
@@ -640,9 +636,6 @@
               line.name = input.value;
             } else if (field === 'done') {
               line.done = input.checked;
-              // Bills/Debt: checking Paid auto-fills Actual with Budget.
-              // Update the sibling Actual input directly — no re-render, so
-              // nothing else on the row loses focus or state.
               if (c_hasAutoFill(cat) && line.done) {
                 line.actual = Number(line.budget) || 0;
                 const actualInput = rowEl.querySelector('input[data-field="actual"]');
@@ -650,10 +643,6 @@
               }
             } else {
               line[field] = parseFloat(input.value) || 0;
-              // Bills/Debt: manually typing an Actual amount auto-checks Paid.
-              // Flip the checkbox directly instead of re-rendering the row —
-              // re-rendering here was what destroyed focus on this exact
-              // input after the first keystroke, blocking further typing.
               if (field === 'actual' && c_shouldMarkPaid(cat, line) && !line.done) {
                 line.done = true;
                 const doneInput = rowEl.querySelector('input[data-field="done"]');
@@ -816,11 +805,10 @@
       renderCharts();
     }
 
-    // ================= CHARTS =================
     let breakdownChart = null;
     let budgetVsActualChart = null;
     let trendChart = null;
-    let breakdownChartMode = 'actual'; // 'actual' | 'budget' — toggled by the chart-box's own pill switch
+    let breakdownChartMode = 'actual';
 
     const CHART_COLORS = {
       income: '#5C8A6B',
@@ -838,7 +826,7 @@
     function chartFont() { return { family: "'Public Sans', sans-serif", size: 11 }; }
 
     function renderCharts() {
-      if (typeof Chart === 'undefined') return; // CDN blocked/not yet loaded — fail quietly, rest of the app still works
+      if (typeof Chart === 'undefined') return;
       const { totals } = computeTotals();
       renderBreakdownChart(totals);
       renderBudgetVsActualChart(totals);
@@ -850,16 +838,12 @@
       const emptyNote = document.getElementById('chart-breakdown-empty');
       if (!canvas) return;
 
-      const field = breakdownChartMode; // 'actual' or 'budget'
+      const field = breakdownChartMode;
       const keys = ['bills', 'expenses', 'savings', 'debt'];
       const labels = ['Bills', 'Expenses', 'Savings', 'Debt'];
       const colors = keys.map(k => CHART_COLORS[k]);
       const data = keys.map(k => Math.max(0, totals[k][field]));
 
-      // If income exceeds what's gone out (or been budgeted) so far, show
-      // the remainder as a translucent slice — same size scale as
-      // everything else, so you can visually see how much is still
-      // uncommitted, next to where the rest went/is planned to go.
       const outflow = data.reduce((s, v) => s + v, 0);
       const incomeField = Math.max(0, totals.income[field]);
       const leftover = round2(incomeField - outflow);
@@ -1008,7 +992,6 @@
       if (error) console.error('Save error:', error);
     }
 
-    // ================= TWO-FACTOR AUTHENTICATION =================
     function logAuditEvent(eventType, detail) {
       supabaseClient.from('audit_log').insert({ user_id: currentUserId, event_type: eventType, detail: detail || {} })
         .then(({ error }) => { if (error) console.error('Audit log write failed:', error); });
@@ -1049,11 +1032,6 @@
       overlay.classList.add('open');
       overlay.classList.toggle('mfa-gated', mfaGateActive);
     }
-    // Dismisses the overlay without completing verification. Always
-    // available via the Cancel button, even during a required gate —
-    // there's no reason to trap someone in a broken or unwanted flow.
-    // Backdrop-click and the × button still respect the gate, so an
-    // accidental click elsewhere can't dismiss a required step.
     function cancelMfaOverlay() {
       mfaGateActive = false;
       document.getElementById('mfa-overlay').classList.remove('open', 'mfa-gated');
@@ -1068,19 +1046,13 @@
 
     function mfaQrDataUri(qrRaw) {
       if (!qrRaw) return '';
-      // Handle either shape Supabase might hand back, and don't just trust
-      // a "data:" prefix blindly — some versions return a data: URI whose
-      // payload is still raw, unescaped SVG markup (literal quotes and
-      // angle brackets), which corrupts the surrounding HTML exactly like
-      // unencoded raw SVG does. Check the actual payload, not just the
-      // prefix, and re-encode it if it isn't actually safe.
       if (qrRaw.startsWith('data:')) {
         const commaIndex = qrRaw.indexOf(',');
         const payload = commaIndex >= 0 ? qrRaw.slice(commaIndex + 1) : '';
         if (payload.includes('<') || payload.includes('"')) {
           return 'data:image/svg+xml;utf-8,' + encodeURIComponent(payload);
         }
-        return qrRaw; // genuinely already safe (percent-encoded or base64)
+        return qrRaw;
       }
       return 'data:image/svg+xml;utf-8,' + encodeURIComponent(qrRaw);
     }
@@ -1102,12 +1074,6 @@
         </div>`;
     }
 
-    // Prompts for a code from an already-verified factor and resolves
-    // true/false — used before removing a factor, since Supabase requires
-    // AAL2 to do that. Deliberately separate from requireMfaVerified(),
-    // which closes the whole overlay on success (right for "gate before
-    // navigating away", wrong here where the goal is to stay put and
-    // continue the removal).
     function verifyFactorInline(factorId) {
       return new Promise((resolve) => {
         const body = document.getElementById('mfa-modal-body');
@@ -1165,13 +1131,6 @@
         btn.addEventListener('click', async () => {
           if (!confirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
 
-          // Supabase requires the session to already be AAL2 (a completed
-          // 2FA challenge this session) before it'll let you remove a
-          // verified factor — a safeguard so removal can't happen without
-          // proving you still have access to it. If this session hasn't
-          // done that yet (e.g. you came straight from Dashboard/Log/
-          // Budget, where MFA isn't required to just use the page),
-          // prompt for the code inline before actually removing anything.
           const factorId = btn.dataset.id;
           const { currentLevel } = await getMfaLevel();
           if (currentLevel !== 'aal2') {
@@ -1191,25 +1150,12 @@
       const body = document.getElementById('mfa-modal-body');
       body.innerHTML = `<p class="mfa-modal-sub">Loading enrollment…</p>`;
 
-      // Every open used to call enroll() fresh, which hands back a brand
-      // new secret/QR each time — so closing before verifying and
-      // reopening orphaned whatever was already scanned into an
-      // authenticator app (the old code no longer matched anything).
-      // Clean up any unverified attempt left over from a previous
-      // open/close first, so each open is a single, clean, working
-      // attempt no matter how many times it's been opened before.
       const { data: existingFactors } = await supabaseClient.auth.mfa.listFactors();
       const danglingFactors = (existingFactors?.totp || []).filter(f => f.status === 'unverified');
       for (const f of danglingFactors) {
         await supabaseClient.auth.mfa.unenroll({ factorId: f.id });
       }
 
-      // friendlyName must be unique per user — Supabase defaults it to an
-      // empty string when omitted, and rejects a second enroll() with
-      // "already exists" once anything (even a since-removed factor) has
-      // used that same empty default. Generating a fresh one each time
-      // sidesteps that entirely, regardless of whether the cleanup above
-      // fully succeeded.
       const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp', issuer: 'Arko Finance', friendlyName: 'totp-' + Date.now() });
       if (error) {
         body.innerHTML = `<p class="mfa-modal-sub">Could not start enrollment: ${error.message}</p>`;
@@ -1290,8 +1236,6 @@
       });
     }
 
-    // ================= STATIC LISTENERS =================
-    // ================= SETTINGS GEAR =================
     function setupSettingsGear() {
       const gearBtn = document.getElementById('settings-gear');
       const gearDropdown = document.getElementById('settings-dropdown');
@@ -1329,7 +1273,6 @@
       });
     }
 
-    // ================= CLEAR ARCHIVES (select + delete) =================
     function renderArchivesList() {
       const list = document.getElementById('archives-list');
       const deleteBtn = document.getElementById('archives-delete-selected');
@@ -1425,11 +1368,6 @@
       });
     }
 
-    // ================= PREMIUM FEATURE MENU =================
-    // Same tool list as the dashboard/log pages. Archive stays out of this
-    // menu on purpose — on the Budget Planner it already lives one click
-    // away in the header's "Archive" button, so listing it again here would
-    // just be the same action under two names.
     const PREMIUM_TOOLS = [
       {
         id: 'connections',
@@ -1468,7 +1406,7 @@
     function renderLedgerMenu() {
       const inner = document.getElementById('ledger-dropdown-inner');
       const lockBadge = document.getElementById('ledger-lock-badge');
-      lockBadge.style.display = 'none'; // reaching this page already proves paid access
+      lockBadge.style.display = 'none';
 
       const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
         const isCurrent = tool.href === 'budget.html';
@@ -1497,7 +1435,7 @@
           if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);
-            if (!verified) return; // cancelled — stay put, don't navigate
+            if (!verified) return;
             window.location.href = btn.dataset.href;
             return;
           }
@@ -1538,12 +1476,6 @@
       dd.addEventListener('click', (e) => e.stopPropagation());
     }
 
-    // ================= "+ FROM LOG" (log mirror) =================
-    // Renders finance_log using the exact same table structure and CSS
-    // classes as the dashboard's log.html, so it looks like that page
-    // itself appeared inside the planner. Checkboxes are real selection
-    // here (not decorative) — pick as many as you want, then add them all
-    // at once to whichever line (Income, Bills, or Expenses) opened it.
     let logMirrorTargetCat = null;
     let logMirrorTargetLineId = null;
     let logMirrorRows = [];
@@ -1557,11 +1489,6 @@
       return d.split('-')[2] === '01';
     }
 
-    // Every finance_log column that can carry a portion of a deposit. Used
-    // to build the picker options. "Savings" and "Expenses" also double as
-    // the exact-match column for their matching Budget Planner category —
-    // everything else has no direct category equivalent, so it only shows
-    // up as a pickable option, never as a silent default.
     const LOG_SPLIT_COLUMNS = [
       { key: 'savings', label: 'Savings', col: 'savings' },
       { key: 'investment', label: 'Investment', col: 'investment' },
@@ -1570,21 +1497,12 @@
     ];
     const SPLIT_COLUMN_BY_CAT = { savings: 'savings', expenses: 'expenses' };
 
-    // A single "deposit" (add) entry can carry money into several columns
-    // at once (e.g. $50 to Savings AND $30 to Expenses in the same
-    // transaction). This finds which columns actually have money on this
-    // row, so the picker only appears when there's genuine ambiguity to
-    // resolve — never for Income, which has no per-column split anyway.
     function logMirrorSplitOptions(row) {
       return LOG_SPLIT_COLUMNS
         .map(c => ({ key: c.key, label: c.label, amount: round2(Math.abs(Number(row[c.col]) || 0)) }))
         .filter(s => s.amount > 0);
     }
 
-    // Sums whichever columns were checked in the picker for this row. If no
-    // picker was ever shown for it (unambiguous row, or an Income target),
-    // falls back to the matching category column, then the row's total —
-    // always positive, since a transfer's "from" side is stored negative.
     function logMirrorRowAmount(row, cat) {
       const chosen = logMirrorSplitChoice[row.id];
       if (chosen && chosen.size > 0) {
@@ -1600,8 +1518,6 @@
       return round2(Math.abs(Number(row.amount) || 0));
     }
 
-    // rowId -> Set of chosen split-column keys, for ambiguous deposit rows.
-    // Reset each time the picker opens.
     let logMirrorSplitChoice = {};
 
     function updateLogMirrorActions() {
@@ -1654,12 +1570,6 @@
           <td class="notes-cell">${r.notes ? r.notes.replace(/</g, '&lt;') : ''}</td>
         </tr>`;
 
-        // Deposits can fund more than one category at once. When that's
-        // genuinely ambiguous for this row, add a small inline picker
-        // (hidden until the row is selected) instead of forcing a single
-        // guessed column — keeps everything else a plain one-click add.
-        // Income has no per-column split at all, so it always skips this
-        // and just uses the deposit's full amount, one click, no picker.
         const splits = (r.action_type === 'add' && logMirrorTargetCat !== 'income') ? logMirrorSplitOptions(r) : [];
         if (splits.length > 1) {
           const exactMatch = splits.find(s => s.key === logMirrorTargetCat);
@@ -1690,8 +1600,6 @@
         return mainRow;
       }).join('');
 
-      // Clicking anywhere on a row toggles its checkbox — the checkbox's
-      // own label already stops propagation above so it doesn't double-toggle.
       tbody.querySelectorAll('.logmirror-row').forEach(rowEl => {
         rowEl.addEventListener('click', () => {
           const cb = rowEl.querySelector('.logmirror-select');
@@ -1799,6 +1707,81 @@
       document.getElementById('logmirror-add-selected').addEventListener('click', addSelectedLogRowsToTargetLine);
     }
 
+    // ================= FEEDBACK =================
+    function renderFeedbackForm() {
+      const body = document.getElementById('feedback-modal-body');
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Goes straight to the team — bugs, ideas, anything.</p>
+        <div class="mfa-field">
+          <label for="feedback-name">Name (optional)</label>
+          <input type="text" id="feedback-name" placeholder="Your name" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
+        </div>
+        <div class="mfa-field" style="margin-top:12px;">
+          <label for="feedback-type">Type</label>
+          <select id="feedback-type">
+            <option value="bug">Bug report</option>
+            <option value="improvement">Improvement idea</option>
+            <option value="question">Question</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="mfa-field" style="margin-top:12px;">
+          <label for="feedback-message">What's on your mind?</label>
+          <textarea id="feedback-message" rows="5" placeholder="Tell us what happened, or what you'd like to see…" style="width:100%; padding:12px 14px; border-radius:8px; border:1px solid var(--panel-border); background:#171208; color:var(--tan); font-size:0.85rem; font-family:'Public Sans',sans-serif; resize:vertical;"></textarea>
+        </div>
+        <button type="button" class="mfa-verify-btn" id="feedback-send-btn" style="margin-top:14px;">Send feedback</button>
+        <p class="mfa-modal-sub" id="feedback-error" style="color:var(--error); display:none; margin-top:8px;"></p>
+      `;
+
+      document.getElementById('feedback-send-btn').addEventListener('click', async () => {
+        const name = document.getElementById('feedback-name').value.trim();
+        const type = document.getElementById('feedback-type').value;
+        const message = document.getElementById('feedback-message').value.trim();
+        const errorEl = document.getElementById('feedback-error');
+        errorEl.style.display = 'none';
+
+        if (!message) {
+          errorEl.textContent = 'Add a message before sending.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        const btn = document.getElementById('feedback-send-btn');
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+
+        try {
+          const res = await fetch('/api/send-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, type, message, userEmail: currentUserEmail }),
+          });
+          if (!res.ok) throw new Error('Could not send feedback right now — try again in a bit.');
+
+          document.getElementById('feedback-modal-body').innerHTML = `<p class="mfa-modal-sub">Thanks — that's on its way to the team.</p>`;
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Send feedback';
+        }
+      });
+    }
+
+    function setupFeedback() {
+      document.getElementById('send-feedback-btn').addEventListener('click', () => {
+        document.getElementById('settings-dropdown').classList.remove('open');
+        document.getElementById('feedback-overlay').classList.add('open');
+        renderFeedbackForm();
+      });
+      document.getElementById('feedback-close').addEventListener('click', () => {
+        document.getElementById('feedback-overlay').classList.remove('open');
+      });
+      document.getElementById('feedback-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'feedback-overlay') document.getElementById('feedback-overlay').classList.remove('open');
+      });
+    }
+
     function setupStaticListeners() {
       document.getElementById('logout-button').addEventListener('click', async () => {
         await supabaseClient.auth.signOut();
@@ -1822,18 +1805,9 @@
         queueSave();
       });
 
-      // Scroll-spy: find whichever panel's vertical span actually contains
-      // the "active zone" line near the top of the viewport, rather than
-      // just picking the last panel whose top has crossed it. That
-      // last-crossed approach silently skips short panels: if Savings (few
-      // lines) is short enough that Debt's top crosses the same line only
-      // moments later, Debt — being the later index — always wins and
-      // Savings never lights up. Checking each panel's full top→bottom span
-      // gives every category its own genuine highlighted window, no matter
-      // how short its content is.
       const railTabs = Array.from(document.querySelectorAll('.rail-tab'));
       const railPanels = CATS.map(c => document.getElementById('panel-' + c.key));
-      const ACTIVE_ZONE = 150; // px from top of viewport
+      const ACTIVE_ZONE = 150;
 
       function updateRailActive() {
         let activeIndex = 0;
@@ -1843,11 +1817,9 @@
           const rect = panel.getBoundingClientRect();
           if (rect.top <= ACTIVE_ZONE) {
             activeIndex = i;
-            if (rect.bottom > ACTIVE_ZONE) break; // the zone line falls inside this panel — this is the one
-            // otherwise this panel has already fully scrolled past the zone;
-            // keep looking at the next panel before settling
+            if (rect.bottom > ACTIVE_ZONE) break;
           } else {
-            break; // this panel hasn't reached the zone yet — the previous activeIndex stands
+            break;
           }
         }
         const atBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 2);
@@ -1924,7 +1896,6 @@
         renderAll();
       });
 
-      // ---- history overlay ----
       const overlay = document.getElementById('history-overlay');
       function openHistory() {
         renderHistoryList();
@@ -1967,10 +1938,6 @@
       }
     }
 
-
-    // ================= IDLE SESSION TIMEOUT =================
-    // 10 minutes of no activity triggers a 60-second countdown warning
-    // before automatically signing out.
     const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
     const IDLE_WARNING_MS = 60 * 1000;
     let idleTimer = null;
@@ -2006,12 +1973,6 @@
       resetIdleTimer();
     }
 
-    // Escape closes whichever overlay is currently open. The real MFA
-    // overlay uses its own guarded close (which already refuses to
-    // dismiss a required/gated step) — every other overlay on this page
-    // is always freely dismissable. idle-overlay is deliberately
-    // excluded: it's a security prompt, not something Escape should
-    // wave away without an actual choice.
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       const mfaOverlay = document.getElementById('mfa-overlay');

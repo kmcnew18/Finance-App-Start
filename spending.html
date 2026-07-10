@@ -48,6 +48,11 @@
           </button>
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
+            <div class="dropdown-divider"></div>
+            <button type="button" id="refresh-subscriptions-btn" class="dropdown-item">Refresh subscriptions</button>
+            <button type="button" id="clear-transactions-btn" class="dropdown-item">Clear transaction history</button>
+            <div class="dropdown-divider"></div>
+            <button type="button" id="send-feedback-btn" class="dropdown-item">Send feedback</button>
           </div>
         </div>
 
@@ -90,6 +95,18 @@
     </section>
 
     <section class="spend-section">
+      <div class="spend-section-head-row">
+        <h2 class="spend-section-title">Transactions</h2>
+        <div class="spend-txn-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="spend-txn-search-input" placeholder="Search merchant…" />
+        </div>
+      </div>
+      <div id="spend-txn-list" class="spend-txn-list"></div>
+      <p class="spend-empty-note" id="spend-txn-empty" style="display:none;">No transactions to show.</p>
+    </section>
+
+    <section class="spend-section">
       <h2 class="spend-section-title">Subscriptions</h2>
       <p class="spend-section-sub">Recurring charges detected from your connected accounts. Manage which ones feed your budget from the Connections page.</p>
       <div id="spend-subscriptions-list" class="spend-subscriptions-list"></div>
@@ -124,6 +141,17 @@
     </div>
   </div>
 
+  <!-- ================= FEEDBACK ================= -->
+  <div class="mfa-overlay" id="feedback-overlay">
+    <div class="mfa-modal" style="max-width: 420px;">
+      <div class="mfa-modal-head">
+        <h2>Send feedback</h2>
+        <button type="button" class="mfa-modal-close" id="feedback-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="feedback-modal-body"></div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
@@ -134,7 +162,7 @@
     let currentUserId = null;
     let currentUserEmail = null;
     let isPaidUser = false;
-    let viewMonth = new Date(); // first of the currently-viewed month
+    let viewMonth = new Date();
 
     function money(n) {
       const num = Number(n || 0);
@@ -154,12 +182,6 @@
     }
 
     function monthRange(date) {
-      // Deliberately not using toISOString() here — it converts through
-      // UTC, which can shift a local calendar date to the previous or
-      // next day depending on the viewer's timezone offset. Since
-      // txn_date is a plain calendar date with no time component, the
-      // month boundary should be built directly from local Y/M/D, with
-      // no UTC conversion involved at all.
       const pad = n => String(n).padStart(2, '0');
       const toLocalISO = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
       const start = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -176,15 +198,16 @@
 
       const { data: billing } = await supabaseClient.from('user_billing').select('is_paid').eq('user_id', currentUserId).maybeSingle();
       isPaidUser = !!(billing && billing.is_paid);
-      // Spendings is a paid feature, not part of the free trial (same as
-      // Budget Planner and Connections) — unpaid goes straight to Stripe
-      // checkout, not the trial-expiry paywall page.
       if (!isPaidUser) { await redirectToCheckout(); return; }
 
       setupLedgerMenu();
       setupMfaOverlay();
       setupIdleTimeout();
       setupMonthNav();
+      setupRefreshSubscriptions();
+      setupClearTransactions();
+      setupFeedback();
+      document.getElementById('spend-txn-search-input').addEventListener('input', renderTransactionList);
 
       await loadSpendingData();
 
@@ -201,10 +224,10 @@
         });
         const data = await res.json();
         if (data.url) { window.location.href = data.url; }
-        else { window.location.href = 'paywall.html'; } // fallback if checkout couldn't start
+        else { window.location.href = 'paywall.html'; }
       } catch (err) {
         console.error(err);
-        window.location.href = 'paywall.html'; // fallback
+        window.location.href = 'paywall.html';
       }
     }
 
@@ -219,14 +242,12 @@
       document.getElementById('spend-next-month').addEventListener('click', async () => {
         const now = new Date();
         const isAtCurrentMonth = viewMonth.getFullYear() === now.getFullYear() && viewMonth.getMonth() === now.getMonth();
-        if (isAtCurrentMonth) return; // nothing to show for a future month
+        if (isAtCurrentMonth) return;
         viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
         pickerYear = viewMonth.getFullYear();
         await loadSpendingData();
       });
 
-      // Quick-jump picker — for going back several months at once instead
-      // of clicking the arrow repeatedly.
       const picker = document.getElementById('spend-month-picker');
       document.getElementById('spend-month-label').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -284,12 +305,50 @@
 
       if (error) { console.error(error); return; }
 
-      const spends = (txns || []).filter(t => Number(t.amount) > 0);
+      // Transfers (most commonly a credit card bill payment) aren't new
+      // spending — the actual purchase was already counted, with its
+      // real category, when the card was charged. Counting the payment
+      // too would double it.
+      const spends = (txns || []).filter(t => Number(t.amount) > 0 && t.txn_type !== 'transfer');
       const total = round2(spends.reduce((s, t) => s + Number(t.amount), 0));
 
       document.getElementById('spend-total-value').textContent = money(total);
       renderCategoryBreakdown(spends, total);
+      currentSpendTxns = spends;
+      renderTransactionList();
       await loadSubscriptions();
+    }
+
+    let currentSpendTxns = [];
+
+    function renderTransactionList() {
+      const list = document.getElementById('spend-txn-list');
+      const empty = document.getElementById('spend-txn-empty');
+      const search = document.getElementById('spend-txn-search-input').value.trim().toLowerCase();
+
+      const filtered = search
+        ? currentSpendTxns.filter(t => (t.merchant_name || '').toLowerCase().includes(search))
+        : currentSpendTxns;
+
+      const sorted = [...filtered].sort((a, b) => (b.txn_date || '').localeCompare(a.txn_date || ''));
+
+      if (!sorted.length) {
+        list.innerHTML = '';
+        empty.textContent = search ? 'No transactions match your search.' : 'No transactions to show.';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      list.innerHTML = sorted.map(t => `
+        <div class="spend-txn-row">
+          <div class="spend-txn-info">
+            <span class="spend-txn-merchant">${(t.merchant_name || 'Transaction').replace(/</g,'&lt;')}</span>
+            <span class="spend-txn-meta">${new Date(t.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${prettyCategory(t.plaid_category)}</span>
+          </div>
+          <span class="spend-txn-amount">${money(t.amount)}</span>
+        </div>
+      `).join('');
     }
 
     let spendPieChart = null;
@@ -320,8 +379,6 @@
         .map(([cat, amt]) => ({ cat, amt: round2(amt), pct: total > 0 ? round2((amt / total) * 100) : 0 }))
         .sort((a, b) => b.amt - a.amt);
 
-      // The pie is the main visual here — the list below it exists for
-      // exact dollar figures the chart itself can't show at a glance.
       if (spendPieChart) spendPieChart.destroy();
       spendPieChart = new Chart(canvas, {
         type: 'doughnut',
@@ -391,7 +448,6 @@
       `).join('');
     }
 
-    // ================= TWO-FACTOR AUTHENTICATION (shared pattern) =================
     let mfaEnrollFactorId = null;
     let mfaGateActive = false;
     let mfaResolveQueue = [];
@@ -571,7 +627,132 @@
       document.addEventListener('click', () => gearDropdown.classList.remove('open'));
     }
 
-    // ================= IDLE SESSION TIMEOUT (shared pattern) =================
+    // ================= REFRESH SUBSCRIPTIONS =================
+    // Ties into the same recurring-detection sync used elsewhere — pulls
+    // fresh data from every connected account, not just whatever's
+    // already stored, so a genuinely new subscription shows up here
+    // without waiting for the next automatic webhook cycle.
+    function setupRefreshSubscriptions() {
+      document.getElementById('refresh-subscriptions-btn').addEventListener('click', async () => {
+        document.getElementById('settings-dropdown').classList.remove('open');
+        const btn = document.getElementById('refresh-subscriptions-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Refreshing…';
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/plaid-sync-recurring', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUserId })
+          });
+          if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
+          await loadSubscriptions();
+        } catch (err) {
+          console.error(err);
+          alert(err.message || 'Could not refresh subscriptions right now.');
+        } finally {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }
+      });
+    }
+
+    // ================= CLEAR TRANSACTION HISTORY =================
+    function setupClearTransactions() {
+      document.getElementById('clear-transactions-btn').addEventListener('click', async () => {
+        document.getElementById('settings-dropdown').classList.remove('open');
+        if (!confirm("Clear your transaction history? This removes everything Spendings and Dashboard have detected so far — nothing about your connected accounts or balances changes. Going forward, only new transactions from this point on will show up.")) return;
+
+        const [{ error: txnError }, { error: dashError }, { error: recurError }] = await Promise.all([
+          supabaseClient.from('transactions').delete().eq('user_id', currentUserId),
+          supabaseClient.from('pending_dashboard_reviews').delete().eq('user_id', currentUserId),
+          supabaseClient.from('pending_transaction_reviews').delete().eq('user_id', currentUserId),
+        ]);
+        if (txnError || dashError || recurError) {
+          alert('Could not fully clear your transaction history: ' + (txnError || dashError || recurError).message);
+          return;
+        }
+        logAuditEvent('transaction_history_cleared', {});
+        alert('Your transaction history has been cleared.');
+        await loadSpendingData();
+      });
+    }
+
+    // ================= FEEDBACK =================
+    function renderFeedbackForm() {
+      const body = document.getElementById('feedback-modal-body');
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Goes straight to the team — bugs, ideas, anything.</p>
+        <div class="mfa-field">
+          <label for="feedback-name">Name (optional)</label>
+          <input type="text" id="feedback-name" placeholder="Your name" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
+        </div>
+        <div class="mfa-field" style="margin-top:12px;">
+          <label for="feedback-type">Type</label>
+          <select id="feedback-type">
+            <option value="bug">Bug report</option>
+            <option value="improvement">Improvement idea</option>
+            <option value="question">Question</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="mfa-field" style="margin-top:12px;">
+          <label for="feedback-message">What's on your mind?</label>
+          <textarea id="feedback-message" rows="5" placeholder="Tell us what happened, or what you'd like to see…" style="width:100%; padding:12px 14px; border-radius:8px; border:1px solid var(--panel-border); background:#0F151C; color:var(--tan); font-size:0.85rem; font-family:'Public Sans',sans-serif; resize:vertical;"></textarea>
+        </div>
+        <button type="button" class="mfa-verify-btn" id="feedback-send-btn" style="margin-top:14px;">Send feedback</button>
+        <p class="mfa-modal-sub" id="feedback-error" style="color:var(--error); display:none; margin-top:8px;"></p>
+      `;
+
+      document.getElementById('feedback-send-btn').addEventListener('click', async () => {
+        const name = document.getElementById('feedback-name').value.trim();
+        const type = document.getElementById('feedback-type').value;
+        const message = document.getElementById('feedback-message').value.trim();
+        const errorEl = document.getElementById('feedback-error');
+        errorEl.style.display = 'none';
+
+        if (!message) {
+          errorEl.textContent = 'Add a message before sending.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        const btn = document.getElementById('feedback-send-btn');
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+
+        try {
+          const res = await fetch('/api/send-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, type, message, userEmail: currentUserEmail }),
+          });
+          if (!res.ok) throw new Error('Could not send feedback right now — try again in a bit.');
+
+          document.getElementById('feedback-modal-body').innerHTML = `<p class="mfa-modal-sub">Thanks — that's on its way to the team.</p>`;
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Send feedback';
+        }
+      });
+    }
+
+    function setupFeedback() {
+      document.getElementById('send-feedback-btn').addEventListener('click', () => {
+        document.getElementById('settings-dropdown').classList.remove('open');
+        document.getElementById('feedback-overlay').classList.add('open');
+        renderFeedbackForm();
+      });
+      document.getElementById('feedback-close').addEventListener('click', () => {
+        document.getElementById('feedback-overlay').classList.remove('open');
+      });
+      document.getElementById('feedback-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'feedback-overlay') document.getElementById('feedback-overlay').classList.remove('open');
+      });
+    }
+
     const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
     const IDLE_WARNING_MS = 60 * 1000;
     let idleTimer = null;
@@ -601,7 +782,6 @@
       resetIdleTimer();
     }
 
-    // ================= PREMIUM TOOLS MENU (shared pattern) =================
     const PREMIUM_TOOLS = [
       {
         id: 'connections',
@@ -766,12 +946,6 @@
       window.location.href = 'login.html';
     });
 
-    // Escape closes whichever overlay is currently open. The real MFA
-    // overlay uses its own guarded close (which already refuses to
-    // dismiss a required/gated step) — every other overlay on this page
-    // is always freely dismissable. idle-overlay is deliberately
-    // excluded: it's a security prompt, not something Escape should
-    // wave away without an actual choice.
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       const mfaOverlay = document.getElementById('mfa-overlay');
