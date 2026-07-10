@@ -447,10 +447,10 @@
 
     async function loadConnectionStatus() {
       try {
-        const res = await fetch('/api/plaid-connection-status', {
+        const res = await fetch('/api/plaid-item-actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUserId })
+          body: JSON.stringify({ action: 'status', userId: currentUserId })
         });
         const data = await res.json();
         connectionStatus = data.items || [];
@@ -877,10 +877,10 @@
 
     async function finishReconnect(itemId) {
       try {
-        const confirmRes = await fetch('/api/plaid-confirm-reconnect', {
+        const confirmRes = await fetch('/api/plaid-item-actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUserId, itemId })
+          body: JSON.stringify({ action: 'confirm_reconnect', userId: currentUserId, itemId })
         });
         if (!confirmRes.ok) throw new Error('Could not confirm the reconnection (' + confirmRes.status + ')');
       } catch (err) {
@@ -891,10 +891,10 @@
 
     async function finishAddNewAccounts(itemId) {
       try {
-        const addRes = await fetch('/api/plaid-add-new-accounts', {
+        const addRes = await fetch('/api/plaid-item-actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUserId, itemId })
+          body: JSON.stringify({ action: 'add_new_accounts', userId: currentUserId, itemId })
         });
         if (!addRes.ok) throw new Error('Could not add the new account (' + addRes.status + ')');
       } catch (err) {
@@ -917,7 +917,11 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: currentUserId })
         });
-        if (!res.ok) throw new Error('Could not start Plaid Link (' + res.status + ')');
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          const detail = errBody.error_code ? ` (${errBody.error_code})` : '';
+          throw new Error((errBody.error || 'Could not start Plaid Link') + detail);
+        }
         const { link_token } = await res.json();
         if (!link_token) throw new Error('No link_token returned from server');
 
@@ -1049,10 +1053,10 @@
     // sync would surface it again anyway.
     async function dismissNewAccountsPrompt(itemId) {
       try {
-        await fetch('/api/plaid-add-new-accounts', {
+        await fetch('/api/plaid-item-actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUserId, itemId, dismissOnly: true })
+          body: JSON.stringify({ action: 'add_new_accounts', userId: currentUserId, itemId, dismissOnly: true })
         });
       } catch (err) {
         console.error('Could not dismiss new-accounts prompt:', err);
