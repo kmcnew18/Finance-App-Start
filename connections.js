@@ -166,6 +166,39 @@ async function loadAccounts() {
   await loadCategories();
   await cleanUpCreditCardCategorySplits();
   renderAll();
+  renderLastSynced();
+}
+
+// Shows the most recent sync across every Plaid-connected account —
+// manual accounts don't count, since nothing auto-syncs those. Updates
+// live while the panel's open rather than freezing at whatever it said
+// on page load, so "2 minutes ago" doesn't quietly go stale.
+let lastSyncedInterval = null;
+function renderLastSynced() {
+  const label = document.getElementById('last-synced-label');
+  const plaidAccounts = accounts.filter(a => a.source === 'plaid' && a.last_synced_at);
+  clearInterval(lastSyncedInterval);
+
+  if (!plaidAccounts.length) { label.style.display = 'none'; return; }
+
+  const mostRecent = plaidAccounts.reduce((latest, a) =>
+    new Date(a.last_synced_at) > new Date(latest) ? a.last_synced_at : latest, plaidAccounts[0].last_synced_at);
+
+  const update = () => { label.textContent = `Last synced ${relativeTimeFromNow(mostRecent)}`; };
+  update();
+  label.style.display = 'inline-block';
+  lastSyncedInterval = setInterval(update, 30000);
+}
+
+function relativeTimeFromNow(isoString) {
+  const seconds = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
 }
 
 // Credit cards no longer map to a category (see openCategoryMapping) —
@@ -958,6 +991,58 @@ function setupSettingsGear() {
   document.getElementById('sync-all-btn').addEventListener('click', () => {
     gearDropdown.classList.remove('open');
     syncAllPlaidAccounts();
+  });
+
+  // Same underlying sync as Refresh subscriptions — the backend pass
+  // already pulls transactions and refreshes subscriptions together in
+  // one pass, so these are really the same action with different
+  // framing, not two separate pipelines.
+  document.getElementById('refresh-transactions-btn').addEventListener('click', async () => {
+    gearDropdown.classList.remove('open');
+    const btn = document.getElementById('refresh-transactions-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Refreshing…';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/plaid-sync-recurring', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUserId })
+      });
+      if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
+      btn.textContent = 'Up to date';
+      setTimeout(() => { btn.textContent = originalText; }, 2000);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Could not refresh transactions right now.');
+      btn.textContent = originalText;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('refresh-subscriptions-btn').addEventListener('click', async () => {
+    gearDropdown.classList.remove('open');
+    const btn = document.getElementById('refresh-subscriptions-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Refreshing…';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/plaid-sync-recurring', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUserId })
+      });
+      if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
+      btn.textContent = 'Up to date';
+      setTimeout(() => { btn.textContent = originalText; }, 2000);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Could not refresh subscriptions right now.');
+      btn.textContent = originalText;
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   document.getElementById('clear-transactions-btn').addEventListener('click', async () => {

@@ -51,6 +51,21 @@
   text-transform: uppercase;
   margin-bottom: 4px;
 }
+.last-synced-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 0.74rem;
+  color: var(--vault-text-dim, #8A9691);
+}
+.last-synced-label::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--emerald-bright, #63D9AA);
+  box-shadow: 0 0 6px var(--emerald-bright, #63D9AA);
+}
 
 /* ---------- net worth hero ---------- */
 .networth-card {

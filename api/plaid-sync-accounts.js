@@ -82,6 +82,7 @@ module.exports = async (req, res) => {
             .update({
               balance: Math.abs(a.balances.current ?? a.balances.available ?? 0),
               updated_at: new Date().toISOString(),
+              last_synced_at: new Date().toISOString(),
             })
             .eq('user_id', userId)
             .eq('plaid_account_id', a.account_id);

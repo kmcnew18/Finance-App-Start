@@ -49,9 +49,11 @@
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
             <div class="dropdown-divider"></div>
+            <button type="button" id="refresh-transactions-btn" class="dropdown-item">Refresh transactions</button>
+            <button type="button" id="clear-transactions-btn" class="dropdown-item">Clear transaction history</button>
+            <div class="dropdown-divider"></div>
             <button type="button" id="refresh-subscriptions-btn" class="dropdown-item">Refresh subscriptions</button>
             <button type="button" id="clear-subscriptions-btn" class="dropdown-item">Clear subscriptions</button>
-            <button type="button" id="clear-transactions-btn" class="dropdown-item">Clear transaction history</button>
           </div>
         </div>
 
@@ -204,6 +206,7 @@
       setupIdleTimeout();
       setupMonthNav();
       setupRefreshSubscriptions();
+      setupRefreshTransactions();
       setupClearTransactions();
       setupFeedback();
       document.getElementById('spend-txn-search-input').addEventListener('input', renderTransactionList);
@@ -351,7 +354,37 @@
     }
 
     let spendPieChart = null;
-    const PIE_COLORS = ['#E0806A', '#EFA88F', '#D89A4A', '#6E9A7D', '#7FA8C9', '#B08AC9', '#C97F9E', '#8FA6B3', '#C9B27F', '#7FC9A8'];
+    // A more deliberately-designed palette — consistent saturation/
+    // lightness balance so slices read as a cohesive set rather than
+    // whatever colors happened to be free, with jewel-tone richness
+    // instead of flatter pastels.
+    const PIE_COLORS = ['#E8896D', '#E0B65C', '#7FB88F', '#6FA3C9', '#A788C9', '#D97FA0', '#5FBFA8', '#D4A24C', '#8FA0D9', '#C97F7F'];
+
+    // Builds a soft radial gradient per slice — lighter toward the
+    // center, settling to the base color at the outer edge — for a bit
+    // of dimensional depth rather than flat fills. Falls back to the
+    // flat color if the canvas context isn't ready yet (Chart.js calls
+    // this during layout, before geometry is always available).
+    function sliceGradient(ctx, hex) {
+      const chartArea = ctx.chart.chartArea;
+      if (!chartArea) return hex;
+      const { left, right, top, bottom } = chartArea;
+      const centerX = (left + right) / 2;
+      const centerY = (top + bottom) / 2;
+      const radius = Math.min(right - left, bottom - top) / 2;
+      const gradient = ctx.chart.ctx.createRadialGradient(centerX, centerY, radius * 0.25, centerX, centerY, radius);
+      gradient.addColorStop(0, hexWithAlpha(hex, 0.85));
+      gradient.addColorStop(1, hex);
+      return gradient;
+    }
+    function hexWithAlpha(hex, alpha) {
+      const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+      // Lighten toward white rather than just adding transparency, so
+      // the gradient's inner edge reads as "brighter," not "faded out"
+      // against the dark background.
+      const lighten = (c) => Math.round(c + (255 - c) * (1 - alpha) * 0.6);
+      return `rgb(${lighten(r)}, ${lighten(g)}, ${lighten(b)})`;
+    }
 
     function renderCategoryBreakdown(spends, total) {
       const list = document.getElementById('spend-category-list');
@@ -385,9 +418,14 @@
           labels: rows.map(r => prettyCategory(r.cat)),
           datasets: [{
             data: rows.map(r => r.amt),
-            backgroundColor: rows.map((_, i) => PIE_COLORS[i % PIE_COLORS.length]),
+            backgroundColor: (context) => {
+              const hex = PIE_COLORS[context.dataIndex % PIE_COLORS.length];
+              return sliceGradient(context, hex);
+            },
             borderColor: '#12181F',
             borderWidth: 2,
+            hoverOffset: 8,
+            hoverBorderColor: '#1C242D',
           }],
         },
         options: {
@@ -665,6 +703,38 @@
         } catch (err) {
           console.error(err);
           alert(err.message || 'Could not refresh subscriptions right now.');
+          btn.textContent = originalText;
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
+
+    // Same underlying sync as Refresh subscriptions — the backend pass
+    // already pulls transactions and refreshes subscriptions together
+    // in one pass, so this is really the same action with transaction-
+    // focused framing, not a separate pipeline. Kept as its own button
+    // because from the outside they read as two different jobs.
+    function setupRefreshTransactions() {
+      document.getElementById('refresh-transactions-btn').addEventListener('click', async () => {
+        document.getElementById('settings-dropdown').classList.remove('open');
+        const btn = document.getElementById('refresh-transactions-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Refreshing…';
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/plaid-sync-recurring', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUserId })
+          });
+          if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
+          await loadSpendingData();
+          btn.textContent = 'Up to date';
+          setTimeout(() => { btn.textContent = originalText; }, 2000);
+        } catch (err) {
+          console.error(err);
+          alert(err.message || 'Could not refresh transactions right now.');
           btn.textContent = originalText;
         } finally {
           btn.disabled = false;

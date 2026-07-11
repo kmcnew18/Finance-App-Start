@@ -110,31 +110,22 @@
         <span class="overview-section-sub">Synced automatically from Connections</span>
       </div>
       <section class="overview-cards">
-        <div class="card" data-cat="savings">
-          <div class="card-move-controls">
-            <button type="button" class="card-move-btn" data-move="prev" data-cat-key="savings" aria-label="Move earlier">‹</button>
-            <button type="button" class="card-move-btn" data-move="next" data-cat-key="savings" aria-label="Move later">›</button>
-          </div>
+        <div class="card" data-cat="savings" data-cat-key="savings" draggable="true">
+          <span class="card-drag-handle" title="Drag to reorder">⠿</span>
           <span class="card-label">Savings</span>
           <span class="card-value" id="val-savings">$0.00</span>
           <span class="sync-hint" id="sync-hint-savings"></span>
           <input type="number" class="card-value-input" id="edit-savings" data-cat="savings" step="0.01" />
         </div>
-        <div class="card" data-cat="investment">
-          <div class="card-move-controls">
-            <button type="button" class="card-move-btn" data-move="prev" data-cat-key="investment" aria-label="Move earlier">‹</button>
-            <button type="button" class="card-move-btn" data-move="next" data-cat-key="investment" aria-label="Move later">›</button>
-          </div>
+        <div class="card" data-cat="investment" data-cat-key="investment" draggable="true">
+          <span class="card-drag-handle" title="Drag to reorder">⠿</span>
           <span class="card-label">Investment</span>
           <span class="card-value" id="val-investment">$0.00</span>
           <span class="sync-hint" id="sync-hint-investment"></span>
           <input type="number" class="card-value-input" id="edit-investment" data-cat="investment" step="0.01" />
         </div>
-        <div class="card" data-cat="checking">
-          <div class="card-move-controls">
-            <button type="button" class="card-move-btn" data-move="prev" data-cat-key="checking" aria-label="Move earlier">‹</button>
-            <button type="button" class="card-move-btn" data-move="next" data-cat-key="checking" aria-label="Move later">›</button>
-          </div>
+        <div class="card" data-cat="checking" data-cat-key="checking" draggable="true">
+          <span class="card-drag-handle" title="Drag to reorder">⠿</span>
           <span class="card-label">Checking</span>
           <span class="card-value" id="val-checking">$0.00</span>
           <span class="sync-hint" id="sync-hint-checking"></span>
@@ -367,7 +358,7 @@
       return new Date().toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE });
     }
 
-    function applyCardOrderAndMoveHandlers() {
+    function applyCardOrder() {
       // Total and +Add category are structural, not real categories —
       // they always stay pinned at the end regardless of how the actual
       // category cards get reordered.
@@ -377,42 +368,77 @@
       if (addCard) addCard.style.order = 9001;
 
       orderedCategories.forEach((cat, i) => {
-        // Custom cards aren't individually selectable by a stable class,
-        // so find them via their move button's data-cat-key and walk up
-        // to the card itself instead.
-        const el = cat.key
-          ? document.querySelector(`.card[data-cat="${cat.key}"]`)
-          : document.querySelector(`.card-move-btn[data-cat-key="${cat.id}"]`)?.closest('.card');
+        const el = document.querySelector(`.overview-cards [data-cat-key="${cat.key || cat.id}"]`);
         if (el) el.style.order = i;
-      });
-
-      document.querySelectorAll('.card-move-btn').forEach(btn => {
-        const catKey = btn.dataset.catKey;
-        const idx = orderedCategories.findIndex(c => (c.key || c.id) === catKey);
-        const isPrev = btn.dataset.move === 'prev';
-        if ((isPrev && idx <= 0) || (!isPrev && idx >= orderedCategories.length - 1)) {
-          btn.disabled = true;
-        }
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          moveCategory(catKey, btn.dataset.move);
-        });
       });
     }
 
-    async function moveCategory(catKey, direction) {
-      const idx = orderedCategories.findIndex(c => (c.key || c.id) === catKey);
-      if (idx === -1) return;
-      const swapIdx = direction === 'prev' ? idx - 1 : idx + 1;
-      if (swapIdx < 0 || swapIdx >= orderedCategories.length) return;
+    let dragSourceCatKey = null;
 
-      const a = orderedCategories[idx];
-      const b = orderedCategories[swapIdx];
+    // Delegated on the container (which is static and never recreated)
+    // rather than on individual cards — attaching fresh listeners to
+    // each card on every render is exactly what made the previous
+    // arrow-button version buggy: listeners piled up across renders
+    // instead of being replaced, so a single click could fire several
+    // times. Binding once here sidesteps that entirely.
+    function setupCardDragDrop() {
+      const container = document.querySelector('.overview-cards');
+      if (!container) return;
 
-      await Promise.all([
-        supabaseClient.from('budget_categories').update({ sort_order: b.sortOrder }).eq('id', a.id),
-        supabaseClient.from('budget_categories').update({ sort_order: a.sortOrder }).eq('id', b.id),
-      ]);
+      container.addEventListener('dragstart', (e) => {
+        const card = e.target.closest('.card[data-cat-key]');
+        if (!card) { e.preventDefault(); return; }
+        dragSourceCatKey = card.dataset.catKey;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      container.addEventListener('dragover', (e) => {
+        const card = e.target.closest('.card[data-cat-key]');
+        if (!card || !dragSourceCatKey) return;
+        e.preventDefault();
+        if (card.dataset.catKey !== dragSourceCatKey) card.classList.add('drag-over');
+      });
+
+      container.addEventListener('dragleave', (e) => {
+        const card = e.target.closest('.card[data-cat-key]');
+        if (card) card.classList.remove('drag-over');
+      });
+
+      container.addEventListener('drop', async (e) => {
+        const card = e.target.closest('.card[data-cat-key]');
+        container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        if (!card || !dragSourceCatKey) return;
+        e.preventDefault();
+        const targetCatKey = card.dataset.catKey;
+        if (targetCatKey === dragSourceCatKey) return;
+        await reorderCategories(dragSourceCatKey, targetCatKey);
+      });
+
+      container.addEventListener('dragend', () => {
+        container.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+        container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        dragSourceCatKey = null;
+      });
+    }
+
+    async function reorderCategories(sourceCatKey, targetCatKey) {
+      const sourceIdx = orderedCategories.findIndex(c => (c.key || c.id) === sourceCatKey);
+      const targetIdx = orderedCategories.findIndex(c => (c.key || c.id) === targetCatKey);
+      if (sourceIdx === -1 || targetIdx === -1) return;
+
+      const reordered = [...orderedCategories];
+      const [moved] = reordered.splice(sourceIdx, 1);
+      reordered.splice(targetIdx, 0, moved);
+
+      // Reassign clean sequential sort_order values and persist only
+      // the ones that actually changed — no need to write every row on
+      // every drag.
+      const updates = [];
+      reordered.forEach((cat, i) => {
+        if (cat.sortOrder !== i) updates.push(supabaseClient.from('budget_categories').update({ sort_order: i }).eq('id', cat.id));
+      });
+      await Promise.all(updates);
 
       await loadConnectedTotals();
       renderTotals();
@@ -462,12 +488,11 @@
         const accentColor = ACCENT_COLORS[cat.accent] || ACCENT_COLORS.sage;
         const card = document.createElement('div');
         card.className = 'card card-custom-category';
+        card.dataset.catKey = cat.id;
+        card.draggable = true;
         card.style.borderLeft = `3px solid ${accentColor}`;
         card.innerHTML = `
-          <div class="card-move-controls">
-            <button type="button" class="card-move-btn" data-move="prev" data-cat-key="${cat.id}" aria-label="Move earlier">‹</button>
-            <button type="button" class="card-move-btn" data-move="next" data-cat-key="${cat.id}" aria-label="Move later">›</button>
-          </div>
+          <span class="card-drag-handle" title="Drag to reorder">⠿</span>
           <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
           <span class="card-value">${money(cat.total)}</span>
           <span class="sync-hint">Synced from Connections</span>
@@ -475,7 +500,7 @@
         totalCard.parentNode.insertBefore(card, totalCard);
       });
 
-      applyCardOrderAndMoveHandlers();
+      applyCardOrder();
     }
 
     async function saveTotals() {
@@ -520,6 +545,7 @@
       setupIdleTimeout();
       setupFeedback();
       setupAddCategory();
+      setupCardDragDrop();
 
       const dateNow = todayStr();
       document.getElementById('add-date').textContent = dateNow;
