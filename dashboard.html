@@ -108,7 +108,7 @@
 
     <section class="overview-section">
       <div class="overview-section-head">
-        <span class="overview-section-title">Your money</span>
+        <span class="overview-section-title">Your Money</span>
         <span class="overview-section-sub">Synced automatically from Connections</span>
       </div>
       <section class="overview-cards">
@@ -124,12 +124,6 @@
           <span class="sync-hint" id="sync-hint-investment"></span>
           <input type="number" class="card-value-input" id="edit-investment" data-cat="investment" step="0.01" />
         </div>
-        <div class="card" data-cat="expenses">
-          <span class="card-label">Expenses</span>
-          <span class="card-value" id="val-expenses">$0.00</span>
-          <span class="sync-hint" id="sync-hint-expenses"></span>
-          <input type="number" class="card-value-input" id="edit-expenses" data-cat="expenses" step="0.01" />
-        </div>
         <div class="card" data-cat="checking">
           <span class="card-label">Checking</span>
           <span class="card-value" id="val-checking">$0.00</span>
@@ -137,16 +131,20 @@
           <input type="number" class="card-value-input" id="edit-checking" data-cat="checking" step="0.01" />
         </div>
         <div class="card card-total"><span class="card-label">Total</span><span class="card-value" id="val-total">$0.00</span></div>
+        <button type="button" class="card card-add-category" id="add-category-card">
+          <span class="add-category-plus">+</span>
+          <span class="add-category-label">Add category</span>
+        </button>
       </section>
     </section>
 
     <p class="override-hint" id="override-hint" style="display:none;">Override mode is on — click a category amount above to type in the manually-tracked portion. Any amount synced from Connections is added on top of what you enter here, not replaced by it.</p>
 
-    <details class="manual-entry-section" id="manual-entry-section">
-      <summary class="manual-entry-summary">
-        <span class="manual-entry-summary-title">Manual entry</span>
-        <span class="manual-entry-summary-sub">For anything not covered by a connected account — add, subtract, or transfer by hand</span>
-      </summary>
+    <section class="manual-entry-section" id="manual-entry-section">
+      <div class="manual-entry-head">
+        <span class="manual-entry-head-title">Manual entry</span>
+        <span class="manual-entry-head-sub">For anything not covered by a connected account</span>
+      </div>
 
       <!-- ================= ADD / DEPOSIT ================= -->
       <section class="panel panel-add">
@@ -270,7 +268,7 @@
         </div>
         <p class="panel-message" id="transfer-message"></p>
       </section>
-    </details>
+    </section>
 
   </main>
 
@@ -310,6 +308,17 @@
         <button type="button" class="mfa-modal-close" id="feedback-close">×</button>
       </div>
       <div class="mfa-modal-body" id="feedback-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ================= ADD CATEGORY ================= -->
+  <div class="mfa-overlay" id="add-category-overlay">
+    <div class="mfa-modal" style="max-width: 400px;">
+      <div class="mfa-modal-head">
+        <h2>Add a category</h2>
+        <button type="button" class="mfa-modal-close" id="add-category-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="add-category-body"></div>
     </div>
   </div>
 
@@ -360,7 +369,6 @@
 
       document.getElementById('val-savings').textContent = money(combined.savings);
       document.getElementById('val-investment').textContent = money(combined.investment);
-      document.getElementById('val-expenses').textContent = money(combined.expenses);
       document.getElementById('val-checking').textContent = money(combined.checking);
       document.getElementById('val-total').textContent = money(total);
 
@@ -445,6 +453,7 @@
       setupMfaBanner();
       setupIdleTimeout();
       setupFeedback();
+      setupAddCategory();
 
       const dateNow = todayStr();
       document.getElementById('add-date').textContent = dateNow;
@@ -1128,6 +1137,62 @@
       });
       document.getElementById('feedback-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'feedback-overlay') document.getElementById('feedback-overlay').classList.remove('open');
+      });
+    }
+
+    // ================= ADD CATEGORY =================
+    // Creates the category itself — this is the same budget_categories
+    // table Connections reads from, so it shows up there immediately
+    // ready to map an account to. A brand-new category has nothing
+    // mapped to it yet, so it won't show a real dollar amount here until
+    // that mapping happens; the confirmation message says so plainly
+    // rather than leaving that a mystery.
+    const ADD_CATEGORY_ACCENTS = ['sage', 'blue', 'coral', 'gold', 'violet', 'teal'];
+
+    function renderAddCategoryForm() {
+      const body = document.getElementById('add-category-body');
+      body.innerHTML = `
+        <p class="mfa-modal-sub">What should this category be called?</p>
+        <div class="mfa-field">
+          <label for="add-category-name">Category name</label>
+          <input type="text" id="add-category-name" placeholder="e.g. Emergency Fund" maxlength="30" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
+        </div>
+        <button type="button" class="mfa-verify-btn" id="add-category-save-btn" style="margin-top:12px;">Add category</button>
+        <p class="mfa-modal-sub" id="add-category-error" style="color:var(--error); display:none; margin-top:8px;"></p>
+      `;
+      document.getElementById('add-category-name').focus();
+
+      document.getElementById('add-category-save-btn').addEventListener('click', async () => {
+        const name = document.getElementById('add-category-name').value.trim();
+        const errorEl = document.getElementById('add-category-error');
+        errorEl.style.display = 'none';
+        if (!name) { errorEl.textContent = 'Give it a name first.'; errorEl.style.display = 'block'; return; }
+
+        const { data: existingCats } = await supabaseClient.from('budget_categories').select('id').eq('user_id', currentUserId);
+        const accent = ADD_CATEGORY_ACCENTS[(existingCats?.length || 0) % ADD_CATEGORY_ACCENTS.length];
+
+        const { error } = await supabaseClient.from('budget_categories').insert({
+          user_id: currentUserId, name, accent, is_default: false, sort_order: existingCats?.length || 0,
+        });
+        if (error) { errorEl.textContent = 'Could not add category: ' + error.message; errorEl.style.display = 'block'; return; }
+
+        logAuditEvent('category_created', { name });
+        body.innerHTML = `<p class="mfa-modal-sub">"${name.replace(/</g,'&lt;')}" is ready — head to Connections and map an account to it to start seeing money show up here.</p>`;
+        await loadConnectedTotals();
+        renderTotals();
+      });
+    }
+
+    function setupAddCategory() {
+      document.getElementById('add-category-card').addEventListener('click', () => {
+        document.getElementById('add-category-overlay').classList.add('open');
+        renderAddCategoryForm();
+      });
+      document.getElementById('add-category-close').addEventListener('click', () => {
+        document.getElementById('add-category-overlay').classList.remove('open');
+      });
+      document.getElementById('add-category-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'add-category-overlay') document.getElementById('add-category-overlay').classList.remove('open');
       });
     }
 
