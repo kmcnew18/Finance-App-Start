@@ -585,7 +585,20 @@
       refreshConnectedBalancesInBackground();
     }
 
+    // Same throttle as Connections — each background sync call costs
+    // real money in Production, so this only actually calls Plaid if
+    // the most recent sync is more than 15 minutes old, rather than on
+    // every single page visit.
+    function shouldRunBackgroundSync() {
+      const plaidAccounts = lastLoadedLinkedAccounts.filter(a => a.source === 'plaid' && a.last_synced_at);
+      if (!plaidAccounts.length) return true;
+      const mostRecent = plaidAccounts.reduce((latest, a) =>
+        new Date(a.last_synced_at) > new Date(latest) ? a.last_synced_at : latest, plaidAccounts[0].last_synced_at);
+      return (Date.now() - new Date(mostRecent).getTime()) > (15 * 60 * 1000);
+    }
+
     async function refreshConnectedBalancesInBackground() {
+      if (!shouldRunBackgroundSync()) return;
       try {
         const res = await fetch('/api/plaid-sync-accounts', {
           method: 'POST',
@@ -788,6 +801,7 @@
     let linkedLiabilities = {}; // category key/id -> [{ name, amount }] for display
 
     let orderedCategories = []; // flat, sort_order-sorted list of every real category — used by the move/shuffle controls
+    let lastLoadedLinkedAccounts = []; // used only to check how recently Plaid accounts were last synced, for the background-sync throttle
     let categorySortOrderByKey = { savings: 0, investment: 0, checking: 0 };
 
     async function loadConnectedTotals() {
@@ -799,12 +813,13 @@
       const { data: cats } = await supabaseClient.from('budget_categories').select('*').eq('user_id', currentUserId).order('sort_order', { ascending: true });
       if (!cats || !cats.length) return;
 
-      const { data: linkedAccts } = await supabaseClient.from('linked_accounts').select('id, balance, account_type, institution_name, nickname, paid_from_category_id').eq('user_id', currentUserId);
+      const { data: linkedAccts } = await supabaseClient.from('linked_accounts').select('id, balance, account_type, institution_name, nickname, paid_from_category_id, source, last_synced_at').eq('user_id', currentUserId);
+      lastLoadedLinkedAccounts = linkedAccts || [];
       if (!linkedAccts) return;
       const { data: splits } = await supabaseClient.from('account_category_splits').select('*').eq('user_id', currentUserId);
 
       const balanceById = Object.fromEntries(linkedAccts.map(a => [a.id, Number(a.balance) || 0]));
-      const DEFAULT_NAME_KEYS = { savings: 'savings', investment: 'investment', expenses: 'expenses', checking: 'checking' };
+      const DEFAULT_NAME_KEYS = { savings: 'savings', investment: 'investment', checking: 'checking' };
       const totalsByCategoryId = {}; // category_id -> running total, before matching back to key/custom
 
       (splits || []).forEach(s => {

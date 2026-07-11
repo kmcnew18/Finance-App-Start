@@ -58,8 +58,6 @@
             <button type="button" id="view-activity-btn" class="dropdown-item">Recent activity</button>
             <button type="button" id="manage-categories-btn" class="dropdown-item">Manage categories</button>
             <div class="dropdown-divider"></div>
-            <button type="button" id="sync-all-btn" class="dropdown-item">Sync all accounts</button>
-            <div class="dropdown-divider"></div>
             <button type="button" id="refresh-transactions-btn" class="dropdown-item">Refresh transactions</button>
             <button type="button" id="clear-transactions-btn" class="dropdown-item">Clear transaction history</button>
             <div class="dropdown-divider"></div>
@@ -85,7 +83,12 @@
       <div>
         <span class="vault-eyebrow">Connections</span>
         <h1>All your money, one place</h1>
-        <span class="last-synced-label" id="last-synced-label" style="display:none;"></span>
+        <span class="last-synced-row">
+          <span class="last-synced-label" id="last-synced-label" style="display:none;"></span>
+          <button type="button" id="sync-all-btn" class="sync-now-btn" title="Sync now" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+          </button>
+        </span>
       </div>
       <div class="connect-actions">
         <button type="button" id="open-connect-btn" class="btn-vault-solid">+ Connect account</button>

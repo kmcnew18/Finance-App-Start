@@ -1189,27 +1189,27 @@ input[type="number"]::-webkit-outer-spin-button {
 
 /* Paid/unlocked state — a distinct color from the locked gold, so the
    icon itself signals "you have full access" rather than just hiding
-   the lock badge and leaving the same color behind either way. Rose,
+   the lock badge and leaving the same color behind either way. Copper,
    specifically — violet and teal are now reserved for future
-   investment-portfolio and savings icons respectively, so this needed
-   its own separate identity from both of those going forward, on top
-   of not already being claimed by any page's theme (emerald/
-   Connections, brass/Budget, coral/Spendings, vintage blue/Dashboard).
-   The glow is deliberately soft — a quiet ambient presence, not a
-   spotlight. The dropdown panel itself picks up this same rose tone
-   when open, so the button and what it opens read as one thing. */
+   investment-portfolio and savings icons respectively, gold now belongs
+   to Budget Planner's own icon within this same menu, and copper isn't
+   already claimed by any page's theme (emerald/Connections, coral/
+   Spendings, vintage blue/Dashboard). The glow is deliberately soft — a
+   quiet ambient presence, not a spotlight. The dropdown panel itself
+   picks up this same copper tone when open, so the button and what it
+   opens read as one thing. */
 .btn-icon.btn-ledger.unlocked {
-  border-color: rgba(193,93,130,0.35);
-  background: rgba(193,93,130,0.06);
-  box-shadow: 0 0 14px rgba(193,93,130,0.18);
+  border-color: rgba(201,123,74,0.35);
+  background: rgba(201,123,74,0.06);
+  box-shadow: 0 0 14px rgba(201,123,74,0.18);
 }
-.btn-icon.btn-ledger.unlocked svg { stroke: #C15D82; }
+.btn-icon.btn-ledger.unlocked svg { stroke: #C97B4A; }
 .btn-icon.btn-ledger.unlocked:hover {
-  border-color: rgba(232,150,181,0.55);
-  background: rgba(193,93,130,0.1);
-  box-shadow: 0 0 20px rgba(193,93,130,0.28);
+  border-color: rgba(232,168,118,0.55);
+  background: rgba(201,123,74,0.1);
+  box-shadow: 0 0 20px rgba(201,123,74,0.28);
 }
-.btn-icon.btn-ledger.unlocked:hover svg { stroke: #E896B5; }
+.btn-icon.btn-ledger.unlocked:hover svg { stroke: #E8A876; }
 
 .btn-icon.btn-ledger .lock-badge {
   position: absolute;
@@ -1238,8 +1238,8 @@ input[type="number"]::-webkit-outer-spin-button {
   top: 46px;
   right: 0;
   width: 302px;
-  background: linear-gradient(180deg, #1F0F16, #170D11);
-  border: 1px solid #5C2A3D;
+  background: linear-gradient(180deg, #1F150E, #170F0A);
+  border: 1px solid #5C3A1F;
   border-radius: 4px 4px 14px 14px;
   z-index: 20;
   opacity: 0;
@@ -1247,7 +1247,7 @@ input[type="number"]::-webkit-outer-spin-button {
   transform-origin: top right;
   transform: scaleY(0.1) translateY(-8px);
   transition: transform 0.4s cubic-bezier(.22,.9,.24,1.2), opacity 0.22s ease, visibility 0.4s;
-  box-shadow: 0 16px 38px rgba(0,0,0,0.5), 0 0 0 1px rgba(193,93,130,0.04);
+  box-shadow: 0 16px 38px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,123,74,0.04);
   overflow: hidden;
 }
 .ledger-dropdown::before {
@@ -1255,7 +1255,7 @@ input[type="number"]::-webkit-outer-spin-button {
   position: absolute;
   top: 0; left: 22px;
   width: 22px; height: 15px;
-  background: #C15D82;
+  background: #C97B4A;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 68%, 0 100%);
 }
 .ledger-dropdown.open {
@@ -1267,7 +1267,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .ledger-heading {
   font-family: 'Fraunces', serif;
   font-size: 0.95rem;
-  color: #E896B5;
+  color: #E8A876;
   letter-spacing: 0.01em;
   margin-bottom: 4px;
   padding: 0 6px;
@@ -1297,7 +1297,7 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 10px 10px;
   border-radius: 9px;
   border: 1px solid transparent;
-  background: rgba(193,93,130,0.05);
+  background: rgba(201,123,74,0.05);
   cursor: pointer;
   opacity: 0;
   transform: translateX(-8px);
@@ -1305,15 +1305,15 @@ input[type="number"]::-webkit-outer-spin-button {
   transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 .ledger-tool-item:hover {
-  background: rgba(193,93,130,0.14);
-  border-color: rgba(193,93,130,0.38);
+  background: rgba(201,123,74,0.14);
+  border-color: rgba(201,123,74,0.38);
   transform: translateX(2px);
   box-shadow: 0 4px 14px rgba(0,0,0,0.25);
 }
 .ledger-tool-item:active { transform: translateX(2px) scale(0.99); }
 .ledger-tool-item.current {
-  background: rgba(193,93,130,0.16);
-  border-color: #5C2A3D;
+  background: rgba(201,123,74,0.16);
+  border-color: #5C3A1F;
   cursor: default;
 }
 .ledger-tool-item.current:hover { transform: none; box-shadow: none; }
@@ -1335,15 +1335,27 @@ input[type="number"]::-webkit-outer-spin-button {
   width: 36px; height: 36px;
   border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(155deg, rgba(193,93,130,0.2), rgba(193,93,130,0.05));
-  border: 1px solid rgba(193,93,130,0.28);
+  background: linear-gradient(155deg, rgba(201,123,74,0.2), rgba(201,123,74,0.05));
+  border: 1px solid rgba(201,123,74,0.28);
   transition: transform 0.3s cubic-bezier(.22,.9,.3,1.4), background 0.2s ease;
 }
 .ledger-tool-item:hover .ledger-tool-icon {
   transform: scale(1.08) rotate(-4deg);
-  background: linear-gradient(155deg, rgba(193,93,130,0.32), rgba(193,93,130,0.08));
+  background: linear-gradient(155deg, rgba(201,123,74,0.32), rgba(201,123,74,0.08));
 }
-.ledger-tool-icon svg { width: 17px; height: 17px; stroke: #E896B5; }
+.ledger-tool-icon svg { width: 17px; height: 17px; stroke: #E8A876; }
+
+/* Budget Planner gets its own actual brass/gold, matching its page
+   theme — it never had this before; it was just silently inheriting
+   whatever the generic fallback color happened to be. */
+.ledger-tool-icon.icon-ledger {
+  background: linear-gradient(155deg, rgba(201,162,39,0.24), rgba(201,162,39,0.05));
+  border-color: rgba(201,162,39,0.32);
+}
+.ledger-tool-icon.icon-ledger svg { stroke: #E7C766; }
+.ledger-tool-item:hover .ledger-tool-icon.icon-ledger {
+  background: linear-gradient(155deg, rgba(201,162,39,0.36), rgba(201,162,39,0.08));
+}
 
 /* Dashboard gets its own unique identity within the list: cool slate-blue
    instead of brass, and a soft pulse on hover instead of the shared rotate,
@@ -1405,8 +1417,8 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 0.56rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #E896B5;
-  border: 1px solid #5C2A3D;
+  color: #E8A876;
+  border: 1px solid #5C3A1F;
   padding: 1px 6px;
   border-radius: 20px;
   font-weight: 700;
@@ -1424,7 +1436,7 @@ input[type="number"]::-webkit-outer-spin-button {
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 .ledger-tool-item:hover .ledger-tool-arrow { opacity: 1; transform: translateX(0); }
-.ledger-tool-arrow svg { width: 14px; height: 14px; stroke: #E896B5; }
+.ledger-tool-arrow svg { width: 14px; height: 14px; stroke: #E8A876; }
 
 .ledger-link-item {
   display: flex; align-items: center; justify-content: space-between;
@@ -1432,7 +1444,7 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 10px 10px;
   border-radius: 6px;
   border: none;
-  background: rgba(193,93,130,0.07);
+  background: rgba(201,123,74,0.07);
   color: var(--tan);
   font-size: 0.83rem;
   font-weight: 600;
@@ -1441,7 +1453,7 @@ input[type="number"]::-webkit-outer-spin-button {
   transition: background 0.15s ease, padding-left 0.15s ease;
 }
 .ledger-link-item:last-child { margin-bottom: 0; }
-.ledger-link-item:hover { background: rgba(193,93,130,0.15); padding-left: 14px; }
+.ledger-link-item:hover { background: rgba(201,123,74,0.15); padding-left: 14px; }
 
 .ledger-lock-cta {
   margin-top: 2px;
@@ -1449,15 +1461,15 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 11px;
   border: none;
   border-radius: 7px;
-  background: #C15D82;
-  color: #170D11;
+  background: #C97B4A;
+  color: #170F0A;
   font-weight: 700;
   font-size: 0.83rem;
   cursor: pointer;
   letter-spacing: 0.02em;
   transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
-.ledger-lock-cta:hover { background: #E896B5; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(193,93,130,0.25); }
+.ledger-lock-cta:hover { background: #E8A876; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(201,123,74,0.25); }
 .ledger-lock-cta:active { transform: translateY(0); }
 
 /* Feedback — its own small, quiet section within the Premium Tools
@@ -1497,7 +1509,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .ledger-future-hint {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px dashed rgba(193,93,130,0.25);
+  border-top: 1px dashed rgba(201,123,74,0.25);
   font-size: 0.64rem;
   color: var(--silver-dim);
   text-align: center;

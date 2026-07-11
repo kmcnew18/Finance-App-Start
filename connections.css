@@ -51,11 +51,17 @@
   text-transform: uppercase;
   margin-bottom: 4px;
 }
+.last-synced-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
 .last-synced-label {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-top: 6px;
+  margin-top: 0;
   font-size: 0.74rem;
   color: var(--vault-text-dim, #8A9691);
 }
@@ -65,6 +71,24 @@
   border-radius: 50%;
   background: var(--emerald-bright, #63D9AA);
   box-shadow: 0 0 6px var(--emerald-bright, #63D9AA);
+}
+.sync-now-btn {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--emerald-dim);
+  border-radius: 6px;
+  background: rgba(63,174,133,0.08);
+  color: var(--emerald-bright, #63D9AA);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.sync-now-btn svg { width: 12px; height: 12px; stroke: currentColor; }
+.sync-now-btn:hover { background: rgba(63,174,133,0.18); transform: scale(1.08); }
+.sync-now-btn:disabled { opacity: 0.6; cursor: default; }
+.sync-now-btn.syncing svg { animation: syncSpin 0.9s linear infinite; }
+@keyframes syncSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ---------- net worth hero ---------- */

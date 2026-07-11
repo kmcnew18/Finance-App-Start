@@ -118,7 +118,25 @@ async function init() {
   await checkForOAuthReturn();
 }
 
+// How often the background balance refresh is allowed to actually call
+// Plaid. Every page load used to trigger a real API call regardless of
+// how recently one had already happened — harmless in Sandbox, but in
+// Production each of those calls has a real cost, and someone checking
+// the app several times an hour was paying for that many redundant
+// syncs. 15 minutes keeps things feeling current without syncing on
+// literally every visit.
+const BACKGROUND_SYNC_THROTTLE_MS = 15 * 60 * 1000;
+
+function shouldRunBackgroundSync() {
+  const plaidAccounts = accounts.filter(a => a.source === 'plaid' && a.last_synced_at);
+  if (!plaidAccounts.length) return true; // nothing synced yet — go ahead
+  const mostRecent = plaidAccounts.reduce((latest, a) =>
+    new Date(a.last_synced_at) > new Date(latest) ? a.last_synced_at : latest, plaidAccounts[0].last_synced_at);
+  return (Date.now() - new Date(mostRecent).getTime()) > BACKGROUND_SYNC_THROTTLE_MS;
+}
+
 async function refreshBalancesInBackground() {
+  if (!shouldRunBackgroundSync()) return;
   try {
     const res = await fetch('/api/plaid-sync-accounts', {
       method: 'POST',
@@ -176,6 +194,10 @@ async function loadAccounts() {
 let lastSyncedInterval = null;
 function renderLastSynced() {
   const label = document.getElementById('last-synced-label');
+  const syncBtn = document.getElementById('sync-all-btn');
+  const anyPlaidAccounts = accounts.some(a => a.source === 'plaid');
+  syncBtn.style.display = anyPlaidAccounts ? 'flex' : 'none';
+
   const plaidAccounts = accounts.filter(a => a.source === 'plaid' && a.last_synced_at);
   clearInterval(lastSyncedInterval);
 
@@ -937,7 +959,8 @@ async function dismissNewAccountsPrompt(itemId) {
 
 async function syncAllPlaidAccounts() {
   const syncBtn = document.getElementById('sync-all-btn');
-  syncBtn.textContent = 'Syncing…';
+  syncBtn.classList.add('syncing');
+  syncBtn.disabled = true;
   try {
     const res = await fetch('/api/plaid-sync-accounts', {
       method: 'POST',
@@ -960,13 +983,12 @@ async function syncAllPlaidAccounts() {
     } catch (recurringErr) {
       console.error('Recurring refresh failed during full sync:', recurringErr);
     }
-
-    alert('Your linked accounts are up to date.');
   } catch (err) {
     console.error(err);
     alert(err.message || 'Could not sync accounts right now.');
   } finally {
-    syncBtn.textContent = 'Sync all accounts';
+    syncBtn.classList.remove('syncing');
+    syncBtn.disabled = false;
   }
 }
 
@@ -1007,7 +1029,7 @@ function setupSettingsGear() {
       const res = await fetch('/api/plaid-sync-recurring', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUserId })
+        body: JSON.stringify({ userId: currentUserId, mode: 'transactions' })
       });
       if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
       btn.textContent = 'Up to date';
@@ -1031,7 +1053,7 @@ function setupSettingsGear() {
       const res = await fetch('/api/plaid-sync-recurring', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUserId })
+        body: JSON.stringify({ userId: currentUserId, mode: 'subscriptions' })
       });
       if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
       btn.textContent = 'Up to date';

@@ -1,14 +1,15 @@
 // /api/plaid-sync-recurring.js
 //
-// Manually runs the same pipeline the webhook runs automatically —
-// re-sync transactions, refresh recurring streams, queue reviews for
-// anything newly matched. Useful as a "Refresh" button on the Connections
-// page, and as a fallback if a webhook was ever missed (Plaid retries
-// webhooks, but nothing is 100% guaranteed on the internet).
+// Manually runs part or all of the same pipeline the webhook runs
+// automatically. Accepts a `mode` of 'transactions' or 'subscriptions'
+// to run only that half — used by the two separate "Refresh
+// transactions" / "Refresh subscriptions" buttons, so neither one
+// triggers the other. Omitting mode runs both, for anything that still
+// wants the old combined behavior.
 //
 // Requires: npm install plaid @supabase/supabase-js
 
-const { supabaseAdmin, processItemUpdate } = require('../lib/plaid-helpers');
+const { supabaseAdmin, processItemUpdate, refreshTransactionsForItem, refreshSubscriptionsForItem } = require('../lib/plaid-helpers');
 const { decryptToken } = require('../lib/crypto-helpers');
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 
@@ -29,7 +30,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { userId } = req.body || {};
+    const { userId, mode } = req.body || {};
     if (!userId) {
       res.status(400).json({ error: 'Missing userId' });
       return;
@@ -76,11 +77,19 @@ module.exports = async (req, res) => {
       }
 
       try {
-        const result = await processItemUpdate(item);
-        totalAdded += result.addedCount;
-        totalQueued += result.queuedCount;
+        if (mode === 'transactions') {
+          const result = await refreshTransactionsForItem(item);
+          totalAdded += result.addedCount;
+        } else if (mode === 'subscriptions') {
+          const result = await refreshSubscriptionsForItem(item);
+          totalQueued += result.queuedCount;
+        } else {
+          const result = await processItemUpdate(item);
+          totalAdded += result.addedCount;
+          totalQueued += result.queuedCount;
+        }
       } catch (perItemErr) {
-        console.error('Recurring sync failed for item', item.item_id, perItemErr?.response?.data || perItemErr);
+        console.error('Sync failed for item', item.item_id, mode || 'combined', perItemErr?.response?.data || perItemErr);
       }
     }
 
