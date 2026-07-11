@@ -121,7 +121,30 @@
           console.warn('Trial registration request failed:', regErr);
         }
 
-        setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
+        // Don't navigate on a blind timer — confirm the session is
+        // actually retrievable first. signInWithPassword() resolving
+        // doesn't guarantee the session has finished persisting to
+        // storage yet, and mobile browsers (particularly Safari) are
+        // markedly less forgiving about that kind of timing race on
+        // navigation than desktop — a fixed delay that happens to work
+        // reliably on desktop can still lose the race often enough on
+        // mobile to look like "login just bounces back to login."
+        // Polling getSession() a few times closes that race regardless
+        // of the exact platform-specific storage timing at play.
+        let sessionConfirmed = false;
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session) { sessionConfirmed = true; break; }
+          await new Promise(r => setTimeout(r, 150));
+        }
+
+        if (!sessionConfirmed) {
+          message.textContent = "Logged in, but your session isn't ready yet — tap Log in again in a moment.";
+          message.classList.add('auth-message-error');
+          return;
+        }
+
+        window.location.href = 'dashboard.html';
 
       } catch (err) {
         console.error('Unexpected error:', err);

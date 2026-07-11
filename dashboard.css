@@ -105,40 +105,42 @@ h1, h2, h3 {
   letter-spacing: .15px;
 }
 
-.nav-auth { display: flex; align-items: center; gap: 12px; }
-.user-email { font-size: 0.85rem; color: var(--silver-dim); }
+.nav-auth { display: flex; align-items: center; gap: 10px; }
+.user-email { font-size: 0.78rem; color: var(--silver-dim); opacity: 0.75; }
 
 .btn-logout, .btn-ghost {
-  padding: 9px 16px;
-  border: 1px solid var(--silver-dim);
-  border-radius: 8px;
+  padding: 7px 13px;
+  border: 1px solid transparent;
+  border-radius: 7px;
   background: transparent;
-  color: var(--tan);
-  font-weight: 600;
-  font-size: 0.85rem;
-  letter-spacing: 0.015em;
+  color: var(--silver-dim);
+  font-weight: 500;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.btn-logout:hover, .btn-ghost:hover { background: rgba(179,182,185,0.1); border-color: var(--silver); transform: translateY(-1px); }
-.btn-logout:active, .btn-ghost:active { transform: translateY(0); }
+.btn-logout:hover, .btn-ghost:hover { background: rgba(179,182,185,0.08); border-color: rgba(179,182,185,0.25); color: var(--tan); transform: none; }
+.btn-logout:active, .btn-ghost:active { transform: none; }
 
-/* ---------- SETTINGS GEAR (icon only, no box) ---------- */
+/* ---------- SETTINGS GEAR + PREMIUM TOOLS (the two primary nav
+   actions — given real visual weight so they read as the main controls
+   on the page, not just icons floating among equally-weighted buttons) ---------- */
 .settings-wrap { position: relative; }
 
 .btn-icon {
-  width: 38px; height: 38px;
+  width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
+  border: 1px solid rgba(232,225,211,0.14);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, background 0.15s ease, border-color 0.15s ease;
   position: relative;
 }
-.btn-icon:hover { transform: scale(1.1); }
+.btn-icon:hover { transform: scale(1.06); background: rgba(255,255,255,0.06); border-color: rgba(232,225,211,0.26); }
 .btn-icon.spin svg { transform: rotate(45deg); }
-.btn-icon svg { width: 20px; height: 20px; stroke: var(--silver); transition: transform 0.2s ease, stroke 0.15s ease; }
+.btn-icon svg { width: 22px; height: 22px; stroke: var(--silver); transition: transform 0.2s ease, stroke 0.15s ease; }
 .btn-icon:hover svg { stroke: var(--tan); }
 
 .settings-dropdown {
@@ -279,6 +281,34 @@ h1, h2, h3 {
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 .card-add-category::before { display: none; }
+
+/* Move/shuffle controls — tucked in the corner, invisible until you're
+   actually looking at that card, so the cards stay clean by default. */
+.card-move-controls {
+  position: absolute;
+  top: 10px; right: 10px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 2;
+}
+.card:hover .card-move-controls { opacity: 1; }
+.card-move-btn {
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(232,225,211,0.16);
+  border-radius: 5px;
+  background: rgba(0,0,0,0.25);
+  color: var(--silver-dim);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.card-move-btn:hover { background: rgba(110,143,163,0.2); color: var(--tan); border-color: rgba(110,143,163,0.4); }
+.card-move-btn:disabled { opacity: 0.25; cursor: default; }
+.card-move-btn:disabled:hover { background: rgba(0,0,0,0.25); color: var(--silver-dim); border-color: rgba(232,225,211,0.16); }
 .card-add-category:hover {
   border-color: var(--vintage-blue-light);
   background: rgba(110,143,163,0.06);
@@ -794,31 +824,68 @@ input[type="number"]::-webkit-outer-spin-button {
   font-family: 'Public Sans', sans-serif;
 }
 .log-filter-search input:focus { outline: none; border-color: var(--vintage-blue-light); }
-.log-filter-dates {
+
+.log-month-picker {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-.log-filter-dates input {
-  padding: 8px 10px;
-  border-radius: 8px;
+  gap: 2px;
+  padding: 4px 6px;
+  border-radius: 9px;
   border: 1px solid var(--panel-border);
   background: rgba(255,255,255,0.02);
-  color: var(--tan);
-  font-size: 0.8rem;
-  font-family: 'Public Sans', sans-serif;
-  color-scheme: dark;
 }
-.log-filter-dash { color: var(--silver-dim); font-size: 0.8rem; }
-#log-filter-type {
-  padding: 8px 10px;
-  border-radius: 8px;
+.log-month-arrow {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--silver-dim);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.log-month-arrow svg { width: 14px; height: 14px; stroke: currentColor; }
+.log-month-arrow:hover { background: rgba(110,143,163,0.14); color: var(--tan); }
+.log-month-label {
+  min-width: 118px;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--tan);
+  cursor: pointer;
+  padding: 0 4px;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+.log-month-label:hover { color: var(--vintage-blue-light); }
+
+.log-type-pills {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 9px;
   border: 1px solid var(--panel-border);
   background: rgba(255,255,255,0.02);
-  color: var(--tan);
-  font-size: 0.8rem;
-  font-family: 'Public Sans', sans-serif;
 }
+.log-type-pill {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--silver-dim);
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.log-type-pill:hover { color: var(--tan); }
+.log-type-pill.active {
+  background: rgba(110,143,163,0.18);
+  color: var(--vintage-blue-light);
+  box-shadow: inset 0 0 0 1px rgba(110,143,163,0.35);
+}
+
 .log-filter-count {
   font-size: 0.78rem;
   color: var(--silver-dim);
@@ -1007,22 +1074,24 @@ input[type="number"]::-webkit-outer-spin-button {
 .panel-subtract .panel-head h2 { color: var(--subtract-glow); }
 .panel-transfer .panel-head h2 { color: var(--transfer-glow); }
 
-/* ============= WHITE NEON GLOW — LOG TABLE (subtle) ============= */
+/* ============= NEON GLOW — LOG TABLE (subtle) ============= */
+/* Vintage blue — ties visually to Dashboard, since Log is really an
+   extension of it rather than a page with its own separate identity. */
 
 .log-table-wrap {
   box-shadow:
-    0 0 4px rgba(255, 255, 255, 0.25),
-    0 0 12px rgba(255, 255, 255, 0.12),
-    0 0 24px rgba(255, 255, 255, 0.06),
+    0 0 4px rgba(110, 143, 163, 0.35),
+    0 0 12px rgba(110, 143, 163, 0.18),
+    0 0 24px rgba(110, 143, 163, 0.09),
     0 6px 22px rgba(0,0,0,0.25);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(110, 143, 163, 0.28);
   transition: box-shadow 0.3s ease;
 }
 .log-table-wrap:hover {
   box-shadow:
-    0 0 6px rgba(255, 255, 255, 0.35),
-    0 0 16px rgba(255, 255, 255, 0.18),
-    0 0 32px rgba(255, 255, 255, 0.09),
+    0 0 6px rgba(110, 143, 163, 0.45),
+    0 0 16px rgba(110, 143, 163, 0.25),
+    0 0 32px rgba(110, 143, 163, 0.12),
     0 6px 22px rgba(0,0,0,0.25);
 }
 
@@ -1079,9 +1148,9 @@ input[type="number"]::-webkit-outer-spin-button {
   /* Log page */
   .log-title { font-size: 1.35rem; margin-bottom: 16px; }
   .log-filter-bar { flex-direction: column; align-items: stretch; }
-  .log-filter-dates { width: 100%; }
-  .log-filter-dates input { flex: 1; min-width: 0; }
-  #log-filter-type { width: 100%; }
+  .log-month-picker { width: 100%; justify-content: center; }
+  .log-type-pills { width: 100%; justify-content: center; }
+  .log-type-pill { flex: 1; text-align: center; }
   .log-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
   .log-toolbar .btn-danger { width: 100%; }
 
@@ -1115,9 +1184,24 @@ input[type="number"]::-webkit-outer-spin-button {
 
 /* Paid/unlocked state — a distinct color from the locked gold, so the
    icon itself signals "you have full access" rather than just hiding
-   the lock badge and leaving the same color behind either way. */
-.btn-icon.btn-ledger.unlocked svg { stroke: var(--emerald-bright, #63D9AA); }
-.btn-icon.btn-ledger.unlocked:hover svg { stroke: #7FE8BC; }
+   the lock badge and leaving the same color behind either way. Violet
+   specifically, since it's not already claimed by any other page's
+   theme (emerald/Connections, brass/Budget, coral/Spendings, vintage
+   blue/Dashboard) — this button lives on all of them, so it needed
+   something that reads as its own thing everywhere it appears. The
+   glow is deliberately soft — a quiet ambient presence, not a spotlight. */
+.btn-icon.btn-ledger.unlocked {
+  border-color: rgba(167,139,250,0.35);
+  background: rgba(167,139,250,0.06);
+  box-shadow: 0 0 14px rgba(167,139,250,0.18);
+}
+.btn-icon.btn-ledger.unlocked svg { stroke: #A78BFA; }
+.btn-icon.btn-ledger.unlocked:hover {
+  border-color: rgba(196,176,255,0.55);
+  background: rgba(167,139,250,0.1);
+  box-shadow: 0 0 20px rgba(167,139,250,0.28);
+}
+.btn-icon.btn-ledger.unlocked:hover svg { stroke: #C4B0FF; }
 
 .btn-icon.btn-ledger .lock-badge {
   position: absolute;
@@ -1367,6 +1451,40 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .ledger-lock-cta:hover { background: #E7C766; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(201,162,39,0.25); }
 .ledger-lock-cta:active { transform: translateY(0); }
+
+/* Feedback — its own small, quiet section within the Premium Tools
+   menu, distinct from the tool list above it and the "more tools
+   coming" hint below it. */
+.ledger-feedback-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(232,225,211,0.08);
+}
+.ledger-feedback-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(232,225,211,0.12);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+  color: var(--silver-dim);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.ledger-feedback-btn svg { width: 15px; height: 15px; stroke: currentColor; flex-shrink: 0; }
+.ledger-feedback-btn:hover {
+  background: rgba(110,143,163,0.08);
+  border-color: rgba(110,143,163,0.3);
+  color: var(--tan);
+  transform: translateY(-1px);
+}
+.ledger-feedback-btn:active { transform: translateY(0); }
 
 .ledger-future-hint {
   margin-top: 10px;

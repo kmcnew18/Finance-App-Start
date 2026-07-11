@@ -72,8 +72,6 @@
               </label>
             </div>
             <div class="dropdown-divider"></div>
-            <button type="button" id="send-feedback-btn" class="dropdown-item">Send feedback</button>
-            <div class="dropdown-divider"></div>
             <button type="button" id="clear-log-btn" class="dropdown-item danger">Clear entire log</button>
           </div>
         </div>
@@ -113,18 +111,30 @@
       </div>
       <section class="overview-cards">
         <div class="card" data-cat="savings">
+          <div class="card-move-controls">
+            <button type="button" class="card-move-btn" data-move="prev" data-cat-key="savings" aria-label="Move earlier">‹</button>
+            <button type="button" class="card-move-btn" data-move="next" data-cat-key="savings" aria-label="Move later">›</button>
+          </div>
           <span class="card-label">Savings</span>
           <span class="card-value" id="val-savings">$0.00</span>
           <span class="sync-hint" id="sync-hint-savings"></span>
           <input type="number" class="card-value-input" id="edit-savings" data-cat="savings" step="0.01" />
         </div>
         <div class="card" data-cat="investment">
+          <div class="card-move-controls">
+            <button type="button" class="card-move-btn" data-move="prev" data-cat-key="investment" aria-label="Move earlier">‹</button>
+            <button type="button" class="card-move-btn" data-move="next" data-cat-key="investment" aria-label="Move later">›</button>
+          </div>
           <span class="card-label">Investment</span>
           <span class="card-value" id="val-investment">$0.00</span>
           <span class="sync-hint" id="sync-hint-investment"></span>
           <input type="number" class="card-value-input" id="edit-investment" data-cat="investment" step="0.01" />
         </div>
         <div class="card" data-cat="checking">
+          <div class="card-move-controls">
+            <button type="button" class="card-move-btn" data-move="prev" data-cat-key="checking" aria-label="Move earlier">‹</button>
+            <button type="button" class="card-move-btn" data-move="next" data-cat-key="checking" aria-label="Move later">›</button>
+          </div>
           <span class="card-label">Checking</span>
           <span class="card-value" id="val-checking">$0.00</span>
           <span class="sync-hint" id="sync-hint-checking"></span>
@@ -357,6 +367,58 @@
       return new Date().toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE });
     }
 
+    function applyCardOrderAndMoveHandlers() {
+      // Total and +Add category are structural, not real categories —
+      // they always stay pinned at the end regardless of how the actual
+      // category cards get reordered.
+      const totalCard = document.querySelector('.card-total');
+      const addCard = document.getElementById('add-category-card');
+      if (totalCard) totalCard.style.order = 9000;
+      if (addCard) addCard.style.order = 9001;
+
+      orderedCategories.forEach((cat, i) => {
+        // Custom cards aren't individually selectable by a stable class,
+        // so find them via their move button's data-cat-key and walk up
+        // to the card itself instead.
+        const el = cat.key
+          ? document.querySelector(`.card[data-cat="${cat.key}"]`)
+          : document.querySelector(`.card-move-btn[data-cat-key="${cat.id}"]`)?.closest('.card');
+        if (el) el.style.order = i;
+      });
+
+      document.querySelectorAll('.card-move-btn').forEach(btn => {
+        const catKey = btn.dataset.catKey;
+        const idx = orderedCategories.findIndex(c => (c.key || c.id) === catKey);
+        const isPrev = btn.dataset.move === 'prev';
+        if ((isPrev && idx <= 0) || (!isPrev && idx >= orderedCategories.length - 1)) {
+          btn.disabled = true;
+        }
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          moveCategory(catKey, btn.dataset.move);
+        });
+      });
+    }
+
+    async function moveCategory(catKey, direction) {
+      const idx = orderedCategories.findIndex(c => (c.key || c.id) === catKey);
+      if (idx === -1) return;
+      const swapIdx = direction === 'prev' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= orderedCategories.length) return;
+
+      const a = orderedCategories[idx];
+      const b = orderedCategories[swapIdx];
+
+      await Promise.all([
+        supabaseClient.from('budget_categories').update({ sort_order: b.sortOrder }).eq('id', a.id),
+        supabaseClient.from('budget_categories').update({ sort_order: a.sortOrder }).eq('id', b.id),
+      ]);
+
+      await loadConnectedTotals();
+      renderTotals();
+      renderCustomCategoryCards();
+    }
+
     function renderTotals() {
       const combined = {
         savings: round2(totals.savings + connectedTotals.savings),
@@ -375,16 +437,7 @@
       ['savings', 'investment', 'expenses', 'checking'].forEach(cat => {
         const hintEl = document.getElementById('sync-hint-' + cat);
         if (!hintEl) return;
-        const liabilities = linkedLiabilities[cat] || [];
-        const parts = [];
-        if (connectedTotals[cat]) {
-          const sign = connectedTotals[cat] > 0 ? '+' : '';
-          parts.push(`<span style="color:var(--emerald-bright,#63D9AA);">${sign}${money(connectedTotals[cat])} net from Connections</span>`);
-        }
-        liabilities.forEach(l => {
-          parts.push(`<span style="color:var(--coral,#E0806A);">−${money(l.amount)} (${l.name.replace(/</g,'&lt;')}) already spoken for</span>`);
-        });
-        hintEl.innerHTML = parts.join(' <span style="color:var(--silver-dim);">·</span> ');
+        hintEl.textContent = connectedTotals[cat] ? `${connectedTotals[cat] > 0 ? '+' : ''}${money(connectedTotals[cat])} from Connections` : '';
       });
 
       document.querySelectorAll('.card-value-input').forEach(input => {
@@ -404,24 +457,25 @@
       const existing = document.querySelectorAll('.card-custom-category');
       existing.forEach(el => el.remove());
 
-      if (!customCategoryCards.length) return;
-
       const totalCard = document.querySelector('.card-total');
       customCategoryCards.forEach(cat => {
         const accentColor = ACCENT_COLORS[cat.accent] || ACCENT_COLORS.sage;
-        const liabilities = linkedLiabilities[cat.id] || [];
-        const hintParts = ['Synced from Connections'];
-        liabilities.forEach(l => hintParts.push(`<span style="color:var(--coral,#E0806A);">−${money(l.amount)} (${l.name.replace(/</g,'&lt;')}) already spoken for</span>`));
         const card = document.createElement('div');
         card.className = 'card card-custom-category';
         card.style.borderLeft = `3px solid ${accentColor}`;
         card.innerHTML = `
+          <div class="card-move-controls">
+            <button type="button" class="card-move-btn" data-move="prev" data-cat-key="${cat.id}" aria-label="Move earlier">‹</button>
+            <button type="button" class="card-move-btn" data-move="next" data-cat-key="${cat.id}" aria-label="Move later">›</button>
+          </div>
           <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
           <span class="card-value">${money(cat.total)}</span>
-          <span class="sync-hint">${hintParts.join(' <span style="color:var(--silver-dim);">·</span> ')}</span>
+          <span class="sync-hint">Synced from Connections</span>
         `;
         totalCard.parentNode.insertBefore(card, totalCard);
       });
+
+      applyCardOrderAndMoveHandlers();
     }
 
     async function saveTotals() {
@@ -707,12 +761,16 @@
 
     let linkedLiabilities = {}; // category key/id -> [{ name, amount }] for display
 
+    let orderedCategories = []; // flat, sort_order-sorted list of every real category — used by the move/shuffle controls
+    let categorySortOrderByKey = { savings: 0, investment: 0, checking: 0 };
+
     async function loadConnectedTotals() {
       connectedTotals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       customCategoryCards = [];
       linkedLiabilities = {};
+      orderedCategories = [];
 
-      const { data: cats } = await supabaseClient.from('budget_categories').select('*').eq('user_id', currentUserId);
+      const { data: cats } = await supabaseClient.from('budget_categories').select('*').eq('user_id', currentUserId).order('sort_order', { ascending: true });
       if (!cats || !cats.length) return;
 
       const { data: linkedAccts } = await supabaseClient.from('linked_accounts').select('id, balance, account_type, institution_name, nickname, paid_from_category_id').eq('user_id', currentUserId);
@@ -745,13 +803,19 @@
       cats.forEach(cat => {
         const catTotal = totalsByCategoryId[cat.id] || 0;
         const matchedKey = Object.keys(DEFAULT_NAME_KEYS).find(k => cat.name.toLowerCase() === k);
+        const sortOrder = Number(cat.sort_order) || 0;
         if (matchedKey) {
           connectedTotals[matchedKey] = catTotal;
+          categorySortOrderByKey[matchedKey] = sortOrder;
           if (linkedLiabilities[cat.id]) linkedLiabilities[matchedKey] = linkedLiabilities[cat.id];
-        } else if (catTotal) {
-          customCategoryCards.push({ id: cat.id, name: cat.name, accent: cat.accent, total: catTotal });
+          orderedCategories.push({ id: cat.id, key: matchedKey, name: cat.name, sortOrder });
+        } else {
+          customCategoryCards.push({ id: cat.id, name: cat.name, accent: cat.accent, total: catTotal, sortOrder });
+          orderedCategories.push({ id: cat.id, key: null, name: cat.name, sortOrder });
         }
       });
+
+      orderedCategories.sort((a, b) => a.sortOrder - b.sortOrder);
     }
 
     document.getElementById('logout-button').addEventListener('click', async () => {
@@ -1169,11 +1233,6 @@
     }
 
     function setupFeedback() {
-      document.getElementById('send-feedback-btn').addEventListener('click', () => {
-        gearDropdown.classList.remove('open');
-        document.getElementById('feedback-overlay').classList.add('open');
-        renderFeedbackForm();
-      });
       document.getElementById('feedback-close').addEventListener('click', () => {
         document.getElementById('feedback-overlay').classList.remove('open');
       });
@@ -1559,6 +1618,12 @@
           : 'Budget Planner and Spendings — with custom categories, monthly breakdowns, and an archive of past periods — are part of full access.'}</p>
         <div class="ledger-tool-list">${itemsHtml}</div>
         ${isPaidUser ? '' : '<button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">Unlock full access — $10</button>'}
+        <div class="ledger-feedback-section">
+          <button type="button" class="ledger-feedback-btn" id="send-feedback-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span>Send feedback</span>
+          </button>
+        </div>
         <div class="ledger-future-hint">More premium tools are on the way</div>
       `;
 
@@ -1582,6 +1647,12 @@
         const unlockBtn = document.getElementById('ledger-unlock-cta');
         if (unlockBtn) unlockBtn.addEventListener('click', () => startCheckout(unlockBtn));
       }
+
+      document.getElementById('send-feedback-btn').addEventListener('click', () => {
+        closeLedgerMenu();
+        document.getElementById('feedback-overlay').classList.add('open');
+        renderFeedbackForm();
+      });
     }
 
     async function startCheckoutSilent() {

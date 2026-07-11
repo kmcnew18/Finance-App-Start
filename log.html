@@ -77,8 +77,6 @@
             <div class="dropdown-divider"></div>
             <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
             <div class="dropdown-divider"></div>
-            <button type="button" id="send-feedback-btn" class="dropdown-item">Send feedback</button>
-            <div class="dropdown-divider"></div>
             <button type="button" id="clear-log-btn" class="dropdown-item danger">Clear entire log</button>
           </div>
         </div>
@@ -97,17 +95,21 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         <input type="text" id="log-search-input" placeholder="Search notes…" />
       </div>
-      <div class="log-filter-dates">
-        <input type="date" id="log-filter-start" aria-label="From date" />
-        <span class="log-filter-dash">–</span>
-        <input type="date" id="log-filter-end" aria-label="To date" />
+      <div class="log-month-picker">
+        <button type="button" id="log-month-prev" class="log-month-arrow" aria-label="Previous month">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <span class="log-month-label" id="log-month-label">All time</span>
+        <button type="button" id="log-month-next" class="log-month-arrow" aria-label="Next month">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
       </div>
-      <select id="log-filter-type" aria-label="Filter by type">
-        <option value="">All types</option>
-        <option value="add">Add</option>
-        <option value="subtract">Subtract</option>
-        <option value="transfer">Transfer</option>
-      </select>
+      <div class="log-type-pills" id="log-type-pills">
+        <button type="button" class="log-type-pill active" data-type="">All</button>
+        <button type="button" class="log-type-pill" data-type="add">Add</button>
+        <button type="button" class="log-type-pill" data-type="subtract">Subtract</button>
+        <button type="button" class="log-type-pill" data-type="transfer">Transfer</button>
+      </div>
       <button type="button" id="log-filter-clear" class="btn-ghost" style="display:none;">Clear filters</button>
     </div>
 
@@ -230,12 +232,28 @@
       renderLogTable();
     }
 
+    let logSelectedMonth = null; // null = all time, else { year, month } (month is 0-11)
+    let logSelectedType = ''; // '' = all types
+
+    function logMonthLabel() {
+      if (!logSelectedMonth) return 'All time';
+      return new Date(logSelectedMonth.year, logSelectedMonth.month, 1)
+        .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    function updateLogMonthLabel() {
+      document.getElementById('log-month-label').textContent = logMonthLabel();
+    }
+
     function getActiveFilters() {
+      let monthKey = null;
+      if (logSelectedMonth) {
+        monthKey = `${logSelectedMonth.year}-${String(logSelectedMonth.month + 1).padStart(2, '0')}`;
+      }
       return {
         search: document.getElementById('log-search-input').value.trim().toLowerCase(),
-        start: document.getElementById('log-filter-start').value,
-        end: document.getElementById('log-filter-end').value,
-        type: document.getElementById('log-filter-type').value,
+        monthKey,
+        type: logSelectedType,
       };
     }
 
@@ -244,7 +262,7 @@
       const countEl = document.getElementById('log-filter-count');
       const clearBtn = document.getElementById('log-filter-clear');
       const f = getActiveFilters();
-      const anyFilterActive = !!(f.search || f.start || f.end || f.type);
+      const anyFilterActive = !!(f.search || f.monthKey || f.type);
       clearBtn.style.display = anyFilterActive ? 'inline-block' : 'none';
 
       if (!allLogRows.length) {
@@ -255,8 +273,7 @@
 
       const rows = allLogRows.filter(r => {
         if (f.search && !(r.notes || '').toLowerCase().includes(f.search)) return false;
-        if (f.start && r.entry_date < f.start) return false;
-        if (f.end && r.entry_date > f.end) return false;
+        if (f.monthKey && r.entry_date.slice(0, 7) !== f.monthKey) return false;
         if (f.type && r.action_type !== f.type) return false;
         return true;
       });
@@ -287,20 +304,50 @@
       }).join('');
     }
 
+    function shiftLogMonth(delta) {
+      if (!logSelectedMonth) {
+        const now = new Date();
+        logSelectedMonth = { year: now.getFullYear(), month: now.getMonth() };
+      } else {
+        let { year, month } = logSelectedMonth;
+        month += delta;
+        if (month < 0) { month = 11; year--; }
+        if (month > 11) { month = 0; year++; }
+        logSelectedMonth = { year, month };
+      }
+      updateLogMonthLabel();
+      renderLogTable();
+    }
+
     function setupLogFilters() {
       let searchDebounce = null;
       document.getElementById('log-search-input').addEventListener('input', () => {
         clearTimeout(searchDebounce);
         searchDebounce = setTimeout(renderLogTable, 150);
       });
-      document.getElementById('log-filter-start').addEventListener('change', renderLogTable);
-      document.getElementById('log-filter-end').addEventListener('change', renderLogTable);
-      document.getElementById('log-filter-type').addEventListener('change', renderLogTable);
+
+      document.getElementById('log-month-prev').addEventListener('click', () => shiftLogMonth(-1));
+      document.getElementById('log-month-next').addEventListener('click', () => shiftLogMonth(1));
+      document.getElementById('log-month-label').addEventListener('click', () => {
+        logSelectedMonth = null;
+        updateLogMonthLabel();
+        renderLogTable();
+      });
+
+      document.querySelectorAll('.log-type-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          logSelectedType = pill.dataset.type;
+          document.querySelectorAll('.log-type-pill').forEach(p => p.classList.toggle('active', p === pill));
+          renderLogTable();
+        });
+      });
+
       document.getElementById('log-filter-clear').addEventListener('click', () => {
         document.getElementById('log-search-input').value = '';
-        document.getElementById('log-filter-start').value = '';
-        document.getElementById('log-filter-end').value = '';
-        document.getElementById('log-filter-type').value = '';
+        logSelectedMonth = null;
+        logSelectedType = '';
+        updateLogMonthLabel();
+        document.querySelectorAll('.log-type-pill').forEach(p => p.classList.toggle('active', p.dataset.type === ''));
         renderLogTable();
       });
     }
@@ -735,11 +782,6 @@
     }
 
     function setupFeedback() {
-      document.getElementById('send-feedback-btn').addEventListener('click', () => {
-        gearDropdown.classList.remove('open');
-        document.getElementById('feedback-overlay').classList.add('open');
-        renderFeedbackForm();
-      });
       document.getElementById('feedback-close').addEventListener('click', () => {
         document.getElementById('feedback-overlay').classList.remove('open');
       });
@@ -829,6 +871,12 @@
           : 'Budget Planner and Spendings — with custom categories, monthly breakdowns, and an archive of past periods — are part of full access.'}</p>
         <div class="ledger-tool-list">${itemsHtml}</div>
         ${isPaidUser ? '' : '<button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">Unlock full access — $10</button>'}
+        <div class="ledger-feedback-section">
+          <button type="button" class="ledger-feedback-btn" id="send-feedback-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span>Send feedback</span>
+          </button>
+        </div>
         <div class="ledger-future-hint">More premium tools are on the way</div>
       `;
 
@@ -852,6 +900,12 @@
         const unlockBtn = document.getElementById('ledger-unlock-cta');
         if (unlockBtn) unlockBtn.addEventListener('click', () => startCheckout(unlockBtn));
       }
+
+      document.getElementById('send-feedback-btn').addEventListener('click', () => {
+        closeLedgerMenu();
+        document.getElementById('feedback-overlay').classList.add('open');
+        renderFeedbackForm();
+      });
     }
 
     async function startCheckoutSilent() {
