@@ -237,18 +237,20 @@ h1, h2, h3 {
 .card { position: relative; }
 .sync-hint {
   position: absolute;
-  bottom: 10px;
+  bottom: 8px;
   left: 20px;
   right: 20px;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
+  line-height: 1.35;
   color: var(--emerald-bright, #63D9AA);
   font-weight: 600;
+}
+.card { padding-bottom: 34px; }
+.card-add-category { padding-bottom: 24px; }
+.sync-hint {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .card:hover .sync-hint,
 .card:focus-within .sync-hint {

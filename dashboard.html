@@ -375,7 +375,16 @@
       ['savings', 'investment', 'expenses', 'checking'].forEach(cat => {
         const hintEl = document.getElementById('sync-hint-' + cat);
         if (!hintEl) return;
-        hintEl.textContent = connectedTotals[cat] > 0 ? `+${money(connectedTotals[cat])} from Connections` : '';
+        const liabilities = linkedLiabilities[cat] || [];
+        const parts = [];
+        if (connectedTotals[cat]) {
+          const sign = connectedTotals[cat] > 0 ? '+' : '';
+          parts.push(`<span style="color:var(--emerald-bright,#63D9AA);">${sign}${money(connectedTotals[cat])} net from Connections</span>`);
+        }
+        liabilities.forEach(l => {
+          parts.push(`<span style="color:var(--coral,#E0806A);">−${money(l.amount)} (${l.name.replace(/</g,'&lt;')}) already spoken for</span>`);
+        });
+        hintEl.innerHTML = parts.join(' <span style="color:var(--silver-dim);">·</span> ');
       });
 
       document.querySelectorAll('.card-value-input').forEach(input => {
@@ -400,13 +409,16 @@
       const totalCard = document.querySelector('.card-total');
       customCategoryCards.forEach(cat => {
         const accentColor = ACCENT_COLORS[cat.accent] || ACCENT_COLORS.sage;
+        const liabilities = linkedLiabilities[cat.id] || [];
+        const hintParts = ['Synced from Connections'];
+        liabilities.forEach(l => hintParts.push(`<span style="color:var(--coral,#E0806A);">−${money(l.amount)} (${l.name.replace(/</g,'&lt;')}) already spoken for</span>`));
         const card = document.createElement('div');
         card.className = 'card card-custom-category';
         card.style.borderLeft = `3px solid ${accentColor}`;
         card.innerHTML = `
           <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
           <span class="card-value">${money(cat.total)}</span>
-          <span class="sync-hint">Synced from Connections</span>
+          <span class="sync-hint">${hintParts.join(' <span style="color:var(--silver-dim);">·</span> ')}</span>
         `;
         totalCard.parentNode.insertBefore(card, totalCard);
       });
@@ -681,32 +693,50 @@
     let connectedTotals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
     let customCategoryCards = [];
 
+    let linkedLiabilities = {}; // category key/id -> [{ name, amount }] for display
+
     async function loadConnectedTotals() {
       connectedTotals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       customCategoryCards = [];
+      linkedLiabilities = {};
 
       const { data: cats } = await supabaseClient.from('budget_categories').select('*').eq('user_id', currentUserId);
       if (!cats || !cats.length) return;
 
-      const { data: linkedAccts } = await supabaseClient.from('linked_accounts').select('id, balance').eq('user_id', currentUserId);
+      const { data: linkedAccts } = await supabaseClient.from('linked_accounts').select('id, balance, account_type, institution_name, nickname, paid_from_category_id').eq('user_id', currentUserId);
+      if (!linkedAccts) return;
       const { data: splits } = await supabaseClient.from('account_category_splits').select('*').eq('user_id', currentUserId);
-      if (!linkedAccts || !splits || !splits.length) return;
 
       const balanceById = Object.fromEntries(linkedAccts.map(a => [a.id, Number(a.balance) || 0]));
       const DEFAULT_NAME_KEYS = { savings: 'savings', investment: 'investment', expenses: 'expenses', checking: 'checking' };
+      const totalsByCategoryId = {}; // category_id -> running total, before matching back to key/custom
+
+      (splits || []).forEach(s => {
+        const bal = balanceById[s.linked_account_id] || 0;
+        totalsByCategoryId[s.category_id] = round2((totalsByCategoryId[s.category_id] || 0) + bal * Number(s.split_percent) / 100);
+      });
+
+      // A credit card's balance is real debt — it doesn't add to a
+      // category (that would double it against Liabilities), but if the
+      // user's told us which category actually pays it off, subtracting
+      // it there reflects money that's already spoken for rather than
+      // treating the full balance as freely available.
+      linkedAccts.filter(a => a.account_type === 'credit_card' && a.paid_from_category_id).forEach(a => {
+        const bal = balanceById[a.id] || 0;
+        if (!bal) return;
+        totalsByCategoryId[a.paid_from_category_id] = round2((totalsByCategoryId[a.paid_from_category_id] || 0) - bal);
+        const key = a.paid_from_category_id;
+        if (!linkedLiabilities[key]) linkedLiabilities[key] = [];
+        linkedLiabilities[key].push({ name: a.nickname || a.institution_name || 'Card', amount: bal });
+      });
 
       cats.forEach(cat => {
-        const catSplits = splits.filter(s => s.category_id === cat.id);
-        const catTotal = round2(catSplits.reduce((sum, s) => {
-          const bal = balanceById[s.linked_account_id] || 0;
-          return sum + (bal * Number(s.split_percent) / 100);
-        }, 0));
-        if (!catTotal) return;
-
+        const catTotal = totalsByCategoryId[cat.id] || 0;
         const matchedKey = Object.keys(DEFAULT_NAME_KEYS).find(k => cat.name.toLowerCase() === k);
         if (matchedKey) {
           connectedTotals[matchedKey] = catTotal;
-        } else {
+          if (linkedLiabilities[cat.id]) linkedLiabilities[matchedKey] = linkedLiabilities[cat.id];
+        } else if (catTotal) {
           customCategoryCards.push({ id: cat.id, name: cat.name, accent: cat.accent, total: catTotal });
         }
       });

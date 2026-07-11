@@ -345,6 +345,19 @@ function categoryPillHtml(accountId) {
   return pill + envelopeBadge;
 }
 
+// Credit cards get a different indicator than the usual category pill —
+// "paid from" reflects a debt being covered by a category, not spendable
+// money counting toward one. Clicking it opens the same overlay as
+// tapping the pill would on any other account.
+function creditCardPaidFromPillHtml(acct) {
+  const cat = acct.paid_from_category_id ? categories.find(c => c.id === acct.paid_from_category_id) : null;
+  const label = cat ? `Paid from ${cat.name}` : 'Not linked to a category';
+  const cls = cat ? 'category-pill-set' : 'category-pill-empty';
+  const accentColor = cat ? CONN_ACCENT_COLORS[cat.accent] : null;
+  const style = accentColor ? ` style="color:${accentColor}; border-color:${accentColor}44; background:${accentColor}1A;"` : '';
+  return `<button type="button" class="category-pill ${cls}" data-account-id="${acct.id}"${style}>${label}</button>`;
+}
+
 function accountCardHtml(a, t) {
   const brokenItem = a.source === 'plaid' && a.plaid_item_id
     ? connectionStatus.find(i => i.item_id === a.plaid_item_id && i.needs_reconnect)
@@ -373,7 +386,7 @@ function accountCardHtml(a, t) {
       </div>
       <div class="account-card-balance">${money(a.balance)}</div>
       ${synced}
-      ${a.account_type === 'credit_card' ? '' : categoryPillHtml(a.id)}
+      ${a.account_type === 'credit_card' ? creditCardPaidFromPillHtml(a) : categoryPillHtml(a.id)}
       ${reconnectBlock}
       <div class="account-card-actions" style="margin-top:10px;">
         <button type="button" class="account-edit-btn" data-id="${a.id}">Edit</button>
@@ -1495,10 +1508,34 @@ function openCategoryMapping(accountId) {
 // category too would double-count the same debt as if it were money
 // you have, not money you owe.
 function renderCreditCardCategoryBlock() {
+  const acct = accounts.find(a => a.id === categoryMappingAccountId);
+  if (!acct) { closeCategoryOverlay(); return; }
   const body = document.getElementById('category-modal-body');
+  const displayName = (acct.nickname || acct.institution_name || 'this card').replace(/</g, '&lt;');
+  const currentCatId = acct.paid_from_category_id || '';
+
   body.innerHTML = `
-    <p class="mfa-modal-sub">Credit cards aren't mapped to a category — they're already counted as a liability, and used to detect transactions. Mapping one to a category would count the same debt twice.</p>
+    <p class="mfa-modal-sub">Credit cards aren't mapped to a category — a balance owed isn't money you have, so counting it toward a category would double it against Liabilities.</p>
+    <p class="mfa-modal-sub">But that debt is real. Which category actually pays <strong style="color:var(--tan);">${displayName}</strong> off? That category's total will show the balance subtracted, so it reflects money that's already spoken for.</p>
+    <div class="mfa-field">
+      <label for="cc-paid-from-select">Paid from</label>
+      <select id="cc-paid-from-select">
+        <option value="">Not linked — count separately in Liabilities only</option>
+        ${categories.map(c => `<option value="${c.id}" ${c.id === currentCatId ? 'selected' : ''}>${c.name.replace(/</g,'&lt;')}</option>`).join('')}
+      </select>
+    </div>
+    <button type="button" class="mfa-verify-btn" id="cc-paid-from-save-btn" style="margin-top:12px;">Save</button>
   `;
+
+  document.getElementById('cc-paid-from-save-btn').addEventListener('click', async () => {
+    const newCatId = document.getElementById('cc-paid-from-select').value || null;
+    const { error } = await supabaseClient.from('linked_accounts').update({ paid_from_category_id: newCatId }).eq('id', acct.id);
+    if (error) { alert('Could not save: ' + error.message); return; }
+    const catName = newCatId ? (categories.find(c => c.id === newCatId)?.name || '') : null;
+    logAuditEvent('credit_card_linked_to_category', { institution_name: acct.institution_name, category: catName });
+    closeCategoryOverlay();
+    await loadAccounts();
+  });
 }
 
 function renderCategorySimpleMode() {
