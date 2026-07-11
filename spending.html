@@ -170,6 +170,21 @@
     </div>
   </div>
 
+  <!-- ================= EDIT TRANSACTION CATEGORY ================= -->
+  <div class="mfa-overlay" id="edit-txn-category-overlay">
+    <div class="mfa-modal" style="max-width: 380px;">
+      <div class="mfa-modal-head">
+        <h2>Change category</h2>
+        <button type="button" class="mfa-modal-close" id="edit-txn-category-close">×</button>
+      </div>
+      <div class="mfa-modal-body">
+        <p class="mfa-modal-sub" id="edit-txn-category-merchant" style="margin-bottom:14px;"></p>
+        <button type="button" class="spend-category-reset-btn" id="edit-txn-category-reset">Use automatic category</button>
+        <div class="spend-categories-list" id="edit-txn-category-list" style="margin-top:10px;"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
@@ -191,6 +206,13 @@
 
     function prettyCategory(raw) {
       if (!raw) return 'Uncategorized';
+      // A custom category (picked from the fixed reference list) is
+      // already human-readable — running it through the Plaid-raw-code
+      // transformation below would mangle anything with a space or
+      // slash in it ("Childcare / Family Support" -> "Childcare /
+      // family support"). Only Plaid's own codes use underscores, so
+      // that's a reliable enough signal to tell the two apart.
+      if (!raw.includes('_')) return raw;
       return raw.toLowerCase().split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
     }
 
@@ -227,6 +249,7 @@
       setupClearTransactions();
       setupFeedback();
       setupSpendCategoriesOverlay();
+      setupEditTxnCategory();
       document.getElementById('spend-txn-search-input').addEventListener('input', renderTransactionList);
 
       await loadSpendingData();
@@ -364,9 +387,12 @@
         <div class="spend-txn-row">
           <div class="spend-txn-info">
             <span class="spend-txn-merchant">${(t.merchant_name || 'Transaction').replace(/</g,'&lt;')}</span>
-            <span class="spend-txn-meta">${new Date(t.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${prettyCategory(t.plaid_category)}</span>
+            <span class="spend-txn-meta">${new Date(t.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${(t.custom_category || prettyCategory(t.plaid_category)).replace(/</g,'&lt;')}${t.custom_category ? ' <span class="spend-txn-custom-badge">edited</span>' : ''}</span>
           </div>
           <span class="spend-txn-amount">${money(t.amount)}</span>
+          <button type="button" class="spend-txn-edit-btn" data-txn-id="${t.id}" title="Change category">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
+          </button>
         </div>
       `).join('');
     }
@@ -421,7 +447,7 @@
 
       const byCategory = {};
       spends.forEach(t => {
-        const key = t.plaid_category || 'OTHER';
+        const key = t.custom_category || t.plaid_category || 'OTHER';
         byCategory[key] = (byCategory[key] || 0) + Number(t.amount);
       });
 
@@ -881,6 +907,58 @@
       document.getElementById('spend-categories-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'spend-categories-overlay') document.getElementById('spend-categories-overlay').classList.remove('open');
       });
+    }
+
+    let editTxnCategoryTargetId = null;
+
+    function setupEditTxnCategory() {
+      // Delegated on the static list container — the transaction rows
+      // themselves get recreated on every render (search, month change,
+      // a fresh sync), so binding directly to each edit button would
+      // cause the exact same listener-duplication bug the old
+      // arrow-button category reorder had.
+      document.getElementById('spend-txn-list').addEventListener('click', (e) => {
+        const btn = e.target.closest('.spend-txn-edit-btn');
+        if (!btn) return;
+        editTxnCategoryTargetId = btn.dataset.txnId;
+        const txn = currentSpendTxns.find(t => t.id === editTxnCategoryTargetId);
+        document.getElementById('edit-txn-category-merchant').textContent =
+          `${(txn?.merchant_name || 'Transaction')} — currently ${txn?.custom_category || prettyCategory(txn?.plaid_category)}`;
+        document.getElementById('edit-txn-category-list').innerHTML = SPENDING_CATEGORIES_LIST
+          .map(name => `<button type="button" class="spend-category-item spend-category-item-btn" data-category="${name}">${name}</button>`).join('');
+        document.getElementById('edit-txn-category-overlay').classList.add('open');
+      });
+
+      document.getElementById('edit-txn-category-list').addEventListener('click', async (e) => {
+        const btn = e.target.closest('.spend-category-item-btn');
+        if (!btn || !editTxnCategoryTargetId) return;
+        await saveTxnCategoryOverride(editTxnCategoryTargetId, btn.dataset.category);
+      });
+
+      document.getElementById('edit-txn-category-reset').addEventListener('click', async () => {
+        if (!editTxnCategoryTargetId) return;
+        await saveTxnCategoryOverride(editTxnCategoryTargetId, null);
+      });
+
+      document.getElementById('edit-txn-category-close').addEventListener('click', () => {
+        document.getElementById('edit-txn-category-overlay').classList.remove('open');
+      });
+      document.getElementById('edit-txn-category-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'edit-txn-category-overlay') document.getElementById('edit-txn-category-overlay').classList.remove('open');
+      });
+    }
+
+    async function saveTxnCategoryOverride(txnId, category) {
+      const { error } = await supabaseClient.from('transactions').update({ custom_category: category }).eq('id', txnId);
+      if (error) { alert('Could not update category: ' + error.message); return; }
+
+      const txn = currentSpendTxns.find(t => t.id === txnId);
+      if (txn) txn.custom_category = category;
+
+      document.getElementById('edit-txn-category-overlay').classList.remove('open');
+      renderTransactionList();
+      const total = currentSpendTxns.reduce((s, t) => s + Number(t.amount), 0);
+      renderCategoryBreakdown(currentSpendTxns, total);
     }
 
     function setupFeedback() {
