@@ -554,14 +554,18 @@
       const categoryKey = (r.category_name || '').toLowerCase();
       const verb = r.suggested_action === 'add' ? 'to' : 'from';
       const when = new Date(r.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const transferBadge = r.is_transfer ? '<span class="txn-transfer-badge">Transfer</span>' : '';
+      const suggestionText = r.is_transfer
+        ? `Looks like a transfer — ${money(r.amount)} ${verb === 'to' ? 'into' : 'out of'} <strong>${r.category_name || 'Uncategorized'}</strong>, not new spending.`
+        : `We think this is ${money(r.amount)} ${verb} <strong>${r.category_name || 'Uncategorized'}</strong>.`;
       return `
         <div class="txn-review-row" data-id="${r.id}" data-suggested="${r.suggested_action}">
           <div class="txn-review-info">
-            <span class="txn-review-merchant">${(r.merchant_name || 'Transaction').replace(/</g,'&lt;')}</span>
+            <span class="txn-review-merchant">${(r.merchant_name || 'Transaction').replace(/</g,'&lt;')}${transferBadge}</span>
             <span class="txn-review-meta">${when} · ${money(r.amount)}</span>
           </div>
           <div class="txn-review-suggestion-text" id="txn-suggestion-text-${r.id}">
-            We think this is ${money(r.amount)} ${verb} <strong>${r.category_name || 'Uncategorized'}</strong>.
+            ${suggestionText}
           </div>
           <div class="txn-review-change-form" id="txn-change-form-${r.id}" style="display:none;">
             <select class="txn-action-select" data-id="${r.id}">
@@ -639,14 +643,20 @@
       if (!CATEGORY_LABELS[cat]) { alert('Pick a valid category before confirming.'); return; }
 
       const amount = round2(Number(review.amount) || 0);
+      const logActionType = review.is_transfer ? 'transfer' : action;
+      // Transfers store a signed value (negative = left this category,
+      // positive = arrived in it) — same convention the manual Transfer
+      // panel already uses. Add/subtract entries stay unsigned, since
+      // action_type itself carries the direction for those.
+      const logAmount = review.is_transfer ? (action === 'subtract' ? -amount : amount) : amount;
 
       const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
-      logRow[cat] = amount;
-      await logEntry({ amount, ...logRow, notes: review.merchant_name || '', action_type: action });
+      logRow[cat] = logAmount;
+      await logEntry({ amount, ...logRow, notes: review.merchant_name || '', action_type: logActionType });
       await applyEnvelopeAdjustment(review.linked_account_id, cat, action, amount);
 
       await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
-      logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, category: cat, action });
+      logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, category: cat, action, is_transfer: review.is_transfer });
 
       await loadPendingReviews();
     }
@@ -666,14 +676,16 @@
 
         const amount = round2(Number(review.amount) || 0);
         const action = review.suggested_action;
+        const logActionType = review.is_transfer ? 'transfer' : action;
+        const logAmount = review.is_transfer ? (action === 'subtract' ? -amount : amount) : amount;
 
         const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
-        logRow[cat] = amount;
-        await logEntry({ amount, ...logRow, notes: review.merchant_name || '', action_type: action });
+        logRow[cat] = logAmount;
+        await logEntry({ amount, ...logRow, notes: review.merchant_name || '', action_type: logActionType });
         await applyEnvelopeAdjustment(review.linked_account_id, cat, action, amount);
 
         await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', review.id);
-        logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, category: cat, action });
+        logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, category: cat, action, is_transfer: review.is_transfer });
       }
 
       await loadPendingReviews();

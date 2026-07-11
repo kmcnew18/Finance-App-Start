@@ -441,6 +441,20 @@ h1, h2, h3 {
 
 .txn-review-info { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; gap: 10px; }
 .txn-review-merchant { font-weight: 600; color: var(--tan); font-size: 0.92rem; }
+.txn-transfer-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--vintage-blue-light);
+  background: rgba(110,143,163,0.14);
+  border: 1px solid rgba(110,143,163,0.3);
+  vertical-align: middle;
+}
 .txn-review-meta { font-size: 0.76rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
 .txn-review-suggestion-text { font-size: 0.86rem; color: var(--silver); margin-bottom: 11px; line-height: 1.45; }
 .txn-review-suggestion-text strong { color: var(--tan); font-weight: 600; }
