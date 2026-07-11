@@ -1370,20 +1370,20 @@
 
     const PREMIUM_TOOLS = [
       {
-        id: 'connections',
-        label: 'Connections',
-        desc: 'Every account, one net worth.',
-        href: 'connections.html',
-        iconClass: 'icon-connections',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
-      },
-      {
         id: 'dashboard',
         label: 'Dashboard',
         desc: 'Your accounts, at a glance.',
         href: 'dashboard.html',
         iconClass: 'icon-dashboard',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>'
+      },
+      {
+        id: 'connections',
+        label: 'Connections',
+        desc: 'Every account, one net worth.',
+        href: 'connections.html',
+        iconClass: 'icon-connections',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
       },
       {
         id: 'budget',
@@ -1407,6 +1407,7 @@
       const inner = document.getElementById('ledger-dropdown-inner');
       const lockBadge = document.getElementById('ledger-lock-badge');
       lockBadge.style.display = 'none';
+      document.getElementById('ledger-menu-btn').classList.add('unlocked'); // reaching this page already proves paid access
 
       const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
         const isCurrent = tool.href === 'budget.html';

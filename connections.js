@@ -4,6 +4,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentUserId = null;
 let currentUserEmail = null;
+let isPaidUser = false;
 let accounts = [];
 let categories = [];
 let accountSplits = []; // account_category_splits rows
@@ -67,11 +68,16 @@ async function init() {
   currentUserEmail = session.user.email;
 
   const { data: billing } = await supabaseClient
-    .from('user_billing').select('is_paid').eq('user_id', currentUserId).maybeSingle();
-  // Connections is a paid feature, not part of the free trial — being
-  // unpaid sends straight to Stripe checkout, not the trial-expiry
-  // paywall page (that page is for Dashboard/Log only).
-  if (!billing || !billing.is_paid) { await redirectToCheckout(currentUserId, currentUserEmail); return; }
+    .from('user_billing').select('is_paid, trial_end').eq('user_id', currentUserId).maybeSingle();
+  // Connections is now covered by the free trial, same as Dashboard and
+  // Log — seeing real, synced accounts is a big part of what makes the
+  // trial worth trying in the first place. Once the trial actually
+  // expires (and the account still isn't paid), this sends to the
+  // trial-expiry paywall page, not straight to Stripe checkout.
+  const isPaidAccount = !!(billing && billing.is_paid);
+  const trialExpired = !billing || new Date(billing.trial_end) < new Date();
+  if (trialExpired && !isPaidAccount) { window.location.href = 'paywall.html'; return; }
+  isPaidUser = isPaidAccount;
 
   setupLedgerMenu();
   setupSettingsGear();
@@ -1004,15 +1010,13 @@ document.getElementById('logout-button').addEventListener('click', async () => {
 });
 
 // ================= PREMIUM FEATURE MENU =================
+// Which tools are covered by the free trial vs. requiring full access.
+// Connections joined Dashboard/Log here — seeing real, synced accounts
+// is a big part of what makes trying the trial worthwhile. Budget
+// Planner and Spendings stay paid-only.
+const TRIAL_COVERED_TOOL_IDS = ['dashboard', 'connections'];
+
 const PREMIUM_TOOLS = [
-  {
-    id: 'connections',
-    label: 'Connections',
-    desc: 'Every account, one net worth.',
-    href: 'connections.html',
-    iconClass: 'icon-connections',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
-  },
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -1020,6 +1024,14 @@ const PREMIUM_TOOLS = [
     href: 'dashboard.html',
     iconClass: 'icon-dashboard',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>'
+  },
+  {
+    id: 'connections',
+    label: 'Connections',
+    desc: 'Every account, one net worth.',
+    href: 'connections.html',
+    iconClass: 'icon-connections',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
   },
   {
     id: 'budget',
@@ -1042,12 +1054,17 @@ const PREMIUM_TOOLS = [
 function renderLedgerMenu() {
   const inner = document.getElementById('ledger-dropdown-inner');
   const lockBadge = document.getElementById('ledger-lock-badge');
-  lockBadge.style.display = 'none';
+  lockBadge.style.display = isPaidUser ? 'none' : 'flex';
+  document.getElementById('ledger-menu-btn').classList.toggle('unlocked', isPaidUser);
 
   const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
     const isCurrent = tool.href === 'connections.html';
+    const isLocked = !isPaidUser && !TRIAL_COVERED_TOOL_IDS.includes(tool.id);
+    const classes = ['ledger-tool-item'];
+    if (isCurrent) classes.push('current');
+    if (isLocked) classes.push('locked-preview');
     return `
-      <button type="button" class="ledger-tool-item ${isCurrent ? 'current' : ''}" data-href="${tool.href}"
+      <button type="button" class="${classes.join(' ')}" data-href="${tool.href}" data-tool-id="${tool.id}"
               style="animation-delay:${i * 55}ms" ${isCurrent ? 'disabled' : ''}>
         <span class="ledger-tool-icon ${tool.iconClass}">${tool.icon}</span>
         <span class="ledger-tool-text">
@@ -1060,17 +1077,27 @@ function renderLedgerMenu() {
 
   inner.innerHTML = `
     <div class="ledger-heading">Premium Tools</div>
-    <p class="ledger-sub">Your unlocked workspace for deeper financial planning.</p>
+    <p class="ledger-sub">${isPaidUser
+      ? 'Your unlocked workspace for deeper financial planning.'
+      : 'Budget Planner and Spendings — with custom categories, monthly breakdowns, and an archive of past periods — are part of full access.'}</p>
     <div class="ledger-tool-list">${itemsHtml}</div>
+    ${isPaidUser ? '' : '<button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">Unlock full access — $10</button>'}
     <div class="ledger-future-hint">More premium tools are on the way</div>
   `;
 
   inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       if (btn.disabled) return;
+      const isLocked = !isPaidUser && !TRIAL_COVERED_TOOL_IDS.includes(btn.dataset.toolId);
+      if (isLocked) { await redirectToCheckout(currentUserId, currentUserEmail); return; }
       window.location.href = btn.dataset.href;
     });
   });
+
+  if (!isPaidUser) {
+    const unlockBtn = document.getElementById('ledger-unlock-cta');
+    if (unlockBtn) unlockBtn.addEventListener('click', () => redirectToCheckout(currentUserId, currentUserEmail));
+  }
 }
 
 function closeLedgerMenu() {

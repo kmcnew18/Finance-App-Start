@@ -749,15 +749,13 @@
     }
 
     // ================= PREMIUM FEATURE MENU =================
+    // Which tools are covered by the free trial vs. requiring full
+    // access. Connections joined Dashboard/Log here — seeing real,
+    // synced accounts is a big part of what makes trying the trial
+    // worthwhile. Budget Planner and Spendings stay paid-only.
+    const TRIAL_COVERED_TOOL_IDS = ['dashboard', 'connections'];
+
     const PREMIUM_TOOLS = [
-      {
-        id: 'connections',
-        label: 'Connections',
-        desc: 'Every account, one net worth.',
-        href: 'connections.html',
-        iconClass: 'icon-connections',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
-      },
       {
         id: 'dashboard',
         label: 'Dashboard',
@@ -765,6 +763,14 @@
         href: 'dashboard.html',
         iconClass: 'icon-dashboard',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>'
+      },
+      {
+        id: 'connections',
+        label: 'Connections',
+        desc: 'Every account, one net worth.',
+        href: 'connections.html',
+        iconClass: 'icon-connections',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>'
       },
       {
         id: 'budget',
@@ -794,16 +800,18 @@
       const inner = document.getElementById('ledger-dropdown-inner');
       const lockBadge = document.getElementById('ledger-lock-badge');
       lockBadge.style.display = isPaidUser ? 'none' : 'flex';
+      document.getElementById('ledger-menu-btn').classList.toggle('unlocked', isPaidUser);
 
       const here = currentFileName();
 
       const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
         const isCurrent = tool.href.replace(/\.html?$/i, '') === here;
+        const isLocked = !isPaidUser && !TRIAL_COVERED_TOOL_IDS.includes(tool.id);
         const classes = ['ledger-tool-item'];
         if (isCurrent) classes.push('current');
-        if (!isPaidUser) classes.push('locked-preview');
+        if (isLocked) classes.push('locked-preview');
         return `
-          <button type="button" class="${classes.join(' ')}" data-href="${tool.href}"
+          <button type="button" class="${classes.join(' ')}" data-href="${tool.href}" data-tool-id="${tool.id}"
                   style="animation-delay:${i * 55}ms" ${isCurrent ? 'disabled' : ''}>
             <span class="ledger-tool-icon ${tool.iconClass}">${tool.icon}</span>
             <span class="ledger-tool-text">
@@ -818,7 +826,7 @@
         <div class="ledger-heading">Premium Tools</div>
         <p class="ledger-sub">${isPaidUser
           ? 'Your unlocked workspace for deeper financial planning.'
-          : 'Full monthly budgeting — with custom categories, saved defaults, and an archive of past months — is part of full access.'}</p>
+          : 'Budget Planner and Spendings — with custom categories, monthly breakdowns, and an archive of past periods — are part of full access.'}</p>
         <div class="ledger-tool-list">${itemsHtml}</div>
         ${isPaidUser ? '' : '<button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">Unlock full access — $10</button>'}
         <div class="ledger-future-hint">More premium tools are on the way</div>
@@ -827,7 +835,8 @@
       inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (btn.disabled) return;
-          if (!isPaidUser) { await startCheckoutSilent(); return; }
+          const isLocked = !isPaidUser && !TRIAL_COVERED_TOOL_IDS.includes(btn.dataset.toolId);
+          if (isLocked) { await startCheckoutSilent(); return; }
           if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);

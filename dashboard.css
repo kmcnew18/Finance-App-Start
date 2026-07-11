@@ -1113,6 +1113,12 @@ input[type="number"]::-webkit-outer-spin-button {
 .btn-icon.btn-ledger svg { stroke: #C9A227; }
 .btn-icon.btn-ledger:hover svg { stroke: #E7C766; }
 
+/* Paid/unlocked state — a distinct color from the locked gold, so the
+   icon itself signals "you have full access" rather than just hiding
+   the lock badge and leaving the same color behind either way. */
+.btn-icon.btn-ledger.unlocked svg { stroke: var(--emerald-bright, #63D9AA); }
+.btn-icon.btn-ledger.unlocked:hover svg { stroke: #7FE8BC; }
+
 .btn-icon.btn-ledger .lock-badge {
   position: absolute;
   bottom: 1px; right: 1px;
