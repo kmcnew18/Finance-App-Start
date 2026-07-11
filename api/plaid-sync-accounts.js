@@ -111,6 +111,7 @@ module.exports = async (req, res) => {
       }
     }
 
+    console.log('plaid-sync-accounts result:', { userId, updatedCount, flaggedCount, orphansCleaned });
     res.status(200).json({ success: true, updatedCount, flaggedCount, orphansCleaned });
   } catch (err) {
     console.error('plaid-sync-accounts error:', err?.response?.data || err);

@@ -93,6 +93,7 @@ module.exports = async (req, res) => {
       }
     }
 
+    console.log('plaid-sync-recurring result:', { userId, mode: mode || 'combined', totalAdded, totalQueued, orphansCleaned });
     res.status(200).json({ success: true, totalAdded, totalQueued, orphansCleaned });
   } catch (err) {
     console.error('plaid-sync-recurring error:', err?.response?.data || err);
