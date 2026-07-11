@@ -10,8 +10,8 @@ let categories = [];
 let accountSplits = []; // account_category_splits rows
 
 const DEFAULT_CATEGORIES = [
-  { name: 'Savings', accent: 'sage' },
-  { name: 'Investment', accent: 'blue' },
+  { name: 'Savings', accent: 'teal' },
+  { name: 'Investment', accent: 'violet' },
   { name: 'Checking', accent: 'gold' },
 ];
 
@@ -121,11 +121,9 @@ async function init() {
 // How often the background balance refresh is allowed to actually call
 // Plaid. Every page load used to trigger a real API call regardless of
 // how recently one had already happened — harmless in Sandbox, but in
-// Production each of those calls has a real cost, and someone checking
-// the app several times an hour was paying for that many redundant
-// syncs. 15 minutes keeps things feeling current without syncing on
-// literally every visit.
-const BACKGROUND_SYNC_THROTTLE_MS = 15 * 60 * 1000;
+// Production each of those calls has a real cost. Set to 12 hours (2
+// times a day) per updated direction — was 6 hours before.
+const BACKGROUND_SYNC_THROTTLE_MS = 12 * 60 * 60 * 1000;
 
 function shouldRunBackgroundSync() {
   const plaidAccounts = accounts.filter(a => a.source === 'plaid' && a.last_synced_at);

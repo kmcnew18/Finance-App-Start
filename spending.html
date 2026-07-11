@@ -87,7 +87,10 @@
     </section>
 
     <section class="spend-section spend-chart-section">
-      <h2 class="spend-section-title">By category</h2>
+      <div class="spend-section-head-row">
+        <h2 class="spend-section-title">By category</h2>
+        <button type="button" class="spend-categories-btn" id="spend-categories-btn">Spending categories</button>
+      </div>
       <div class="spend-chart-wrap">
         <canvas id="spend-pie-chart"></canvas>
       </div>
@@ -153,6 +156,20 @@
     </div>
   </div>
 
+  <!-- ================= SPENDING CATEGORIES ================= -->
+  <div class="mfa-overlay" id="spend-categories-overlay">
+    <div class="mfa-modal" style="max-width: 420px;">
+      <div class="mfa-modal-head">
+        <h2>Spending categories</h2>
+        <button type="button" class="mfa-modal-close" id="spend-categories-close">×</button>
+      </div>
+      <div class="mfa-modal-body">
+        <p class="mfa-modal-sub" style="margin-bottom:14px;">A full reference list — for organizing and thinking through where your money goes.</p>
+        <div class="spend-categories-list" id="spend-categories-list"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
@@ -209,6 +226,7 @@
       setupRefreshTransactions();
       setupClearTransactions();
       setupFeedback();
+      setupSpendCategoriesOverlay();
       document.getElementById('spend-txn-search-input').addEventListener('input', renderTransactionList);
 
       await loadSpendingData();
@@ -680,7 +698,7 @@
           const res = await fetch('/api/plaid-sync-recurring', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: currentUserId })
+            body: JSON.stringify({ userId: currentUserId, mode: 'subscriptions' })
           });
           if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
           const result = await res.json().catch(() => ({}));
@@ -726,7 +744,7 @@
           const res = await fetch('/api/plaid-sync-recurring', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: currentUserId })
+            body: JSON.stringify({ userId: currentUserId, mode: 'transactions' })
           });
           if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
           await loadSpendingData();
@@ -835,6 +853,33 @@
           btn.disabled = false;
           btn.textContent = 'Send feedback';
         }
+      });
+    }
+
+    // A fixed reference taxonomy — separate from Plaid's own automatic
+    // categorization (which still drives the actual chart/breakdown
+    // above). This is a browsable list for organizing and thinking
+    // through spending, not something transactions are currently
+    // re-sorted into.
+    const SPENDING_CATEGORIES_LIST = [
+      'Housing', 'Utilities', 'Groceries', 'Transportation', 'Insurance',
+      'Healthcare', 'Debt Payments', 'Childcare / Family Support', 'Dining Out / Takeout',
+      'Entertainment & Recreation', 'Shopping & Apparel', 'Personal Care & Grooming',
+      'Travel & Vacations', 'Education & School Supplies', 'Pets', 'Gifts & Donations',
+      'Emergency Savings', 'Retirement Investments', 'General Investments', 'Miscellaneous / Buffer',
+    ];
+
+    function setupSpendCategoriesOverlay() {
+      document.getElementById('spend-categories-btn').addEventListener('click', () => {
+        document.getElementById('spend-categories-list').innerHTML = SPENDING_CATEGORIES_LIST
+          .map(name => `<div class="spend-category-item">${name}</div>`).join('');
+        document.getElementById('spend-categories-overlay').classList.add('open');
+      });
+      document.getElementById('spend-categories-close').addEventListener('click', () => {
+        document.getElementById('spend-categories-overlay').classList.remove('open');
+      });
+      document.getElementById('spend-categories-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'spend-categories-overlay') document.getElementById('spend-categories-overlay').classList.remove('open');
       });
     }
 

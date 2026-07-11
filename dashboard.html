@@ -112,6 +112,7 @@
       <section class="overview-cards">
         <div class="card" data-cat="savings" data-cat-key="savings" draggable="true">
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
+          <button type="button" class="card-color-btn" data-color-cat="savings" title="Change color"></button>
           <span class="card-label">Savings</span>
           <span class="card-value" id="val-savings">$0.00</span>
           <span class="sync-hint" id="sync-hint-savings"></span>
@@ -119,6 +120,7 @@
         </div>
         <div class="card" data-cat="investment" data-cat-key="investment" draggable="true">
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
+          <button type="button" class="card-color-btn" data-color-cat="investment" title="Change color"></button>
           <span class="card-label">Investment</span>
           <span class="card-value" id="val-investment">$0.00</span>
           <span class="sync-hint" id="sync-hint-investment"></span>
@@ -126,6 +128,7 @@
         </div>
         <div class="card" data-cat="checking" data-cat-key="checking" draggable="true">
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
+          <button type="button" class="card-color-btn" data-color-cat="checking" title="Change color"></button>
           <span class="card-label">Checking</span>
           <span class="card-value" id="val-checking">$0.00</span>
           <span class="sync-hint" id="sync-hint-checking"></span>
@@ -323,6 +326,19 @@
     </div>
   </div>
 
+  <!-- ================= CATEGORY COLOR PICKER ================= -->
+  <div class="mfa-overlay" id="color-picker-overlay">
+    <div class="mfa-modal" style="max-width: 340px;">
+      <div class="mfa-modal-head">
+        <h2>Choose a color</h2>
+        <button type="button" class="mfa-modal-close" id="color-picker-close">×</button>
+      </div>
+      <div class="mfa-modal-body">
+        <div class="color-picker-swatches" id="color-picker-swatches"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
@@ -445,6 +461,59 @@
       renderCustomCategoryCards();
     }
 
+    const COLOR_PICKER_OPTIONS = ['sage', 'blue', 'coral', 'gold', 'violet', 'teal'];
+    let colorPickerTargetCatKey = null;
+
+    function setupColorPicker() {
+      const container = document.querySelector('.overview-cards');
+      if (!container) return;
+
+      // Delegated on the static container rather than bound to
+      // individual swatch buttons — custom cards get recreated on every
+      // render, and binding fresh listeners to them each time is
+      // exactly what made the old arrow-button reorder controls buggy.
+      container.addEventListener('click', (e) => {
+        const btn = e.target.closest('.card-color-btn');
+        if (!btn) return;
+        e.stopPropagation();
+        colorPickerTargetCatKey = btn.dataset.colorCat;
+        renderColorPickerSwatches();
+        document.getElementById('color-picker-overlay').classList.add('open');
+      });
+
+      document.getElementById('color-picker-close').addEventListener('click', () => {
+        document.getElementById('color-picker-overlay').classList.remove('open');
+      });
+      document.getElementById('color-picker-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'color-picker-overlay') document.getElementById('color-picker-overlay').classList.remove('open');
+      });
+    }
+
+    function renderColorPickerSwatches() {
+      const wrap = document.getElementById('color-picker-swatches');
+      wrap.innerHTML = COLOR_PICKER_OPTIONS.map(accent => `
+        <button type="button" class="color-picker-swatch" data-accent="${accent}" style="background:${ACCENT_COLORS[accent]};" aria-label="${accent}"></button>
+      `).join('');
+
+      wrap.querySelectorAll('.color-picker-swatch').forEach(swatch => {
+        swatch.addEventListener('click', async () => {
+          const accent = swatch.dataset.accent;
+          const catId = ['savings', 'investment', 'checking'].includes(colorPickerTargetCatKey)
+            ? categoryIdByKey[colorPickerTargetCatKey]
+            : colorPickerTargetCatKey;
+          if (!catId) return;
+
+          const { error } = await supabaseClient.from('budget_categories').update({ accent }).eq('id', catId);
+          if (error) { alert('Could not update color: ' + error.message); return; }
+
+          document.getElementById('color-picker-overlay').classList.remove('open');
+          await loadConnectedTotals();
+          renderTotals();
+          renderCustomCategoryCards();
+        });
+      });
+    }
+
     function renderTotals() {
       const combined = {
         savings: round2(totals.savings + connectedTotals.savings),
@@ -458,6 +527,17 @@
       document.getElementById('val-savings').textContent = money(combined.savings);
       document.getElementById('val-investment').textContent = money(combined.investment);
       document.getElementById('val-checking').textContent = money(combined.checking);
+
+      ['savings', 'investment', 'checking'].forEach(key => {
+        const card = document.querySelector(`.card[data-cat="${key}"]`);
+        if (!card) return;
+        const accentColor = ACCENT_COLORS[categoryAccentByKey[key]] || ACCENT_COLORS.sage;
+        card.style.borderLeft = `3px solid ${accentColor}`;
+        const label = card.querySelector('.card-label');
+        if (label) label.style.color = accentColor;
+        const swatch = card.querySelector('.card-color-btn');
+        if (swatch) swatch.style.background = accentColor;
+      });
       document.getElementById('val-total').textContent = money(total);
 
       ['savings', 'investment', 'expenses', 'checking'].forEach(cat => {
@@ -493,6 +573,7 @@
         card.style.borderLeft = `3px solid ${accentColor}`;
         card.innerHTML = `
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
+          <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor};"></button>
           <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
           <span class="card-value">${money(cat.total)}</span>
           <span class="sync-hint">Synced from Connections</span>
@@ -546,6 +627,7 @@
       setupFeedback();
       setupAddCategory();
       setupCardDragDrop();
+      setupColorPicker();
 
       const dateNow = todayStr();
       document.getElementById('add-date').textContent = dateNow;
@@ -587,14 +669,14 @@
 
     // Same throttle as Connections — each background sync call costs
     // real money in Production, so this only actually calls Plaid if
-    // the most recent sync is more than 15 minutes old, rather than on
-    // every single page visit.
+    // the most recent sync is more than 12 hours old (2 times a day),
+    // rather than on every single page visit.
     function shouldRunBackgroundSync() {
       const plaidAccounts = lastLoadedLinkedAccounts.filter(a => a.source === 'plaid' && a.last_synced_at);
       if (!plaidAccounts.length) return true;
       const mostRecent = plaidAccounts.reduce((latest, a) =>
         new Date(a.last_synced_at) > new Date(latest) ? a.last_synced_at : latest, plaidAccounts[0].last_synced_at);
-      return (Date.now() - new Date(mostRecent).getTime()) > (15 * 60 * 1000);
+      return (Date.now() - new Date(mostRecent).getTime()) > (12 * 60 * 60 * 1000);
     }
 
     async function refreshConnectedBalancesInBackground() {
@@ -803,6 +885,8 @@
     let orderedCategories = []; // flat, sort_order-sorted list of every real category — used by the move/shuffle controls
     let lastLoadedLinkedAccounts = []; // used only to check how recently Plaid accounts were last synced, for the background-sync throttle
     let categorySortOrderByKey = { savings: 0, investment: 0, checking: 0 };
+    let categoryAccentByKey = { savings: 'teal', investment: 'violet', checking: 'gold' }; // sensible fallbacks until the real stored values load
+    let categoryIdByKey = { savings: null, investment: null, checking: null };
 
     async function loadConnectedTotals() {
       connectedTotals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
@@ -848,6 +932,8 @@
         if (matchedKey) {
           connectedTotals[matchedKey] = catTotal;
           categorySortOrderByKey[matchedKey] = sortOrder;
+          categoryAccentByKey[matchedKey] = cat.accent || categoryAccentByKey[matchedKey];
+          categoryIdByKey[matchedKey] = cat.id;
           if (linkedLiabilities[cat.id]) linkedLiabilities[matchedKey] = linkedLiabilities[cat.id];
           orderedCategories.push({ id: cat.id, key: matchedKey, name: cat.name, sortOrder });
         } else {

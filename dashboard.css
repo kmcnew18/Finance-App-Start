@@ -309,6 +309,38 @@ h1, h2, h3 {
 }
 .card:hover .card-drag-handle { opacity: 0.7; }
 .card-drag-handle:hover { opacity: 1 !important; background: rgba(110,143,163,0.16); color: var(--tan); }
+
+.card-color-btn {
+  position: absolute;
+  top: 13px; right: 38px;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 2;
+  padding: 0;
+}
+.card:hover .card-color-btn { opacity: 0.85; }
+.card-color-btn:hover { opacity: 1 !important; transform: scale(1.2); border-color: rgba(255,255,255,0.5); }
+
+.color-picker-swatches {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding: 6px 0;
+}
+.color-picker-swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.12);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.color-picker-swatch:hover { transform: scale(1.08); border-color: rgba(255,255,255,0.4); }
+
 .card[data-cat-key].dragging { opacity: 0.4; cursor: grabbing; }
 .card[data-cat-key].drag-over {
   box-shadow: inset 0 0 0 2px var(--vintage-blue-light), 0 6px 22px rgba(0,0,0,0.3);
