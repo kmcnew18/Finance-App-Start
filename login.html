@@ -1,204 +1,171 @@
-/* ============= SPENDINGS — coral accent, matches the app's existing
-   spending/subtract color identity used elsewhere (Dashboard's Subtract
-   panel, log stripes). ============= */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log in · Arko</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="signup.css" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+</head>
+<body>
 
-.spend-month-nav {
-  position: relative;
-  display: flex; align-items: center; justify-content: center; gap: 18px;
-  margin-bottom: 22px;
-}
-.spend-month-btn {
-  width: 34px; height: 34px; border-radius: 50%;
-  border: 1px solid var(--panel-border);
-  background: var(--panel-bg);
-  color: var(--tan);
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.spend-month-btn:hover { border-color: #E0806A; background: rgba(224,128,106,0.1); }
-.spend-month-label {
-  font-family: 'Fraunces', serif;
-  font-size: 1.1rem;
-  color: var(--tan);
-  min-width: 160px;
-  text-align: center;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 6px 12px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.spend-month-label:hover { border-color: rgba(224,128,106,0.35); background: rgba(224,128,106,0.06); }
+  <header class="hero">
+    <nav class="nav">
+      <a href="index.html" class="wordmark" style="text-decoration: none;"><span class="wordmark-brand">Arko</span> | Early Access</a>
+      <div class="nav-auth">
+        <button type="button" class="btn-signup" onclick="window.location.href='signup.html'">Sign up</button>
+      </div>
+    </nav>
 
-/* Quick-jump picker — for going back several months without repeated
-   clicking. Pick a year, pick a month, done in two taps regardless of
-   how far back it is. */
-.spend-month-picker {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%) translateY(-6px);
-  width: 280px;
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  padding: 14px;
-  box-shadow: 0 16px 40px rgba(0,0,0,0.4);
-  z-index: 50;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
-}
-.spend-month-picker.open { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
-.spend-month-picker-year {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 10px;
-}
-.spend-month-picker-year button {
-  width: 26px; height: 26px; border-radius: 50%;
-  border: 1px solid var(--panel-border); background: none; color: var(--silver-dim);
-  font-size: 1rem; cursor: pointer;
-}
-.spend-month-picker-year button:hover { border-color: #E0806A; color: var(--tan); }
-.spend-month-picker-year span { font-family: 'IBM Plex Mono', monospace; font-size: 0.9rem; color: var(--tan); }
-.spend-month-picker-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
-}
-.spend-picker-month-btn {
-  padding: 8px 0;
-  border-radius: 7px;
-  border: 1px solid var(--panel-border);
-  background: rgba(255,255,255,0.02);
-  color: var(--tan);
-  font-size: 0.78rem;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.spend-picker-month-btn:hover:not(:disabled) { border-color: #E0806A; background: rgba(224,128,106,0.1); }
-.spend-picker-month-btn.active { background: #E0806A; border-color: #E0806A; color: #241812; font-weight: 700; }
-.spend-picker-month-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    <div class="auth-content">
+      <h1>Welcome back</h1>
+      <p class="auth-subhead">Log in to see your full picture.</p>
 
-.spend-total-card {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  background: linear-gradient(135deg, rgba(224,128,106,0.14), rgba(224,128,106,0.04));
-  border: 1px solid rgba(224,128,106,0.35);
-  border-radius: 14px;
-  padding: 24px;
-  margin-bottom: 24px;
-}
-.spend-total-label { font-size: 0.78rem; color: var(--silver-dim); text-transform: uppercase; letter-spacing: 0.05em; }
-.spend-total-value {
-  font-family: 'Fraunces', serif;
-  font-size: 2.2rem;
-  color: #E0806A;
-  text-shadow: 0 0 20px rgba(224,128,106,0.3);
-}
+      <form class="auth-form" id="login-form">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="you@email.com" required />
 
-.spend-section {
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-}
-.spend-section-title { font-family: 'Fraunces', serif; font-size: 1.05rem; color: var(--tan); margin-bottom: 4px; }
-.spend-section-sub { font-size: 0.78rem; color: var(--silver-dim); margin-bottom: 14px; }
-.spend-empty-note { font-size: 0.85rem; color: var(--silver-dim); padding: 8px 0; }
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required minlength="8" />
 
-.spend-chart-wrap {
-  position: relative;
-  height: 280px;
-  margin: 8px 0 22px;
-}
-@media (max-width: 560px) {
-  .spend-chart-wrap { height: 340px; }
-}
+        <button type="submit" id="login-button">Log in</button>
+      </form>
 
-.spend-category-list { display: flex; flex-direction: column; gap: 14px; padding-top: 16px; border-top: 1px solid var(--panel-border); }
-.spend-cat-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
-.spend-cat-name { font-size: 0.88rem; font-weight: 600; color: var(--tan); }
-.spend-cat-amt { font-size: 0.82rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; }
-.spend-cat-bar-track {
-  height: 6px; border-radius: 4px;
-  background: rgba(255,255,255,0.06);
-  overflow: hidden;
-}
-.spend-cat-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #E0806A, #EFA88F);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
+      <p class="auth-switch"><a href="forgot-password.html">Forgot password?</a></p>
 
-.spend-subscriptions-list { display: flex; flex-direction: column; }
-.spend-sub-row {
-  display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center;
-  padding: 11px 2px; border-bottom: 1px solid var(--panel-border);
-}
-.spend-sub-row:last-child { border-bottom: none; }
-.spend-sub-name { font-size: 0.86rem; color: var(--tan); }
-.spend-sub-freq { font-size: 0.72rem; color: var(--silver-dim); text-transform: capitalize; }
-.spend-sub-amt { font-size: 0.86rem; font-family: 'IBM Plex Mono', monospace; color: #E0806A; font-weight: 600; }
+      <p class="auth-message" id="auth-message"></p>
 
-@media (max-width: 600px) {
-  .spend-sub-row { grid-template-columns: 1fr auto; }
-  .spend-sub-freq { display: none; }
-}
+      <button type="button" id="resend-button" class="btn-resend" style="display:none;">Resend confirmation email</button>
 
-/* Section header with an inline search box — used above the
-   transaction list. */
-.spend-section-head-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 4px;
-  flex-wrap: wrap;
-}
-.spend-section-head-row .spend-section-title { margin-bottom: 0; }
-.spend-txn-search {
-  position: relative;
-  width: 200px;
-}
-.spend-txn-search svg {
-  position: absolute;
-  left: 10px; top: 50%;
-  transform: translateY(-50%);
-  width: 14px; height: 14px;
-  color: var(--silver-dim);
-  pointer-events: none;
-}
-.spend-txn-search input {
-  width: 100%;
-  padding: 7px 10px 7px 30px;
-  border-radius: 7px;
-  border: 1px solid var(--panel-border);
-  background: rgba(255,255,255,0.02);
-  color: var(--tan);
-  font-size: 0.78rem;
-  font-family: 'Public Sans', sans-serif;
-}
-.spend-txn-search input:focus { outline: none; border-color: #E0806A; }
+      <p class="auth-switch">Don't have an account? <a href="signup.html">Sign up</a></p>
+    </div>
+  </header>
 
-.spend-txn-list {
-  display: flex; flex-direction: column;
-  margin-top: 14px;
-  max-height: 420px;
-  overflow-y: auto;
-}
-.spend-txn-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 10px 2px; border-bottom: 1px solid var(--panel-border);
-}
-.spend-txn-row:last-child { border-bottom: none; }
-.spend-txn-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.spend-txn-merchant { font-size: 0.85rem; color: var(--tan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.spend-txn-meta { font-size: 0.72rem; color: var(--silver-dim); }
-.spend-txn-amount { font-size: 0.86rem; font-family: 'IBM Plex Mono', monospace; color: #E0806A; font-weight: 600; flex-shrink: 0; }
+  <script src="https://openfpcdn.io/fingerprintjs/v4/iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
 
-@media (max-width: 600px) {
-  .spend-section-head-row { flex-direction: column; align-items: stretch; }
-  .spend-txn-search { width: 100%; }
-}
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const form = document.getElementById('login-form');
+    const button = document.getElementById('login-button');
+    const message = document.getElementById('auth-message');
+    const resendButton = document.getElementById('resend-button');
+
+    let lastLoginEmail = '';
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      message.textContent = '';
+      message.className = 'auth-message';
+      resendButton.style.display = 'none';
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      lastLoginEmail = email;
+
+      button.disabled = true;
+      button.textContent = 'Logging in...';
+
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+        if (error) {
+          console.error('Login error:', error);
+          if (error.message.toLowerCase().includes('email not confirmed')) {
+            message.textContent = "Please confirm your email before logging in. Check your inbox.";
+            resendButton.style.display = 'inline-block';
+          } else {
+            message.textContent = error.message || 'Invalid email or password.';
+          }
+          message.classList.add('auth-message-error');
+          return;
+        }
+
+        message.textContent = "Logged in! Redirecting...";
+        message.classList.add('auth-message-success');
+
+        // Register (or check) trial status before redirecting.
+        // Fingerprinting is wrapped in its own try/catch so a blocked
+        // script (ad blockers / Brave / Firefox commonly block it)
+        // never prevents login or trial registration from completing.
+        let visitorId = null;
+        try {
+          const fp = await FingerprintJS.load();
+          const fpResult = await fp.get();
+          visitorId = fpResult.visitorId;
+        } catch (fpErr) {
+          console.warn('Fingerprint unavailable (likely blocked by browser/extension):', fpErr);
+        }
+
+        try {
+          const trialRes = await fetch('/api/register-trial', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: data.user.id, fingerprint: visitorId })
+          });
+          if (!trialRes.ok) {
+            const errBody = await trialRes.text();
+            console.error('register-trial failed:', trialRes.status, errBody);
+          }
+        } catch (regErr) {
+          console.warn('Trial registration request failed:', regErr);
+        }
+
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
+
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        message.textContent = 'Network error — please check your connection and try again.';
+        message.classList.add('auth-message-error');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Log in';
+      }
+    });
+
+    resendButton.addEventListener('click', async () => {
+      if (!lastLoginEmail) return;
+
+      resendButton.disabled = true;
+      resendButton.textContent = 'Sending...';
+
+      try {
+        const { error } = await supabaseClient.auth.resend({
+          type: 'signup',
+          email: lastLoginEmail,
+          options: {
+            emailRedirectTo: window.location.origin + '/login.html'
+          }
+        });
+
+        if (error) {
+          console.error('Resend error:', error);
+          message.textContent = error.message || 'Could not resend email. Please try again.';
+          message.classList.add('auth-message-error');
+        } else {
+          message.textContent = "Confirmation email resent. Check your inbox.";
+          message.className = 'auth-message auth-message-success';
+        }
+      } catch (err) {
+        console.error('Unexpected resend error:', err);
+        message.textContent = 'Network error — please try again.';
+        message.classList.add('auth-message-error');
+      } finally {
+        resendButton.disabled = false;
+        resendButton.textContent = 'Resend confirmation email';
+      }
+    });
+  </script>
+
+</body>
+</html>
