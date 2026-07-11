@@ -103,6 +103,11 @@
         <button type="button" id="log-month-next" class="log-month-arrow" aria-label="Next month">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
+        <div class="log-month-dropdown" id="log-month-dropdown">
+          <div class="log-month-dropdown-years" id="log-month-dropdown-years"></div>
+          <div class="log-month-dropdown-months" id="log-month-dropdown-months"></div>
+          <button type="button" class="log-month-dropdown-alltime" id="log-month-dropdown-alltime">All time</button>
+        </div>
       </div>
       <div class="log-type-pills" id="log-type-pills">
         <button type="button" class="log-type-pill active" data-type="">All</button>
@@ -234,6 +239,7 @@
 
     let logSelectedMonth = null; // null = all time, else { year, month } (month is 0-11)
     let logSelectedType = ''; // '' = all types
+    let logDropdownYear = new Date().getFullYear(); // which year's months are currently showing in the dropdown
 
     function logMonthLabel() {
       if (!logSelectedMonth) return 'All time';
@@ -319,6 +325,62 @@
       renderLogTable();
     }
 
+    const MONTH_ABBREVIATIONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    // Years shown span from the earliest entry on record (or 4 years
+    // back if there's no data yet) through the current year — no reason
+    // to offer years with nothing in them.
+    function logAvailableYears() {
+      const currentYear = new Date().getFullYear();
+      let earliestYear = currentYear - 4;
+      if (allLogRows.length) {
+        const earliestDate = allLogRows.reduce((min, r) => r.entry_date < min ? r.entry_date : min, allLogRows[0].entry_date);
+        earliestYear = Math.min(earliestYear, parseInt(earliestDate.slice(0, 4), 10));
+      }
+      const years = [];
+      for (let y = currentYear; y >= earliestYear; y--) years.push(y);
+      return years;
+    }
+
+    function renderLogMonthDropdown() {
+      if (logSelectedMonth) logDropdownYear = logSelectedMonth.year;
+
+      const yearsEl = document.getElementById('log-month-dropdown-years');
+      yearsEl.innerHTML = logAvailableYears().map(y =>
+        `<button type="button" class="log-month-year-btn${y === logDropdownYear ? ' active' : ''}" data-year="${y}">${y}</button>`
+      ).join('');
+      yearsEl.querySelectorAll('.log-month-year-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          logDropdownYear = parseInt(btn.dataset.year, 10);
+          renderLogMonthDropdown();
+        });
+      });
+
+      const monthsEl = document.getElementById('log-month-dropdown-months');
+      monthsEl.innerHTML = MONTH_ABBREVIATIONS.map((label, i) => {
+        const isSelected = logSelectedMonth && logSelectedMonth.year === logDropdownYear && logSelectedMonth.month === i;
+        return `<button type="button" class="log-month-month-btn${isSelected ? ' active' : ''}" data-month="${i}">${label}</button>`;
+      }).join('');
+      monthsEl.querySelectorAll('.log-month-month-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          logSelectedMonth = { year: logDropdownYear, month: parseInt(btn.dataset.month, 10) };
+          updateLogMonthLabel();
+          renderLogTable();
+          closeLogMonthDropdown();
+        });
+      });
+    }
+
+    function toggleLogMonthDropdown() {
+      const dropdown = document.getElementById('log-month-dropdown');
+      const opening = !dropdown.classList.contains('open');
+      if (opening) { renderLogMonthDropdown(); dropdown.classList.add('open'); }
+      else dropdown.classList.remove('open');
+    }
+    function closeLogMonthDropdown() {
+      document.getElementById('log-month-dropdown').classList.remove('open');
+    }
+
     function setupLogFilters() {
       let searchDebounce = null;
       document.getElementById('log-search-input').addEventListener('input', () => {
@@ -328,11 +390,18 @@
 
       document.getElementById('log-month-prev').addEventListener('click', () => shiftLogMonth(-1));
       document.getElementById('log-month-next').addEventListener('click', () => shiftLogMonth(1));
-      document.getElementById('log-month-label').addEventListener('click', () => {
+      document.getElementById('log-month-label').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleLogMonthDropdown();
+      });
+      document.getElementById('log-month-dropdown-alltime').addEventListener('click', () => {
         logSelectedMonth = null;
         updateLogMonthLabel();
         renderLogTable();
+        closeLogMonthDropdown();
       });
+      document.getElementById('log-month-dropdown').addEventListener('click', (e) => e.stopPropagation());
+      document.addEventListener('click', closeLogMonthDropdown);
 
       document.querySelectorAll('.log-type-pill').forEach(pill => {
         pill.addEventListener('click', () => {

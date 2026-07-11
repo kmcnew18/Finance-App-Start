@@ -870,6 +870,7 @@ input[type="number"]::-webkit-outer-spin-button {
   border-radius: 9px;
   border: 1px solid var(--panel-border);
   background: rgba(255,255,255,0.02);
+  position: relative;
 }
 .log-month-arrow {
   width: 26px; height: 26px;
@@ -895,6 +896,94 @@ input[type="number"]::-webkit-outer-spin-button {
   transition: color 0.15s ease;
 }
 .log-month-label:hover { color: var(--vintage-blue-light); }
+
+.log-month-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) scaleY(0.9) translateY(-6px);
+  width: 260px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: linear-gradient(160deg, #1B222A, #171D24);
+  box-shadow: 0 16px 34px rgba(0,0,0,0.45);
+  z-index: 30;
+  opacity: 0;
+  visibility: hidden;
+  transform-origin: top center;
+  transition: opacity 0.18s ease, transform 0.22s cubic-bezier(.22,.9,.3,1.2), visibility 0.22s;
+}
+.log-month-dropdown.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) scaleY(1) translateY(0);
+}
+.log-month-dropdown-years {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--panel-border);
+}
+.log-month-year-btn {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: rgba(255,255,255,0.03);
+  color: var(--silver-dim);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.log-month-year-btn:hover { color: var(--tan); }
+.log-month-year-btn.active {
+  background: rgba(110,143,163,0.18);
+  color: var(--vintage-blue-light);
+  border-color: rgba(110,143,163,0.4);
+}
+.log-month-dropdown-months {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.log-month-month-btn {
+  padding: 8px 0;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: rgba(255,255,255,0.03);
+  color: var(--tan);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.log-month-month-btn:hover { background: rgba(110,143,163,0.14); }
+.log-month-month-btn.active {
+  background: rgba(110,143,163,0.22);
+  border-color: rgba(110,143,163,0.5);
+  color: var(--vintage-blue-light);
+}
+.log-month-dropdown-alltime {
+  width: 100%;
+  padding: 8px;
+  border-radius: 7px;
+  border: 1px dashed var(--panel-border);
+  background: none;
+  color: var(--silver-dim);
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.log-month-dropdown-alltime:hover { color: var(--tan); border-color: var(--silver-dim); }
 
 .log-type-pills {
   display: flex;
