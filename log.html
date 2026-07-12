@@ -455,17 +455,49 @@
     });
 
     document.getElementById('delete-selected-btn').addEventListener('click', async () => {
-      const ids = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.dataset.id);
-      if (ids.length === 0) {
-        alert('No entries selected.');
-        return;
-      }
+  const ids = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.dataset.id);
+  if (ids.length === 0) {
+    alert('No entries selected.');
+    return;
+  }
+
+  // Entries created by approving a detected transaction carry a
+  // source_review_id — deleting the log entry should put that
+  // transaction back in the Dashboard's "Detected activity" queue,
+  // since it's no longer logged anywhere.
+  const { data: rowsToDelete } = await supabaseClient
+    .from('finance_log')
+    .select('id, source_review_id')
+    .in('id', ids);
+  const linkedReviewIds = [...new Set((rowsToDelete || []).map(r => r.source_review_id).filter(Boolean))];
+
+  const confirmMsg = linkedReviewIds.length
+    ? `Delete ${ids.length} selected entr${ids.length === 1 ? 'y' : 'ies'}? Any detected transactions among them will reappear on the Dashboard for review. This cannot be undone.`
+    : `Delete ${ids.length} selected entr${ids.length === 1 ? 'y' : 'ies'}? This cannot be undone.`;
+  if (!confirm(confirmMsg)) return;
+
+  const { error } = await supabaseClient.from('finance_log').delete().in('id', ids);
+  if (error) { console.error(error); alert('Could not delete entries.'); return; }
+
+  if (linkedReviewIds.length) {
+    // Only flips rows currently 'approved' — leaves anything already
+    // pending/dismissed alone.
+    const { error: restoreError } = await supabaseClient
+      .from('pending_dashboard_reviews')
+      .update({ status: 'pending' })
+      .in('id', linkedReviewIds)
+      .eq('status', 'approved');
+    if (restoreError) console.error('Could not restore detected activity:', restoreError);
+  }
+
+  await loadLog();
+});
       if (!confirm(`Delete ${ids.length} selected entr${ids.length === 1 ? 'y' : 'ies'}? This cannot be undone.`)) return;
 
       const { error } = await supabaseClient.from('finance_log').delete().in('id', ids);
       if (error) { console.error(error); alert('Could not delete entries.'); return; }
       await loadLog();
-    });
+    ;
 
     // ================= SETTINGS GEAR =================
     const gearBtn = document.getElementById('settings-gear');

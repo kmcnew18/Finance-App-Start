@@ -617,15 +617,16 @@
       if (error) console.error('Save totals error:', error);
     }
 
-    async function logEntry({ amount, savings=0, investment=0, expenses=0, checking=0, notes='', action_type, entryDate=null }) {
-      const { error } = await supabaseClient.from('finance_log').insert({
-        user_id: currentUserId,
-        entry_date: entryDate || todayISO(),
-        amount, savings, investment, expenses, checking,
-        notes, action_type
-      });
-      if (error) console.error('Log insert error:', error);
-    }
+    async function logEntry({ amount, savings=0, investment=0, expenses=0, checking=0, notes='', action_type, entryDate=null, sourceReviewId=null }) {
+  const { error } = await supabaseClient.from('finance_log').insert({
+    user_id: currentUserId,
+    entry_date: entryDate || todayISO(),
+    amount, savings, investment, expenses, checking,
+    notes, action_type,
+    source_review_id: sourceReviewId
+  });
+  if (error) console.error('Log insert error:', error);
+}
 
     async function init() {
       const { data: { session } } = await supabaseClient.auth.getSession();
@@ -1056,7 +1057,7 @@
         const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
         logRow[fromCat] += -amount;
         splits.forEach(s => { logRow[s.cat] = round2((logRow[s.cat] || 0) + s.amt); });
-        await logEntry({ amount, ...logRow, notes: note, action_type: 'transfer', entryDate: review.txn_date });
+        await logEntry({ amount, ...logRow, notes: note, action_type: 'transfer', entryDate: review.txn_date, sourceReviewId: review.id });
         await applyEnvelopeAdjustment(review.linked_account_id, fromCat, 'subtract', amount);
         for (const s of splits) {
           await applyEnvelopeAdjustment(review.linked_account_id, s.cat, 'add', s.amt);
@@ -1086,7 +1087,7 @@
 
       const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       logRow[cat] = logAmount;
-      await logEntry({ amount, ...logRow, notes: note, action_type: logActionType, entryDate: review.txn_date });
+      await logEntry({ amount, ...logRow, notes: note, action_type: logActionType, entryDate: review.txn_date, sourceReviewId: review.id });
       await applyEnvelopeAdjustment(review.linked_account_id, cat, action, amount);
 
       await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
@@ -1115,7 +1116,7 @@
 
         const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
         logRow[cat] = logAmount;
-        await logEntry({ amount, ...logRow, notes: autoNoteFor(review), action_type: logActionType, entryDate: review.txn_date });
+       await logEntry({ amount, ...logRow, notes: autoNoteFor(review), action_type: logActionType, entryDate: review.txn_date, sourceReviewId: review.id });
         await applyEnvelopeAdjustment(review.linked_account_id, cat, action, amount);
 
         await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', review.id);
@@ -2257,6 +2258,15 @@
       });
     });
 
+    const linkedReviewIds = [...new Set((deletedRows || []).map(r => r.source_review_id).filter(Boolean))];
+if (linkedReviewIds.length) {
+  const { error: restoreError } = await supabaseClient
+    .from('pending_dashboard_reviews')
+    .update({ status: 'pending' })
+    .in('id', linkedReviewIds)
+    .eq('status', 'approved');
+  if (restoreError) console.error('Could not restore detected activity:', restoreError);
+}
     init();
   </script>
 
