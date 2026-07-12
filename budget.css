@@ -179,6 +179,48 @@
   padding: 20px 22px;
   box-shadow: 0 8px 26px rgba(0,0,0,0.35), 0 0 22px rgba(184,147,74,0.08);
 }
+
+.recurring-review-card {
+  background: linear-gradient(150deg, var(--ledger-panel-raised), var(--ledger-panel));
+  border: 1px solid var(--brass-dim);
+  border-radius: 14px;
+  padding: 18px 22px;
+  margin-bottom: 22px;
+  box-shadow: 0 8px 26px rgba(0,0,0,0.35), 0 0 22px rgba(184,147,74,0.08);
+}
+.recurring-review-head { margin-bottom: 12px; }
+.recurring-review-head h2 {
+  font-family: 'Fraunces', serif;
+  font-size: 1.05rem;
+  color: var(--brass-bright);
+  margin-bottom: 5px;
+}
+.recurring-review-sub { font-size: 0.78rem; color: var(--silver-dim); line-height: 1.45; }
+.recurring-review-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 11px 0; border-top: 1px solid rgba(184,147,74,0.14);
+}
+.recurring-review-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.recurring-review-merchant { font-size: 0.88rem; color: var(--tan); font-weight: 600; }
+.recurring-review-meta { font-size: 0.76rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; }
+.recurring-review-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.recurring-review-approve, .recurring-review-dismiss {
+  padding: 7px 13px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.recurring-review-approve {
+  background: linear-gradient(135deg, var(--brass-bright), #9c7d3a);
+  color: #1A1408;
+  border: none;
+}
+.recurring-review-approve:hover { transform: translateY(-1px); filter: brightness(1.08); }
+.recurring-review-dismiss {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(184,147,74,0.2);
+  color: var(--silver-dim);
+}
+.recurring-review-dismiss:hover { color: var(--tan); border-color: var(--silver-dim); }
+
 .cashflow-card h2 {
   font-family: 'Fraunces', serif;
   font-size: 1.05rem;

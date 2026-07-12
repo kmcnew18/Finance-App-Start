@@ -133,6 +133,14 @@
         <span><b>This period is finalized.</b> It's archived, but you can still pull it up or unlock it to make edits.</span>
       </div>
 
+      <section class="recurring-review-card" id="recurring-review-card" style="display:none;">
+        <div class="recurring-review-head">
+          <h2>Detected recurring</h2>
+          <span class="recurring-review-sub">Subscriptions and bills you've mapped, matched against what's actually come through — nothing here touches your budget until you approve it.</span>
+        </div>
+        <div class="recurring-review-list" id="recurring-review-list"></div>
+      </section>
+
       <section class="cashflow-card">
         <h2>Cash Flow Summary</h2>
         <div class="cashflow-grid" id="cashflow-grid"></div>
@@ -490,6 +498,8 @@
       setupStaticListeners();
       setupIdleTimeout();
       setupFeedback();
+      setupRecurringReviews();
+      await loadRecurringReviews();
 
       if (new URLSearchParams(window.location.search).get('history') === '1') {
         document.getElementById('history-button').click();
@@ -988,6 +998,104 @@
         .update({ categories: current.categories, start_date: current.start_date, end_date: current.end_date, updated_at: new Date().toISOString() })
         .eq('id', current.id);
       if (error) console.error('Save error:', error);
+    }
+
+    // ================= DETECTED RECURRING REVIEW =================
+    // The backend has been detecting and queueing matches here all
+    // along (any subscription mapped to a Bills line via Spendings) —
+    // this is genuinely the first UI that's ever shown or acted on
+    // them. Nothing here touches budget_periods until "Add to budget"
+    // is actually clicked.
+    let recurringReviews = [];
+
+    async function loadRecurringReviews() {
+      const { data, error } = await supabaseClient
+        .from('pending_transaction_reviews')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .eq('status', 'pending')
+        .order('txn_date', { ascending: false });
+      if (error) { console.error(error); return; }
+      recurringReviews = data || [];
+      renderRecurringReviews();
+    }
+
+    function renderRecurringReviews() {
+      const card = document.getElementById('recurring-review-card');
+      const list = document.getElementById('recurring-review-list');
+      if (!recurringReviews.length) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+
+      list.innerHTML = recurringReviews.map(r => `
+        <div class="recurring-review-row" data-id="${r.id}">
+          <div class="recurring-review-info">
+            <span class="recurring-review-merchant">${(r.merchant_name || 'Recurring charge').replace(/</g,'&lt;')}</span>
+            <span class="recurring-review-meta">${fmtDate(r.txn_date)} · ${money(r.amount)} → ${(r.mapped_line_name || r.mapped_cat).replace(/</g,'&lt;')}</span>
+          </div>
+          <div class="recurring-review-actions">
+            <button type="button" class="recurring-review-approve" data-id="${r.id}">Add to budget</button>
+            <button type="button" class="recurring-review-dismiss" data-id="${r.id}">Dismiss</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function setupRecurringReviews() {
+      // Delegated on the static card, not individual rows — the list
+      // gets fully re-rendered after every approve/dismiss, so binding
+      // fresh per-row would risk the same listener pile-up the old
+      // arrow-based category reorder had before it was rebuilt properly.
+      document.getElementById('recurring-review-list').addEventListener('click', async (e) => {
+        const approveBtn = e.target.closest('.recurring-review-approve');
+        const dismissBtn = e.target.closest('.recurring-review-dismiss');
+        if (approveBtn) await approveRecurringReview(approveBtn.dataset.id);
+        else if (dismissBtn) await dismissRecurringReview(dismissBtn.dataset.id);
+      });
+    }
+
+    async function approveRecurringReview(reviewId) {
+      const review = recurringReviews.find(r => r.id === reviewId);
+      if (!review || !current) return;
+
+      const cat = review.mapped_cat; // 'bills' or 'income'
+      if (!current.categories[cat]) current.categories[cat] = [];
+
+      // Match by name, not by a stored id — budget line ids aren't
+      // stable across periods (a new period clones lines with fresh
+      // ids), so a name match against whatever period is actually open
+      // right now is the only thing that reliably still means the same
+      // line months later. Creates the line if this period doesn't
+      // have one with that name yet.
+      const targetName = (review.mapped_line_name || '').toLowerCase();
+      let line = current.categories[cat].find(l => (l.name || '').toLowerCase() === targetName);
+      if (!line) {
+        line = { id: uid(), name: review.mapped_line_name || 'Recurring', budget: 0, actual: 0, done: false, entries: [] };
+        current.categories[cat].push(line);
+      }
+      if (!Array.isArray(line.entries)) line.entries = [];
+
+      const amount = round2(Number(review.amount) || 0);
+      line.entries.push({ id: uid(), amount, note: review.merchant_name || '', date: review.txn_date });
+      line.actual = round2((Number(line.actual) || 0) + amount);
+      if (c_shouldMarkPaid(cat, line)) line.done = true;
+
+      const { error } = await supabaseClient.from('pending_transaction_reviews').update({ status: 'approved' }).eq('id', reviewId);
+      if (error) { alert('Could not approve: ' + error.message); return; }
+
+      renderCategoryPanel(cat);
+      recalcSummary();
+      queueSave();
+      updateScrollSpy();
+
+      recurringReviews = recurringReviews.filter(r => r.id !== reviewId);
+      renderRecurringReviews();
+    }
+
+    async function dismissRecurringReview(reviewId) {
+      const { error } = await supabaseClient.from('pending_transaction_reviews').update({ status: 'dismissed' }).eq('id', reviewId);
+      if (error) { alert('Could not dismiss: ' + error.message); return; }
+      recurringReviews = recurringReviews.filter(r => r.id !== reviewId);
+      renderRecurringReviews();
     }
 
     function logAuditEvent(eventType, detail) {

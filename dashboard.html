@@ -62,6 +62,7 @@
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
             <div class="dropdown-divider"></div>
+            <button type="button" id="view-skipped-btn" class="dropdown-item">View skipped activity</button>
             <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
             <div class="dropdown-divider"></div>
             <div class="dropdown-toggle-row" id="override-toggle-row">
@@ -335,6 +336,21 @@
       </div>
       <div class="mfa-modal-body">
         <div class="color-picker-swatches" id="color-picker-swatches"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SKIPPED ACTIVITY ================= -->
+  <div class="mfa-overlay" id="skipped-activity-overlay">
+    <div class="mfa-modal" style="max-width: 460px;">
+      <div class="mfa-modal-head">
+        <h2>Skipped activity</h2>
+        <button type="button" class="mfa-modal-close" id="skipped-activity-close">×</button>
+      </div>
+      <div class="mfa-modal-body">
+        <p class="mfa-modal-sub" style="margin-bottom:12px;">Only what you've dismissed — anything already added to your log never shows up here, so there's no risk of accidentally logging it twice.</p>
+        <div class="skipped-activity-list" id="skipped-activity-list"></div>
+        <p class="mfa-modal-sub" id="skipped-activity-empty" style="display:none;">Nothing skipped right now.</p>
       </div>
     </div>
   </div>
@@ -628,6 +644,7 @@
       setupAddCategory();
       setupCardDragDrop();
       setupColorPicker();
+      setupSkippedActivity();
 
       const dateNow = todayStr();
       document.getElementById('add-date').textContent = dateNow;
@@ -1038,6 +1055,75 @@
       await supabaseClient.from('pending_dashboard_reviews').update({ status: 'dismissed' }).eq('id', reviewId);
       logAuditEvent('txn_review_dismissed', { merchant_name: review?.merchant_name });
       await loadPendingReviews();
+    }
+
+    // ================= SKIPPED ACTIVITY (view + restore) =================
+    // Only ever queries status = 'dismissed' — something that's already
+    // been approved and logged structurally can't come back through
+    // this, since the query itself never asks for approved rows in the
+    // first place. Restoring just flips a dismissed row back to
+    // 'pending' so it reappears in the normal review queue.
+    async function openSkippedActivity() {
+      document.getElementById('settings-dropdown').classList.remove('open');
+      const { data, error } = await supabaseClient
+        .from('pending_dashboard_reviews')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .eq('status', 'dismissed')
+        .order('txn_date', { ascending: false });
+
+      const list = document.getElementById('skipped-activity-list');
+      const empty = document.getElementById('skipped-activity-empty');
+
+      if (error || !data || !data.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+      } else {
+        empty.style.display = 'none';
+        list.innerHTML = data.map(r => `
+          <div class="skipped-activity-row" data-id="${r.id}">
+            <div class="skipped-activity-info">
+              <span class="skipped-activity-merchant">${(r.merchant_name || 'Transaction').replace(/</g,'&lt;')}</span>
+              <span class="skipped-activity-meta">${new Date(r.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${money(r.amount)}</span>
+            </div>
+            <button type="button" class="skipped-activity-restore" data-id="${r.id}">Restore</button>
+          </div>
+        `).join('');
+      }
+
+      document.getElementById('skipped-activity-overlay').classList.add('open');
+    }
+
+    async function restoreSkippedActivity(reviewId) {
+      // The update itself is scoped to dismissed rows only — belt and
+      // suspenders alongside the query above only ever fetching
+      // dismissed rows in the first place.
+      const { error } = await supabaseClient
+        .from('pending_dashboard_reviews')
+        .update({ status: 'pending' })
+        .eq('id', reviewId)
+        .eq('status', 'dismissed');
+      if (error) { alert('Could not restore: ' + error.message); return; }
+      logAuditEvent('txn_review_restored', {});
+      await openSkippedActivity();
+      await loadPendingReviews();
+    }
+
+    function setupSkippedActivity() {
+      document.getElementById('view-skipped-btn').addEventListener('click', openSkippedActivity);
+      document.getElementById('skipped-activity-close').addEventListener('click', () => {
+        document.getElementById('skipped-activity-overlay').classList.remove('open');
+      });
+      document.getElementById('skipped-activity-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'skipped-activity-overlay') document.getElementById('skipped-activity-overlay').classList.remove('open');
+      });
+      // Delegated on the static list container — repopulated on every
+      // open/restore, so binding fresh per-row would risk the same
+      // listener pile-up bug the old category-reorder arrows had.
+      document.getElementById('skipped-activity-list').addEventListener('click', (e) => {
+        const btn = e.target.closest('.skipped-activity-restore');
+        if (btn) restoreSkippedActivity(btn.dataset.id);
+      });
     }
 
     // ================= CONNECTED TOTALS (from Connections) =================

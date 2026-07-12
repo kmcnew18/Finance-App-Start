@@ -185,6 +185,27 @@
     </div>
   </div>
 
+  <!-- ================= MAP SUBSCRIPTION TO BUDGET ================= -->
+  <div class="mfa-overlay" id="map-budget-overlay">
+    <div class="mfa-modal" style="max-width: 380px;">
+      <div class="mfa-modal-head">
+        <h2>Map to budget</h2>
+        <button type="button" class="mfa-modal-close" id="map-budget-close">×</button>
+      </div>
+      <div class="mfa-modal-body">
+        <p class="mfa-modal-sub" id="map-budget-sub" style="margin-bottom:14px;"></p>
+        <div id="map-budget-existing-lines"></div>
+        <div class="mfa-field" style="margin-top:12px;">
+          <label for="map-budget-new-line">Or a new Bills line</label>
+          <input type="text" id="map-budget-new-line" placeholder="e.g. Streaming" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
+        </div>
+        <button type="button" class="mfa-verify-btn" id="map-budget-save-btn" style="margin-top:12px;">Save</button>
+        <button type="button" class="spend-category-reset-btn" id="map-budget-unmap-btn" style="margin-top:8px; display:none;">Remove mapping</button>
+        <p class="mfa-modal-sub" id="map-budget-error" style="color:var(--error); display:none; margin-top:8px;"></p>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
@@ -571,6 +592,9 @@
           <span class="spend-sub-name">${(s.description || s.merchant_name || 'Recurring charge').replace(/</g,'&lt;')}</span>
           <span class="spend-sub-freq">${s.frequency ? s.frequency.toLowerCase() : ''}</span>
           <span class="spend-sub-amt">${money(s.last_amount || s.average_amount || 0)}</span>
+          <button type="button" class="spend-sub-map-btn" data-stream-id="${s.id}" data-stream-name="${(s.description || s.merchant_name || 'Recurring charge').replace(/"/g,'&quot;')}">
+            ${s.mapped_line_name ? `→ ${s.mapped_line_name.replace(/</g,'&lt;')}` : 'Map to budget'}
+          </button>
         </div>
       `).join('');
     }
@@ -1101,6 +1125,76 @@
       document.getElementById('edit-txn-category-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'edit-txn-category-overlay') document.getElementById('edit-txn-category-overlay').classList.remove('open');
       });
+    }
+
+    let mapBudgetTargetStreamId = null;
+
+    function setupMapToBudget() {
+      // Delegated on the static list container — subscription rows get
+      // recreated on every render (refresh, a fresh sync), so binding
+      // directly to each row's button would risk the same listener-
+      // duplication bug the old category-reorder arrows had.
+      document.getElementById('spend-subscriptions-list').addEventListener('click', async (e) => {
+        const btn = e.target.closest('.spend-sub-map-btn');
+        if (!btn) return;
+        mapBudgetTargetStreamId = btn.dataset.streamId;
+        document.getElementById('map-budget-sub').textContent = `Which Bills line does "${btn.dataset.streamName}" belong to?`;
+        document.getElementById('map-budget-new-line').value = '';
+        document.getElementById('map-budget-error').style.display = 'none';
+        document.getElementById('map-budget-unmap-btn').style.display = btn.textContent.trim().startsWith('→') ? 'block' : 'none';
+
+        // Existing Bills lines from whichever budget period is
+        // currently active — offered as one-click options so mapping a
+        // subscription to a line that's already there doesn't mean
+        // retyping its exact name.
+        const { data: activePeriod } = await supabaseClient
+          .from('budget_periods')
+          .select('categories')
+          .eq('user_id', currentUserId)
+          .eq('status', 'active')
+          .order('start_date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const billLines = (activePeriod?.categories?.bills || []).filter(l => l.name);
+        const existingWrap = document.getElementById('map-budget-existing-lines');
+        existingWrap.innerHTML = billLines.length
+          ? `<div class="spend-categories-list" style="grid-template-columns:1fr;">${billLines.map(l =>
+              `<button type="button" class="spend-category-item spend-category-item-btn" data-line-name="${l.name.replace(/"/g,'&quot;')}">${l.name.replace(/</g,'&lt;')}</button>`
+            ).join('')}</div>`
+          : '<p class="mfa-modal-sub" style="opacity:0.7;">No Bills lines yet this period — add one below.</p>';
+
+        existingWrap.querySelectorAll('.spend-category-item-btn').forEach(lineBtn => {
+          lineBtn.addEventListener('click', () => saveStreamMapping(lineBtn.dataset.lineName));
+        });
+
+        document.getElementById('map-budget-overlay').classList.add('open');
+      });
+
+      document.getElementById('map-budget-save-btn').addEventListener('click', () => {
+        const name = document.getElementById('map-budget-new-line').value.trim();
+        if (!name) { document.getElementById('map-budget-error').textContent = 'Type a line name, or pick one above.'; document.getElementById('map-budget-error').style.display = 'block'; return; }
+        saveStreamMapping(name);
+      });
+
+      document.getElementById('map-budget-unmap-btn').addEventListener('click', () => saveStreamMapping(null));
+
+      document.getElementById('map-budget-close').addEventListener('click', () => {
+        document.getElementById('map-budget-overlay').classList.remove('open');
+      });
+      document.getElementById('map-budget-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'map-budget-overlay') document.getElementById('map-budget-overlay').classList.remove('open');
+      });
+    }
+
+    async function saveStreamMapping(lineName) {
+      if (!mapBudgetTargetStreamId) return;
+      const fields = lineName
+        ? { mapped_cat: 'bills', mapped_line_name: lineName, mapped_line_id: lineName.toLowerCase() }
+        : { mapped_cat: null, mapped_line_name: null, mapped_line_id: null };
+      const { error } = await supabaseClient.from('recurring_streams').update(fields).eq('id', mapBudgetTargetStreamId);
+      if (error) { document.getElementById('map-budget-error').textContent = 'Could not save: ' + error.message; document.getElementById('map-budget-error').style.display = 'block'; return; }
+      document.getElementById('map-budget-overlay').classList.remove('open');
+      await loadSubscriptions();
     }
 
     async function saveTxnCategoryOverride(txnId, category) {
