@@ -556,11 +556,41 @@ h1, h2, h3 {
 .txn-review-note-input:focus { outline: none; border-color: var(--vintage-blue-light); background: rgba(110,143,163,0.06); }
 .txn-review-suggestion-text { font-size: 0.86rem; color: var(--silver); margin-bottom: 11px; line-height: 1.45; }
 .txn-review-suggestion-text strong { color: var(--tan); font-weight: 600; }
-.txn-review-change-form { display: none; flex-direction: column; gap: 8px; margin-bottom: 11px; }
-.txn-review-change-form select {
-  flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--panel-border);
-  background: #12181F; color: var(--tan); font-size: 0.8rem;
+.txn-review-change-form {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 11px;
+  padding: 12px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, rgba(110,143,163,0.07), rgba(255,255,255,0.02));
+  border: 1px solid rgba(110,143,163,0.18);
+  animation: txnFormReveal 0.22s cubic-bezier(.22,.9,.3,1.1);
 }
+@keyframes txnFormReveal {
+  from { opacity: 0; transform: translateY(-4px) scaleY(0.96); }
+  to { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+.txn-review-change-form select {
+  flex: 1;
+  padding: 9px 32px 9px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background-color: #12181F;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C8489' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  color: var(--tan);
+  font-size: 0.8rem;
+  font-family: 'Public Sans', sans-serif;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.txn-review-change-form select:hover { border-color: rgba(110,143,163,0.4); }
+.txn-review-change-form select:focus { outline: none; border-color: var(--vintage-blue-light); background-color: #161D26; }
 .txn-change-simple { display: flex; gap: 8px; }
 .txn-change-transfer { display: none; }
 .txn-transfer-pair { display: flex; align-items: flex-end; gap: 10px; }
@@ -595,12 +625,37 @@ h1, h2, h3 {
 .txn-review-actions { display: flex; gap: 8px; }
 .txn-approve-btn, .txn-change-btn, .txn-skip-btn {
   padding: 7px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 .txn-approve-btn { background: linear-gradient(135deg, var(--emerald-bright, #63D9AA), #3fae85); color: #0B1410; border: none; }
-.txn-approve-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
-.txn-change-btn, .txn-skip-btn { background: none; border: 1px solid var(--panel-border); color: var(--silver-dim); }
-.txn-change-btn:hover, .txn-skip-btn:hover { color: var(--tan); border-color: var(--silver-dim); }
+.txn-approve-btn:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 4px 14px rgba(63,174,133,0.3); }
+.txn-approve-btn:active { transform: translateY(0); }
+
+.txn-change-btn {
+  background: linear-gradient(150deg, rgba(110,143,163,0.14), rgba(110,143,163,0.04));
+  border: 1px solid rgba(110,143,163,0.3);
+  color: var(--vintage-blue-light);
+}
+.txn-change-btn:hover {
+  background: linear-gradient(150deg, rgba(110,143,163,0.22), rgba(110,143,163,0.07));
+  border-color: rgba(110,143,163,0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(46,84,114,0.22);
+}
+.txn-change-btn:active { transform: translateY(0); }
+
+.txn-skip-btn {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--panel-border);
+  color: var(--silver-dim);
+}
+.txn-skip-btn:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: var(--silver-dim);
+  color: var(--tan);
+  transform: translateY(-1px);
+}
+.txn-skip-btn:active { transform: translateY(0); }
 
 .card-total {
   background: linear-gradient(135deg, var(--vintage-blue), #223d54);
