@@ -495,6 +495,51 @@
     const COLOR_PICKER_OPTIONS = ['sage', 'blue', 'coral', 'gold', 'violet', 'teal'];
     let colorPickerTargetCatKey = null;
 
+    // Click-to-edit for a custom category's manual set-aside amount —
+    // only ever active on categories with nothing connected. Delegated
+    // on the static container for the same reason as the color picker
+    // above: custom cards get recreated on every render, and binding
+    // fresh listeners directly to them each time risks the same
+    // listener-duplication bug the old reorder arrows had.
+    function setupManualCategoryEdit() {
+      const container = document.querySelector('.overview-cards');
+      if (!container) return;
+
+      container.addEventListener('click', (e) => {
+        const valueEl = e.target.closest('.card-value-manual');
+        if (!valueEl) return;
+        const id = valueEl.dataset.manualCat;
+        const input = document.querySelector(`.card-value-input-manual[data-manual-cat="${id}"]`);
+        if (!input) return;
+        valueEl.style.display = 'none';
+        input.style.display = 'block';
+        input.focus();
+        input.select();
+      });
+
+      container.addEventListener('blur', async (e) => {
+        if (!e.target.classList || !e.target.classList.contains('card-value-input-manual')) return;
+        const input = e.target;
+        const id = input.dataset.manualCat;
+        const valueEl = document.querySelector(`.card-value-manual[data-manual-cat="${id}"]`);
+        const newAmount = round2(parseFloat(input.value) || 0);
+
+        const { error } = await supabaseClient.from('budget_categories').update({ manual_amount: newAmount }).eq('id', id);
+        if (error) { alert('Could not save: ' + error.message); return; }
+
+        input.style.display = 'none';
+        if (valueEl) valueEl.style.display = 'inline';
+        await loadConnectedTotals();
+        renderTotals();
+      }, true); // capture phase — blur doesn't bubble, so delegation needs this
+
+      container.addEventListener('keydown', (e) => {
+        if (e.target.classList && e.target.classList.contains('card-value-input-manual') && e.key === 'Enter') {
+          e.target.blur();
+        }
+      });
+    }
+
     function setupColorPicker() {
       const container = document.querySelector('.overview-cards');
       if (!container) return;
@@ -603,12 +648,16 @@
         card.dataset.catKey = cat.id;
         card.draggable = true;
         card.style.borderLeft = `3px solid ${accentColor}`;
+        const valueHtml = cat.hasConnection
+          ? `<span class="card-value">${money(cat.total)}</span>`
+          : `<span class="card-value card-value-manual" data-manual-cat="${cat.id}" title="Click to set aside an amount">${money(cat.total)}</span>
+             <input type="number" class="card-value-input card-value-input-manual" data-manual-cat="${cat.id}" step="0.01" value="${cat.manualAmount}" style="display:none;" />`;
         card.innerHTML = `
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
           <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor};"></button>
           <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
-          <span class="card-value">${money(cat.total)}</span>
-          <span class="sync-hint">Synced from Connections</span>
+          ${valueHtml}
+          <span class="sync-hint">${cat.hasConnection ? 'Synced from Connections' : 'Set aside manually — not connected to an account'}</span>
         `;
         totalCard.parentNode.insertBefore(card, totalCard);
       });
@@ -661,6 +710,7 @@
       setupAddCategory();
       setupCardDragDrop();
       setupColorPicker();
+      setupManualCategoryEdit();
       setupSkippedActivity();
       document.getElementById('refresh-detected-btn').addEventListener('click', refreshDetectedActivity);
 
@@ -1305,6 +1355,12 @@
       lastLoadedLinkedAccounts = linkedAccts || [];
       if (!linkedAccts) return;
       const { data: splits } = await supabaseClient.from('account_category_splits').select('*').eq('user_id', currentUserId);
+      // Whether a category has ANY connected account mapped to it at
+      // all — regardless of the resulting dollar total, which could
+      // legitimately be $0 for a connected account with no balance.
+      // This is what decides whether manual_amount applies, not the
+      // computed total.
+      const categoryHasConnection = new Set((splits || []).map(s => s.category_id));
 
       const balanceById = Object.fromEntries(linkedAccts.map(a => [a.id, Number(a.balance) || 0]));
       const DEFAULT_NAME_KEYS = { savings: 'savings', investment: 'investment', expenses: 'expenses', checking: 'checking' };
@@ -1363,7 +1419,13 @@
           if (linkedLiabilities[cat.id]) linkedLiabilities[matchedKey] = linkedLiabilities[cat.id];
           orderedCategories.push({ id: cat.id, key: matchedKey, name: cat.name, sortOrder });
         } else {
-          customCategoryCards.push({ id: cat.id, name: cat.name, accent: cat.accent, total: catTotal, sortOrder });
+          const hasConnection = categoryHasConnection.has(cat.id);
+          // A manual amount only ever applies when nothing's connected
+          // — the moment a real account is mapped, that category's
+          // number comes entirely from the connected total instead,
+          // never a mix of both.
+          const displayTotal = hasConnection ? catTotal : Number(cat.manual_amount) || 0;
+          customCategoryCards.push({ id: cat.id, name: cat.name, accent: cat.accent, total: displayTotal, sortOrder, hasConnection, manualAmount: Number(cat.manual_amount) || 0 });
           orderedCategories.push({ id: cat.id, key: null, name: cat.name, sortOrder });
         }
       });

@@ -275,6 +275,22 @@ async function cleanUpCreditCardCategorySplits() {
   accountSplits = accountSplits.filter(s => !staleSplitIds.includes(s.id));
 }
 
+// A category with manually set-aside money (nothing connected yet) and
+// a category with a real connected account are mutually exclusive —
+// see budget_categories.manual_amount's own comment for why. This is
+// the enforcement point: called before every place that would connect
+// an account to a category, blocking it and telling the user to clear
+// the manual amount first rather than silently mixing real and
+// manually-typed money into one total.
+function blockIfCategoryHasManualAmount(categoryId) {
+  const cat = categories.find(c => c.id === categoryId);
+  if (cat && Number(cat.manual_amount) > 0) {
+    alert(`"${cat.name}" has ${money(Number(cat.manual_amount))} set aside manually on Dashboard. Clear that amount first before connecting an account here — a category can't be both manually tracked and connected at once.`);
+    return true;
+  }
+  return false;
+}
+
 async function loadCategories() {
   const { data, error } = await supabaseClient
     .from('budget_categories')
@@ -1845,6 +1861,7 @@ function renderEnvelopeCreateForm() {
     const categoryId = document.getElementById('envelope-cat-select').value;
     const amount = round2(Math.abs(parseFloat(document.getElementById('envelope-amount-input').value) || 0));
     if (!amount) { alert('Enter an amount greater than $0.'); return; }
+    if (blockIfCategoryHasManualAmount(categoryId)) return;
 
     const { error } = await supabaseClient.from('account_category_splits').insert({
       user_id: currentUserId,
@@ -1903,6 +1920,7 @@ async function removeEnvelope(splitId) {
 }
 
 async function assignSingleCategory(categoryId) {
+  if (blockIfCategoryHasManualAmount(categoryId)) return;
   await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId).eq('split_type', 'percent');
   const { error } = await supabaseClient.from('account_category_splits').insert({
     user_id: currentUserId, linked_account_id: categoryMappingAccountId, category_id: categoryId, split_percent: 100, split_type: 'percent',
@@ -1995,6 +2013,7 @@ function renderCategorySplitMode() {
       if (pct > 0) rows.push({ user_id: currentUserId, linked_account_id: categoryMappingAccountId, category_id: i.dataset.catId, split_percent: pct, split_type: 'percent' });
     });
     if (total > 100) { alert("That adds up to more than 100% — adjust the numbers before saving."); return; }
+    if (rows.some(r => blockIfCategoryHasManualAmount(r.category_id))) return;
 
     await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId).eq('split_type', 'percent');
     if (rows.length) {
