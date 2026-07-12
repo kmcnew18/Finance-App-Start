@@ -937,6 +937,11 @@
       TRANSPORTATION_OTHER_TRANSPORTATION: 'Transportation',
       GENERAL_SERVICES_AUTOMOTIVE: 'Transportation',
       GENERAL_SERVICES_INSURANCE: 'Insurance',
+      GENERAL_SERVICES_STORAGE: 'Housing',
+      GENERAL_SERVICES_POSTAGE_AND_SHIPPING: 'Miscellaneous / Buffer',
+      GENERAL_SERVICES_ACCOUNTING_AND_FINANCIAL_PLANNING: 'Miscellaneous / Buffer',
+      GENERAL_SERVICES_CONSULTING_AND_LEGAL: 'Miscellaneous / Buffer',
+      GENERAL_SERVICES_OTHER_GENERAL_SERVICES: 'Miscellaneous / Buffer',
       MEDICAL_DENTAL_CARE: 'Healthcare',
       MEDICAL_EYE_CARE: 'Healthcare',
       MEDICAL_NURSING_CARE: 'Healthcare',
@@ -1001,6 +1006,12 @@
       if (txn.plaid_detailed_category && PLAID_DETAILED_TO_CATEGORY[txn.plaid_detailed_category]) {
         return PLAID_DETAILED_TO_CATEGORY[txn.plaid_detailed_category];
       }
+      // Safety net specifically for General Services — every detailed
+      // code under it that's actually known gets mapped above, but if
+      // Plaid ever returns one that isn't (a new code, an edge case),
+      // this still keeps it out of showing as raw "General Services"
+      // rather than silently falling through to that.
+      if (txn.plaid_category === 'GENERAL_SERVICES') return 'Miscellaneous / Buffer';
       return null; // no confident match — caller falls back to Plaid's own primary category
     }
 

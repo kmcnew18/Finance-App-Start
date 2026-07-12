@@ -1079,14 +1079,36 @@
       // category (that would double it against Liabilities), but if the
       // user's told us which category actually pays it off, subtracting
       // it there reflects money that's already spoken for rather than
-      // treating the full balance as freely available.
-      linkedAccts.filter(a => a.account_type === 'credit_card' && a.paid_from_category_id).forEach(a => {
+      // treating the full balance as freely available. Pending charges
+      // count too — Connections already shows "posted + pending" as the
+      // real total owed on the card itself, so this needed to match
+      // that rather than quietly using a smaller, posted-only number.
+      const cardsWithLiabilityLink = linkedAccts.filter(a => a.account_type === 'credit_card' && a.paid_from_category_id);
+      let pendingByCardId = {};
+      if (cardsWithLiabilityLink.length) {
+        const { data: pendingTxns } = await supabaseClient
+          .from('transactions')
+          .select('linked_account_id, amount')
+          .eq('user_id', currentUserId)
+          .eq('is_pending', true)
+          .eq('is_removed', false)
+          .in('linked_account_id', cardsWithLiabilityLink.map(a => a.id));
+        (pendingTxns || []).forEach(t => {
+          const amt = Number(t.amount) || 0;
+          if (amt <= 0) return;
+          pendingByCardId[t.linked_account_id] = round2((pendingByCardId[t.linked_account_id] || 0) + amt);
+        });
+      }
+
+      cardsWithLiabilityLink.forEach(a => {
         const bal = balanceById[a.id] || 0;
-        if (!bal) return;
-        totalsByCategoryId[a.paid_from_category_id] = round2((totalsByCategoryId[a.paid_from_category_id] || 0) - bal);
+        const pendingAmt = pendingByCardId[a.id] || 0;
+        const totalOwed = round2(bal + pendingAmt);
+        if (!totalOwed) return;
+        totalsByCategoryId[a.paid_from_category_id] = round2((totalsByCategoryId[a.paid_from_category_id] || 0) - totalOwed);
         const key = a.paid_from_category_id;
         if (!linkedLiabilities[key]) linkedLiabilities[key] = [];
-        linkedLiabilities[key].push({ name: a.nickname || a.institution_name || 'Card', amount: bal });
+        linkedLiabilities[key].push({ name: a.nickname || a.institution_name || 'Card', amount: totalOwed });
       });
 
       cats.forEach(cat => {
