@@ -271,8 +271,10 @@
       setupFeedback();
       setupSpendCategoriesOverlay();
       setupEditTxnCategory();
+      setupMapToBudget();
       document.getElementById('spend-txn-search-input').addEventListener('input', renderTransactionList);
 
+      await loadMerchantMappings();
       await loadSpendingData();
 
       document.getElementById('loading-message').style.display = 'none';
@@ -384,6 +386,17 @@
     }
 
     let currentSpendTxns = [];
+    let merchantMappingByName = {}; // lowercase merchant name -> mapping row, for showing current state on each transaction row
+
+    async function loadMerchantMappings() {
+      const { data, error } = await supabaseClient
+        .from('merchant_budget_mappings')
+        .select('*')
+        .eq('user_id', currentUserId);
+      if (error) { console.error(error); return; }
+      merchantMappingByName = Object.fromEntries((data || []).map(m => [m.merchant_name.toLowerCase(), m]));
+    }
+
 
     function renderTransactionList() {
       const list = document.getElementById('spend-txn-list');
@@ -411,6 +424,9 @@
             <span class="spend-txn-meta">${new Date(t.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${effectiveCategory(t).replace(/</g,'&lt;')}${t.custom_category ? ' <span class="spend-txn-custom-badge">edited</span>' : ''}</span>
           </div>
           <span class="spend-txn-amount">${money(t.amount)}</span>
+          <button type="button" class="spend-txn-map-btn" data-merchant="${(t.merchant_name || '').replace(/"/g,'&quot;')}" title="Map to budget">
+            ${merchantMappingByName[(t.merchant_name || '').toLowerCase()] ? `→ ${merchantMappingByName[(t.merchant_name || '').toLowerCase()].mapped_line_name.replace(/</g,'&lt;')}` : 'Budget'}
+          </button>
           <button type="button" class="spend-txn-edit-btn" data-txn-id="${t.id}" title="Change category">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
           </button>
@@ -1127,56 +1143,39 @@
       });
     }
 
-    let mapBudgetTargetStreamId = null;
+    let mapBudgetTargetType = null; // 'stream' | 'merchant'
+    let mapBudgetTargetId = null; // stream id, or merchant name for the merchant case
 
     function setupMapToBudget() {
-      // Delegated on the static list container — subscription rows get
-      // recreated on every render (refresh, a fresh sync), so binding
-      // directly to each row's button would risk the same listener-
-      // duplication bug the old category-reorder arrows had.
+      // Delegated on the static list containers — rows get recreated on
+      // every render (refresh, a fresh sync, search filtering), so
+      // binding directly to each row's button would risk the same
+      // listener-duplication bug the old category-reorder arrows had.
       document.getElementById('spend-subscriptions-list').addEventListener('click', async (e) => {
         const btn = e.target.closest('.spend-sub-map-btn');
         if (!btn) return;
-        mapBudgetTargetStreamId = btn.dataset.streamId;
-        document.getElementById('map-budget-sub').textContent = `Which Bills line does "${btn.dataset.streamName}" belong to?`;
-        document.getElementById('map-budget-new-line').value = '';
-        document.getElementById('map-budget-error').style.display = 'none';
-        document.getElementById('map-budget-unmap-btn').style.display = btn.textContent.trim().startsWith('→') ? 'block' : 'none';
+        mapBudgetTargetType = 'stream';
+        mapBudgetTargetId = btn.dataset.streamId;
+        await openMapBudgetOverlay(`Which Bills line does "${btn.dataset.streamName}" belong to?`, btn.textContent.trim().startsWith('→'));
+      });
 
-        // Existing Bills lines from whichever budget period is
-        // currently active — offered as one-click options so mapping a
-        // subscription to a line that's already there doesn't mean
-        // retyping its exact name.
-        const { data: activePeriod } = await supabaseClient
-          .from('budget_periods')
-          .select('categories')
-          .eq('user_id', currentUserId)
-          .eq('status', 'active')
-          .order('start_date', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const billLines = (activePeriod?.categories?.bills || []).filter(l => l.name);
-        const existingWrap = document.getElementById('map-budget-existing-lines');
-        existingWrap.innerHTML = billLines.length
-          ? `<div class="spend-categories-list" style="grid-template-columns:1fr;">${billLines.map(l =>
-              `<button type="button" class="spend-category-item spend-category-item-btn" data-line-name="${l.name.replace(/"/g,'&quot;')}">${l.name.replace(/</g,'&lt;')}</button>`
-            ).join('')}</div>`
-          : '<p class="mfa-modal-sub" style="opacity:0.7;">No Bills lines yet this period — add one below.</p>';
-
-        existingWrap.querySelectorAll('.spend-category-item-btn').forEach(lineBtn => {
-          lineBtn.addEventListener('click', () => saveStreamMapping(lineBtn.dataset.lineName));
-        });
-
-        document.getElementById('map-budget-overlay').classList.add('open');
+      document.getElementById('spend-txn-list').addEventListener('click', async (e) => {
+        const btn = e.target.closest('.spend-txn-map-btn');
+        if (!btn) return;
+        const merchant = btn.dataset.merchant;
+        if (!merchant) { alert('This transaction has no merchant name to map by.'); return; }
+        mapBudgetTargetType = 'merchant';
+        mapBudgetTargetId = merchant;
+        await openMapBudgetOverlay(`Which Bills line do "${merchant}" purchases belong to? Future transactions from this merchant will be suggested there automatically.`, !!merchantMappingByName[merchant.toLowerCase()]);
       });
 
       document.getElementById('map-budget-save-btn').addEventListener('click', () => {
         const name = document.getElementById('map-budget-new-line').value.trim();
         if (!name) { document.getElementById('map-budget-error').textContent = 'Type a line name, or pick one above.'; document.getElementById('map-budget-error').style.display = 'block'; return; }
-        saveStreamMapping(name);
+        saveBudgetMapping(name);
       });
 
-      document.getElementById('map-budget-unmap-btn').addEventListener('click', () => saveStreamMapping(null));
+      document.getElementById('map-budget-unmap-btn').addEventListener('click', () => saveBudgetMapping(null));
 
       document.getElementById('map-budget-close').addEventListener('click', () => {
         document.getElementById('map-budget-overlay').classList.remove('open');
@@ -1186,15 +1185,67 @@
       });
     }
 
-    async function saveStreamMapping(lineName) {
-      if (!mapBudgetTargetStreamId) return;
-      const fields = lineName
-        ? { mapped_cat: 'bills', mapped_line_name: lineName, mapped_line_id: lineName.toLowerCase() }
-        : { mapped_cat: null, mapped_line_name: null, mapped_line_id: null };
-      const { error } = await supabaseClient.from('recurring_streams').update(fields).eq('id', mapBudgetTargetStreamId);
-      if (error) { document.getElementById('map-budget-error').textContent = 'Could not save: ' + error.message; document.getElementById('map-budget-error').style.display = 'block'; return; }
+    async function openMapBudgetOverlay(subText, currentlyMapped) {
+      document.getElementById('map-budget-sub').textContent = subText;
+      document.getElementById('map-budget-new-line').value = '';
+      document.getElementById('map-budget-error').style.display = 'none';
+      document.getElementById('map-budget-unmap-btn').style.display = currentlyMapped ? 'block' : 'none';
+
+      // Existing Bills lines from whichever budget period is currently
+      // active — offered as one-click options so mapping to a line
+      // that's already there doesn't mean retyping its exact name.
+      const { data: activePeriod } = await supabaseClient
+        .from('budget_periods')
+        .select('categories')
+        .eq('user_id', currentUserId)
+        .eq('status', 'active')
+        .order('start_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const billLines = (activePeriod?.categories?.bills || []).filter(l => l.name);
+      const existingWrap = document.getElementById('map-budget-existing-lines');
+      existingWrap.innerHTML = billLines.length
+        ? `<div class="spend-categories-list" style="grid-template-columns:1fr;">${billLines.map(l =>
+            `<button type="button" class="spend-category-item spend-category-item-btn" data-line-name="${l.name.replace(/"/g,'&quot;')}">${l.name.replace(/</g,'&lt;')}</button>`
+          ).join('')}</div>`
+        : '<p class="mfa-modal-sub" style="opacity:0.7;">No Bills lines yet this period — add one below.</p>';
+
+      existingWrap.querySelectorAll('.spend-category-item-btn').forEach(lineBtn => {
+        lineBtn.addEventListener('click', () => saveBudgetMapping(lineBtn.dataset.lineName));
+      });
+
+      document.getElementById('map-budget-overlay').classList.add('open');
+    }
+
+    async function saveBudgetMapping(lineName) {
+      if (!mapBudgetTargetId) return;
+
+      if (mapBudgetTargetType === 'stream') {
+        const fields = lineName
+          ? { mapped_cat: 'bills', mapped_line_name: lineName, mapped_line_id: lineName.toLowerCase() }
+          : { mapped_cat: null, mapped_line_name: null, mapped_line_id: null };
+        const { error } = await supabaseClient.from('recurring_streams').update(fields).eq('id', mapBudgetTargetId);
+        if (error) { document.getElementById('map-budget-error').textContent = 'Could not save: ' + error.message; document.getElementById('map-budget-error').style.display = 'block'; return; }
+        document.getElementById('map-budget-overlay').classList.remove('open');
+        await loadSubscriptions();
+        return;
+      }
+
+      // Merchant mapping — upsert on (user_id, merchant_name) if
+      // setting a line, or delete the row entirely to unmap.
+      if (lineName) {
+        const { error } = await supabaseClient.from('merchant_budget_mappings').upsert({
+          user_id: currentUserId, merchant_name: mapBudgetTargetId, mapped_cat: 'bills', mapped_line_name: lineName,
+        }, { onConflict: 'user_id,merchant_name' });
+        if (error) { document.getElementById('map-budget-error').textContent = 'Could not save: ' + error.message; document.getElementById('map-budget-error').style.display = 'block'; return; }
+      } else {
+        const { error } = await supabaseClient.from('merchant_budget_mappings').delete()
+          .eq('user_id', currentUserId).eq('merchant_name', mapBudgetTargetId);
+        if (error) { document.getElementById('map-budget-error').textContent = 'Could not remove: ' + error.message; document.getElementById('map-budget-error').style.display = 'block'; return; }
+      }
       document.getElementById('map-budget-overlay').classList.remove('open');
-      await loadSubscriptions();
+      await loadMerchantMappings();
+      renderTransactionList();
     }
 
     async function saveTxnCategoryOverride(txnId, category) {

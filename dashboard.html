@@ -62,6 +62,7 @@
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
             <div class="dropdown-divider"></div>
+            <button type="button" id="refresh-detected-btn" class="dropdown-item">Refresh detected activity</button>
             <button type="button" id="view-skipped-btn" class="dropdown-item">View skipped activity</button>
             <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
             <div class="dropdown-divider"></div>
@@ -1188,7 +1189,43 @@
       await loadPendingReviews();
     }
 
+    // ================= REFRESH DETECTED ACTIVITY =================
+    // Dashboard never had any manual sync trigger of its own — the
+    // background balance refresh only ever touches balances, not
+    // transactions. This calls the same combined sync endpoint
+    // Connections' "Sync now" uses (no mode = both transactions and
+    // subscriptions, covering both regular Dashboard reviews and
+    // merchant/subscription-mapped Budget matches), then reloads the
+    // review queue so anything newly detected shows up immediately
+    // rather than waiting for the next automatic sync window.
+    async function refreshDetectedActivity() {
+      const btn = document.getElementById('refresh-detected-btn');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Refreshing…';
+      gearDropdown.classList.remove('open');
+
+      try {
+        const res = await fetch('/api/plaid-sync-recurring', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId })
+        });
+        if (!res.ok) throw new Error('Sync failed (' + res.status + ')');
+        await loadPendingReviews();
+      } catch (err) {
+        console.error('Refresh detected activity failed:', err);
+        alert('Could not refresh right now — try again in a bit.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+
+    // Covers both settings-menu items added together: refreshing
+    // detected activity and viewing/restoring skipped activity.
     function setupSkippedActivity() {
+      document.getElementById('refresh-detected-btn').addEventListener('click', refreshDetectedActivity);
       document.getElementById('view-skipped-btn').addEventListener('click', openSkippedActivity);
       document.getElementById('skipped-activity-close').addEventListener('click', () => {
         document.getElementById('skipped-activity-overlay').classList.remove('open');

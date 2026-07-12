@@ -282,6 +282,26 @@
   background: rgba(224,128,106,0.14);
   border: 1px solid rgba(224,128,106,0.3);
 }
+.spend-txn-map-btn {
+  flex-shrink: 0;
+  padding: 4px 9px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,0.02);
+  color: var(--silver-dim);
+  font-size: 0.66rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  opacity: 0;
+  white-space: nowrap;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.spend-txn-row:hover .spend-txn-map-btn { opacity: 0.75; }
+.spend-txn-map-btn:hover { opacity: 1 !important; background: rgba(224,128,106,0.1); border-color: rgba(224,128,106,0.35); color: #E0806A; }
 .spend-txn-edit-btn {
   flex-shrink: 0;
   width: 26px; height: 26px;
