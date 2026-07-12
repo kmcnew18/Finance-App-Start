@@ -1598,8 +1598,9 @@
     let logMirrorTargetCat = null;
     let logMirrorTargetLineId = null;
     let logMirrorRows = [];
+    let logMirrorCategoryNameById = {}; // resolves custom_category_id to a readable name, same as the real Log page
 
-    const logMirrorRowClass = { add: 'log-row-add', subtract: 'log-row-subtract', transfer: 'log-row-transfer' };
+    const logMirrorRowClass = { add: 'log-row-add', subtract: 'log-row-subtract', transfer: 'log-row-transfer', debt_payment: 'log-row-debtpayment' };
 
     function logMirrorFormatDate(d) {
       return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -1661,12 +1662,11 @@
       document.getElementById('logmirror-select-all').checked = false;
       document.getElementById('logmirror-overlay').classList.add('open');
 
-      const { data: rows, error } = await supabaseClient
-        .from('finance_log')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(150);
+      const [{ data: rows, error }, { data: cats }] = await Promise.all([
+        supabaseClient.from('finance_log').select('*').eq('user_id', currentUserId).order('entry_date', { ascending: false }).limit(150),
+        supabaseClient.from('budget_categories').select('id, name').eq('user_id', currentUserId),
+      ]);
+      logMirrorCategoryNameById = Object.fromEntries((cats || []).map(c => [c.id, c.name]));
 
       logMirrorRows = rows || [];
       const tbody = document.getElementById('logmirror-body');
@@ -1677,6 +1677,9 @@
       tbody.innerHTML = logMirrorRows.map(r => {
         const isGroupStart = r.action_type !== prevActionType;
         prevActionType = r.action_type;
+        const customBadge = r.custom_category_id
+          ? `<span class="log-custom-category-badge">${(logMirrorCategoryNameById[r.custom_category_id] || 'Category').replace(/</g,'&lt;')}: ${money(r.custom_category_amount || 0)}</span> `
+          : '';
         const mainRow = `
         <tr class="${logMirrorRowClass[r.action_type] || ''} logmirror-row${isGroupStart ? ' log-group-start' : ''}" data-log-id="${r.id}">
           <td><label class="log-check" onclick="event.stopPropagation();"><input type="checkbox" class="logmirror-select" data-log-id="${r.id}" /><span class="check-box"></span></label></td>
@@ -1686,7 +1689,7 @@
           <td class="num-cell">${money(r.investment)}</td>
           <td class="num-cell">${money(r.expenses)}</td>
           <td class="num-cell">${money(r.checking)}</td>
-          <td class="notes-cell">${r.notes ? r.notes.replace(/</g, '&lt;') : ''}</td>
+          <td class="notes-cell">${customBadge}${r.notes ? r.notes.replace(/</g, '&lt;') : ''}</td>
         </tr>`;
 
         const splits = (r.action_type === 'add' && logMirrorTargetCat !== 'income') ? logMirrorSplitOptions(r) : [];

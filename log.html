@@ -221,13 +221,15 @@
 
     let allLogRows = [];
 
+    let categoryNameById = {}; // resolves custom_category_id to a readable name for display
+
     async function loadLog() {
       const tbody = document.getElementById('log-body');
-      const { data: rows, error } = await supabaseClient
-        .from('finance_log')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .order('entry_date', { ascending: false });
+      const [{ data: rows, error }, { data: cats }] = await Promise.all([
+        supabaseClient.from('finance_log').select('*').eq('user_id', currentUserId).order('entry_date', { ascending: false }),
+        supabaseClient.from('budget_categories').select('id, name').eq('user_id', currentUserId),
+      ]);
+      categoryNameById = Object.fromEntries((cats || []).map(c => [c.id, c.name]));
 
       if (error) {
         console.error(error);
@@ -297,6 +299,9 @@
       tbody.innerHTML = rows.map(r => {
         const isGroupStart = r.action_type !== prevActionType;
         prevActionType = r.action_type;
+        const customBadge = r.custom_category_id
+          ? `<span class="log-custom-category-badge">${(categoryNameById[r.custom_category_id] || 'Category').replace(/</g,'&lt;')}: ${money(r.custom_category_amount || 0)}</span> `
+          : '';
         return `
         <tr class="${rowClassByType[r.action_type] || ''}${isGroupStart ? ' log-group-start' : ''}">
           <td><label class="log-check"><input type="checkbox" class="row-select" data-id="${r.id}" /><span class="check-box"></span></label></td>
@@ -306,7 +311,7 @@
           <td class="num-cell">${money(r.investment)}</td>
           <td class="num-cell">${money(r.expenses)}</td>
           <td class="num-cell">${money(r.checking)}</td>
-          <td class="notes-cell">${r.notes ? r.notes.replace(/</g,'&lt;') : ''}</td>
+          <td class="notes-cell">${customBadge}${r.notes ? r.notes.replace(/</g,'&lt;') : ''}</td>
         </tr>
       `;
       }).join('');

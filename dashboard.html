@@ -780,13 +780,15 @@
       if (error) console.error('Save totals error:', error);
     }
 
-    async function logEntry({ amount, savings=0, investment=0, expenses=0, checking=0, notes='', action_type, entryDate=null, sourceReviewId=null }) {
+    async function logEntry({ amount, savings=0, investment=0, expenses=0, checking=0, notes='', action_type, entryDate=null, sourceReviewId=null, customCategoryId=null, customCategoryAmount=null }) {
       const { error } = await supabaseClient.from('finance_log').insert({
         user_id: currentUserId,
         entry_date: entryDate || todayISO(),
         amount, savings, investment, expenses, checking,
         notes, action_type,
-        source_review_id: sourceReviewId
+        source_review_id: sourceReviewId,
+        custom_category_id: customCategoryId,
+        custom_category_amount: customCategoryAmount,
       });
       if (error) console.error('Log insert error:', error);
     }
@@ -997,6 +999,31 @@
       wireTxnReviewEvents();
     }
 
+    // Every place a detected deposit can be routed — manual
+    // (unconnected) categories go to manual_amount, envelope-backed
+    // categories (default or custom) go to that envelope's balance.
+    // Both are safe for the same reason: manual categories have no
+    // other automatic writer to conflict with, and envelope amounts
+    // are already a redistribution of the account's own real balance,
+    // so adding to one doesn't create money — it just carves out more
+    // of what's already there. Distinguishing "manual:" vs "envelope:"
+    // in the option value is what lets routeDepositToCategory know
+    // which write path to use.
+    function buildRouteOptions() {
+      const options = [];
+      customCategoryCards.filter(c => !c.hasConnection).forEach(c => {
+        options.push({ value: `manual:${c.id}`, label: c.name });
+      });
+      ['savings', 'investment', 'expenses', 'checking'].forEach(key => {
+        const envelopes = envelopesByCategoryId[key] || [];
+        if (envelopes.length) options.push({ value: `envelope:${envelopes[0].id}`, label: `${CATEGORY_LABELS[key]} set-aside${envelopes.length > 1 ? ` (${envelopes[0].accountName})` : ''}` });
+      });
+      customCategoryCards.filter(c => c.envelopes.length).forEach(c => {
+        options.push({ value: `envelope:${c.envelopes[0].id}`, label: `${c.name} set-aside${c.envelopes.length > 1 ? ` (${c.envelopes[0].accountName})` : ''}` });
+      });
+      return options;
+    }
+
     function txnReviewRowHtml(r) {
       const categoryKey = (r.category_name || '').toLowerCase();
       const verb = r.suggested_action === 'add' ? 'to' : 'from';
@@ -1067,20 +1094,25 @@
             </div>
             <button type="button" class="txn-transfer-toggle" data-id="${r.id}" style="${r.is_credit_card_payment ? 'display:none;' : ''}">${r.is_transfer ? 'Switch to a single category' : 'This is actually a transfer'}</button>
           </div>
-          ${(!r.is_transfer && r.suggested_action === 'add' && customCategoryCards.some(c => !c.hasConnection)) ? `
+          ${(() => {
+            if (r.is_transfer || r.suggested_action !== 'add') return '';
+            const options = buildRouteOptions();
+            if (!options.length) return '';
+            return `
           <div class="txn-route-row">
             <select class="txn-route-select" data-id="${r.id}">
               <option value="">Also route some to a set-aside category…</option>
-              ${customCategoryCards.filter(c => !c.hasConnection).map(c => `<option value="${c.id}">${c.name.replace(/</g,'&lt;')}</option>`).join('')}
+              ${options.map(o => `<option value="${o.value}">${o.label.replace(/</g,'&lt;')}</option>`).join('')}
             </select>
             <input type="number" class="txn-route-amount" data-id="${r.id}" step="0.01" placeholder="Amount" style="display:none;" />
             <button type="button" class="txn-route-btn" data-id="${r.id}" style="display:none;">Route</button>
           </div>
-          ` : ''}
+            `;
+          })()}
           <div class="txn-review-actions">
             <button type="button" class="txn-approve-btn" data-id="${r.id}">Looks good</button>
             <button type="button" class="txn-change-btn" data-id="${r.id}">Change</button>
-            ${!r.is_transfer ? (envelopesByCategoryId[r.category_id] || []).map(env => `
+            ${!r.is_transfer ? (envelopesByCategoryId[r.category_id] || []).filter(env => env.amount > 0).map(env => `
               <button type="button" class="txn-envelope-charge-btn" data-id="${r.id}" data-envelope-id="${env.id}" data-envelope-name="${(r.category_name || '').replace(/"/g,'&quot;')}">Charge to ${(r.category_name || '').replace(/</g,'&lt;')} set-aside${env.accountName ? ` (${env.accountName.replace(/</g,'&lt;')})` : ''}</button>
             `).join('') : ''}
             <button type="button" class="txn-skip-btn" data-id="${r.id}">Skip</button>
@@ -1121,7 +1153,7 @@
         });
       });
       document.querySelectorAll('.txn-route-btn').forEach(btn => {
-        btn.addEventListener('click', () => routeToManualCategory(btn.dataset.id));
+        btn.addEventListener('click', () => routeDepositToCategory(btn.dataset.id));
       });
       document.querySelectorAll('.txn-change-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1338,31 +1370,70 @@
     // to the original deposit, never more. Only ever offered for
     // categories with nothing connected (see the template), so this
     // can never collide with a connected account's own math.
-    async function routeToManualCategory(reviewId) {
+    async function routeDepositToCategory(reviewId) {
       const select = document.querySelector(`.txn-route-select[data-id="${reviewId}"]`);
       const amountInput = document.querySelector(`.txn-route-amount[data-id="${reviewId}"]`);
-      const categoryId = select.value;
+      const [targetType, targetId] = (select.value || '').split(':');
       const routeAmount = round2(parseFloat(amountInput.value) || 0);
-      if (!categoryId) { alert('Pick a category to route to.'); return; }
+      if (!targetType) { alert('Pick a category to route to.'); return; }
       if (routeAmount <= 0) { alert('Enter an amount greater than $0.'); return; }
 
       const splitRowsWrap = document.getElementById('txn-simple-split-rows-' + reviewId);
       const remainingTotal = splitRowsWrap ? Number(splitRowsWrap.dataset.total) || 0 : 0;
       if (routeAmount > remainingTotal) { alert(`Can't route more than what's left to allocate (${money(remainingTotal)}).`); return; }
 
-      const cat = customCategoryCards.find(c => c.id === categoryId);
-      if (!cat) return;
-      const newManualAmount = round2((cat.manualAmount || 0) + routeAmount);
+      let writeError = null;
+      let targetCategoryId = null;
+      let targetCategoryName = null;
+      if (targetType === 'manual') {
+        const cat = customCategoryCards.find(c => c.id === targetId);
+        if (!cat) return;
+        const newManualAmount = round2((cat.manualAmount || 0) + routeAmount);
+        const { error } = await supabaseClient.from('budget_categories').update({ manual_amount: newManualAmount }).eq('id', targetId);
+        writeError = error;
+        targetCategoryId = targetId;
+        targetCategoryName = cat.name;
+      } else if (targetType === 'envelope') {
+        const { data: envelope, error: fetchError } = await supabaseClient
+          .from('account_category_splits')
+          .select('envelope_balance, category_id')
+          .eq('id', targetId)
+          .maybeSingle();
+        if (fetchError || !envelope) { alert('Could not find that set-aside amount — it may have been removed.'); return; }
+        const newEnvelopeAmount = round2(Number(envelope.envelope_balance || 0) + routeAmount);
+        const { error } = await supabaseClient.from('account_category_splits').update({ envelope_balance: newEnvelopeAmount }).eq('id', targetId);
+        writeError = error;
+        targetCategoryId = envelope.category_id;
+        const { data: catRow } = await supabaseClient.from('budget_categories').select('name').eq('id', envelope.category_id).maybeSingle();
+        targetCategoryName = catRow ? catRow.name : 'Category';
+      }
+      if (writeError) { alert('Could not route: ' + writeError.message); return; }
 
-      const { error } = await supabaseClient.from('budget_categories').update({ manual_amount: newManualAmount }).eq('id', categoryId);
-      if (error) { alert('Could not route: ' + error.message); return; }
+      // The routed portion gets its own log entry too — separate from
+      // whatever the remaining amount logs as once "Looks good" is
+      // clicked, and using the same default-vs-custom-category logic
+      // chargeReviewToEnvelope uses, since a routed category can be
+      // either kind.
+      const review = pendingReviews.find(r => r.id === reviewId);
+      const defaultKey = Object.keys(CATEGORY_LABELS).find(k => CATEGORY_LABELS[k].toLowerCase() === (targetCategoryName || '').toLowerCase());
+      const routeLogRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+      if (defaultKey) routeLogRow[defaultKey] = routeAmount;
+      await logEntry({
+        amount: routeAmount, ...routeLogRow, notes: (review?.merchant_name || '') + ` (routed to ${targetCategoryName})`, action_type: 'add',
+        entryDate: review?.txn_date, sourceReviewId: null,
+        customCategoryId: defaultKey ? null : targetCategoryId,
+        customCategoryAmount: defaultKey ? null : routeAmount,
+      });
 
       // Reduce what's left to log normally by the same amount — taken
       // off the first split row, which covers the common case (nothing
       // manually split yet) correctly; if the user had already split
       // across multiple rows before routing, it still reduces the
       // total consistently even if which specific row absorbs it is
-      // somewhat arbitrary.
+      // somewhat arbitrary. This is what makes routing a genuine split
+      // of the real deposit rather than money appearing from nowhere —
+      // "logged normally" + "routed" always still adds up to the
+      // original amount.
       if (splitRowsWrap) {
         const newTotal = round2(remainingTotal - routeAmount);
         splitRowsWrap.dataset.total = newTotal;
@@ -1373,7 +1444,6 @@
         updateSplitTotal(reviewId, 'simple');
       }
 
-      cat.manualAmount = newManualAmount;
       select.value = '';
       amountInput.value = '';
       amountInput.style.display = 'none';
@@ -1385,23 +1455,22 @@
 
     // Charges a detected transaction directly against an envelope's
     // set-aside amount instead of logging it as a normal category
-    // expense. Deliberately writes no finance_log entry — the
-    // envelope's own balance (visible right on the category's card) is
-    // the record of "this much has been spent from what was set
-    // aside," and finance_log has no column to attribute an amount to
-    // a custom category anyway, so there'd be nowhere correct to log
-    // it even if this did write an entry. The review still gets marked
-    // approved either way, so it won't resurface for re-detection.
+    // expense. Writes a real finance_log entry either way — to the
+    // matching default column if the envelope's category is one of
+    // the original four, or to custom_category_id/amount if it's a
+    // custom category (finance_log didn't used to support that at
+    // all). The review still gets marked approved either way, so it
+    // won't resurface for re-detection.
     async function chargeReviewToEnvelope(reviewId, envelopeId, envelopeName) {
       const review = pendingReviews.find(r => r.id === reviewId);
       if (!review) return;
 
       const amount = round2(Number(review.amount) || 0);
-      if (!confirm(`Charge ${money(amount)} to "${envelopeName}"'s set-aside? This won't create a log entry — the set-aside amount itself will just go down by this much.`)) return;
+      if (!confirm(`Charge ${money(amount)} to "${envelopeName}"'s set-aside?`)) return;
 
       const { data: envelope, error: fetchError } = await supabaseClient
         .from('account_category_splits')
-        .select('envelope_balance')
+        .select('envelope_balance, category_id')
         .eq('id', envelopeId)
         .maybeSingle();
       if (fetchError || !envelope) { alert('Could not find that set-aside amount — it may have been removed.'); return; }
@@ -1409,6 +1478,20 @@
       const newBalance = Math.max(0, round2(Number(envelope.envelope_balance || 0) - amount));
       const { error } = await supabaseClient.from('account_category_splits').update({ envelope_balance: newBalance }).eq('id', envelopeId);
       if (error) { alert('Could not charge: ' + error.message); return; }
+
+      // Which of the four default columns (if any) this category maps
+      // to — a custom category has no match here, so it goes through
+      // custom_category_id/custom_category_amount instead.
+      const defaultKey = Object.keys(CATEGORY_LABELS).find(k => CATEGORY_LABELS[k].toLowerCase() === envelopeName.toLowerCase());
+      const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+      if (defaultKey) logRow[defaultKey] = amount;
+
+      await logEntry({
+        amount, ...logRow, notes: review.merchant_name || '', action_type: 'subtract',
+        entryDate: review.txn_date, sourceReviewId: review.id,
+        customCategoryId: defaultKey ? null : envelope.category_id,
+        customCategoryAmount: defaultKey ? null : amount,
+      });
 
       await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
       logAuditEvent('txn_review_charged_to_envelope', { merchant_name: review.merchant_name, amount, envelope: envelopeName });

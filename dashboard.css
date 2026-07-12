@@ -1530,6 +1530,21 @@ input[type="number"]::-webkit-outer-spin-button {
   color: var(--silver);
   white-space: normal;
 }
+.log-custom-category-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-family: 'Public Sans', sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--vintage-blue-light);
+  background: rgba(110,143,163,0.14);
+  border: 1px solid rgba(110,143,163,0.3);
+  vertical-align: middle;
+}
 
 .log-row-add { background: var(--add-bg); }
 .log-row-subtract { background: var(--subtract-bg); }
