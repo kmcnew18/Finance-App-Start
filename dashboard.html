@@ -373,6 +373,20 @@
     </div>
   </div>
 
+  <!-- ================= SET-ASIDE PICKER ================= -->
+  <div class="mfa-overlay" id="envelope-picker-overlay">
+    <div class="mfa-modal" style="max-width: 400px;">
+      <div class="mfa-modal-head">
+        <h2>Adjust set-aside</h2>
+        <button type="button" class="mfa-modal-close" id="envelope-picker-close">×</button>
+      </div>
+      <div class="mfa-modal-body">
+        <p class="mfa-modal-sub" id="envelope-picker-sub" style="margin-bottom:12px;"></p>
+        <div class="envelope-picker-list" id="envelope-picker-list"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
@@ -504,27 +518,78 @@
     // above: custom cards get recreated on every render, and binding
     // fresh listeners directly to them each time risks the same
     // listener-duplication bug the old reorder arrows had.
+    // Handles any number of envelopes for a category uniformly — one
+    // consistent picker whether there's a single set-aside amount or
+    // several from different accounts, rather than special-casing the
+    // single-envelope case and leaving multi-envelope categories with
+    // no direct way to adjust at all.
+    function openEnvelopePicker(categoryKey) {
+      const envelopes = envelopesByCategoryId[categoryKey] || [];
+      if (!envelopes.length) return;
+
+      document.getElementById('envelope-picker-sub').textContent =
+        envelopes.length === 1 ? 'Set aside from ' + envelopes[0].accountName + ':' : 'Each account\'s set-aside amount for this category:';
+      renderEnvelopePickerList(envelopes);
+      document.getElementById('envelope-picker-overlay').classList.add('open');
+    }
+
+    function renderEnvelopePickerList(envelopes) {
+      const list = document.getElementById('envelope-picker-list');
+      list.innerHTML = envelopes.map(env => `
+        <div class="envelope-picker-row" data-envelope-id="${env.id}">
+          <label>${env.accountName.replace(/</g,'&lt;')}</label>
+          <div class="envelope-picker-input-row">
+            <input type="number" class="envelope-picker-input" data-envelope-id="${env.id}" step="0.01" value="${env.amount}" />
+            <button type="button" class="envelope-picker-save-btn" data-envelope-id="${env.id}">Save</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function saveEnvelopeAmount(envelopeId) {
+      const input = document.querySelector(`.envelope-picker-input[data-envelope-id="${envelopeId}"]`);
+      if (!input) return;
+      const newAmount = round2(Math.max(0, parseFloat(input.value) || 0));
+
+      const { error } = await supabaseClient
+        .from('account_category_splits')
+        .update({ envelope_balance: newAmount })
+        .eq('id', envelopeId);
+      if (error) { alert('Could not save: ' + error.message); return; }
+
+      await loadConnectedTotals();
+      renderTotals();
+      document.getElementById('envelope-picker-overlay').classList.remove('open');
+    }
+
+    function setupEnvelopePicker() {
+      document.getElementById('envelope-picker-close').addEventListener('click', () => {
+        document.getElementById('envelope-picker-overlay').classList.remove('open');
+      });
+      document.getElementById('envelope-picker-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'envelope-picker-overlay') document.getElementById('envelope-picker-overlay').classList.remove('open');
+      });
+      // Delegated — the list is repopulated every time the picker opens.
+      document.getElementById('envelope-picker-list').addEventListener('click', (e) => {
+        const btn = e.target.closest('.envelope-picker-save-btn');
+        if (btn) saveEnvelopeAmount(btn.dataset.envelopeId);
+      });
+      document.getElementById('envelope-picker-list').addEventListener('keydown', (e) => {
+        if (e.target.classList.contains('envelope-picker-input') && e.key === 'Enter') {
+          saveEnvelopeAmount(e.target.dataset.envelopeId);
+        }
+      });
+    }
+
     function setupManualCategoryEdit() {
       const container = document.querySelector('.overview-cards');
       if (!container) return;
 
-      container.addEventListener('click', async (e) => {
+      container.addEventListener('click', (e) => {
         const adjustBtn = e.target.closest('.envelope-adjust-link');
         if (!adjustBtn) return;
         e.stopPropagation();
-        const currentAmount = Number(adjustBtn.dataset.envelopeAmount) || 0;
-        const input = prompt('Set aside how much? (Enter $0 to clear it entirely.)', currentAmount.toFixed(2));
-        if (input === null) return; // cancelled
-        const newAmount = round2(Math.max(0, parseFloat(input) || 0));
-
-        const { error } = await supabaseClient
-          .from('account_category_splits')
-          .update({ envelope_balance: newAmount })
-          .eq('id', adjustBtn.dataset.envelopeId);
-        if (error) { alert('Could not save: ' + error.message); return; }
-
-        await loadConnectedTotals();
-        renderTotals();
+        openEnvelopePicker(adjustBtn.dataset.categoryKey);
       });
 
       container.addEventListener('click', (e) => {
@@ -644,12 +709,8 @@
         if (!hintEl) return;
         const envelopes = envelopesByCategoryId[cat] || [];
         const syncText = connectedTotals[cat] ? `${connectedTotals[cat] > 0 ? '+' : ''}${money(connectedTotals[cat])} from Connections` : '';
-        // Only offered when exactly one envelope applies — with two or
-        // more contributing to the same category, a single click has
-        // no unambiguous "the" envelope to adjust, so that edge case
-        // still goes through Connections instead.
-        const adjustLink = envelopes.length === 1
-          ? ` <button type="button" class="envelope-adjust-link" data-envelope-id="${envelopes[0].id}" data-envelope-amount="${envelopes[0].amount}">Adjust ${envelopes[0].accountName.replace(/</g,'&lt;')} set-aside</button>`
+        const adjustLink = envelopes.length
+          ? ` <button type="button" class="envelope-adjust-link" data-category-key="${cat}">Adjust set-aside${envelopes.length > 1 ? ` (${envelopes.length})` : ''}</button>`
           : '';
         hintEl.innerHTML = syncText + adjustLink;
       });
@@ -683,8 +744,8 @@
           ? `<span class="card-value">${money(cat.total)}</span>`
           : `<span class="card-value card-value-manual" data-manual-cat="${cat.id}" title="Click to set aside an amount">${money(cat.total)}</span>
              <input type="number" class="card-value-input card-value-input-manual" data-manual-cat="${cat.id}" step="0.01" value="${cat.manualAmount}" style="display:none;" />`;
-        const adjustLink = cat.envelopes.length === 1
-          ? ` <button type="button" class="envelope-adjust-link" data-envelope-id="${cat.envelopes[0].id}" data-envelope-amount="${cat.envelopes[0].amount}">Adjust ${cat.envelopes[0].accountName.replace(/</g,'&lt;')} set-aside</button>`
+        const adjustLink = cat.envelopes.length
+          ? ` <button type="button" class="envelope-adjust-link" data-category-key="${cat.id}">Adjust set-aside${cat.envelopes.length > 1 ? ` (${cat.envelopes.length})` : ''}</button>`
           : '';
         card.innerHTML = `
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
@@ -745,6 +806,7 @@
       setupCardDragDrop();
       setupColorPicker();
       setupManualCategoryEdit();
+      setupEnvelopePicker();
       setupSkippedActivity();
       document.getElementById('refresh-detected-btn').addEventListener('click', refreshDetectedActivity);
 
@@ -993,6 +1055,16 @@
             </div>
             <button type="button" class="txn-transfer-toggle" data-id="${r.id}" style="${r.is_credit_card_payment ? 'display:none;' : ''}">${r.is_transfer ? 'Switch to a single category' : 'This is actually a transfer'}</button>
           </div>
+          ${(!r.is_transfer && r.suggested_action === 'add' && customCategoryCards.some(c => !c.hasConnection)) ? `
+          <div class="txn-route-row">
+            <select class="txn-route-select" data-id="${r.id}">
+              <option value="">Also route some to a set-aside category…</option>
+              ${customCategoryCards.filter(c => !c.hasConnection).map(c => `<option value="${c.id}">${c.name.replace(/</g,'&lt;')}</option>`).join('')}
+            </select>
+            <input type="number" class="txn-route-amount" data-id="${r.id}" step="0.01" placeholder="Amount" style="display:none;" />
+            <button type="button" class="txn-route-btn" data-id="${r.id}" style="display:none;">Route</button>
+          </div>
+          ` : ''}
           <div class="txn-review-actions">
             <button type="button" class="txn-approve-btn" data-id="${r.id}">Looks good</button>
             <button type="button" class="txn-change-btn" data-id="${r.id}">Change</button>
@@ -1025,6 +1097,20 @@
     }
 
     function wireTxnReviewEvents() {
+      document.querySelectorAll('.txn-route-select').forEach(select => {
+        select.addEventListener('change', () => {
+          const id = select.dataset.id;
+          const amountInput = document.querySelector(`.txn-route-amount[data-id="${id}"]`);
+          const routeBtn = document.querySelector(`.txn-route-btn[data-id="${id}"]`);
+          const show = !!select.value;
+          amountInput.style.display = show ? 'block' : 'none';
+          routeBtn.style.display = show ? 'block' : 'none';
+          if (show) amountInput.focus();
+        });
+      });
+      document.querySelectorAll('.txn-route-btn').forEach(btn => {
+        btn.addEventListener('click', () => routeToManualCategory(btn.dataset.id));
+      });
       document.querySelectorAll('.txn-change-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           document.getElementById('txn-suggestion-text-' + btn.dataset.id).style.display = 'none';
@@ -1229,6 +1315,60 @@
       logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, splits, action, is_transfer: false });
 
       await loadPendingReviews();
+    }
+
+    // Splits part of an incoming deposit off into a manual (unconnected)
+    // category's set-aside amount, without creating money that isn't
+    // really there. The routed amount comes straight out of what would
+    // otherwise get logged to the suggested category — reducing the
+    // simple-split form's expected total by the same amount — so
+    // "amount logged normally" + "amount routed" always still adds up
+    // to the original deposit, never more. Only ever offered for
+    // categories with nothing connected (see the template), so this
+    // can never collide with a connected account's own math.
+    async function routeToManualCategory(reviewId) {
+      const select = document.querySelector(`.txn-route-select[data-id="${reviewId}"]`);
+      const amountInput = document.querySelector(`.txn-route-amount[data-id="${reviewId}"]`);
+      const categoryId = select.value;
+      const routeAmount = round2(parseFloat(amountInput.value) || 0);
+      if (!categoryId) { alert('Pick a category to route to.'); return; }
+      if (routeAmount <= 0) { alert('Enter an amount greater than $0.'); return; }
+
+      const splitRowsWrap = document.getElementById('txn-simple-split-rows-' + reviewId);
+      const remainingTotal = splitRowsWrap ? Number(splitRowsWrap.dataset.total) || 0 : 0;
+      if (routeAmount > remainingTotal) { alert(`Can't route more than what's left to allocate (${money(remainingTotal)}).`); return; }
+
+      const cat = customCategoryCards.find(c => c.id === categoryId);
+      if (!cat) return;
+      const newManualAmount = round2((cat.manualAmount || 0) + routeAmount);
+
+      const { error } = await supabaseClient.from('budget_categories').update({ manual_amount: newManualAmount }).eq('id', categoryId);
+      if (error) { alert('Could not route: ' + error.message); return; }
+
+      // Reduce what's left to log normally by the same amount — taken
+      // off the first split row, which covers the common case (nothing
+      // manually split yet) correctly; if the user had already split
+      // across multiple rows before routing, it still reduces the
+      // total consistently even if which specific row absorbs it is
+      // somewhat arbitrary.
+      if (splitRowsWrap) {
+        const newTotal = round2(remainingTotal - routeAmount);
+        splitRowsWrap.dataset.total = newTotal;
+        const firstAmountInput = splitRowsWrap.querySelector('.txn-transfer-split-amount');
+        if (firstAmountInput) {
+          firstAmountInput.value = round2(Math.max(0, (parseFloat(firstAmountInput.value) || 0) - routeAmount));
+        }
+        updateSplitTotal(reviewId, 'simple');
+      }
+
+      cat.manualAmount = newManualAmount;
+      select.value = '';
+      amountInput.value = '';
+      amountInput.style.display = 'none';
+      document.querySelector(`.txn-route-btn[data-id="${reviewId}"]`).style.display = 'none';
+
+      await loadConnectedTotals();
+      renderTotals();
     }
 
     // Charges a detected transaction directly against an envelope's
