@@ -1026,17 +1026,24 @@
     // of what's already there. Distinguishing "manual:" vs "envelope:"
     // in the option value is what lets routeDepositToCategory know
     // which write path to use.
+    // Deliberately scoped to match chargeReviewToEnvelope exactly:
+    // envelope-backed categories only, and only ones that already have
+    // money in them. No manual (unconnected) categories here anymore —
+    // that was a separate write path that made this feature harder to
+    // reason about for what should be a simple, symmetric pair with
+    // "Charge to set-aside": route tops an existing set-aside up,
+    // charge draws it down, both only ever touching envelopes that are
+    // actually in use. A brand-new, empty envelope still goes through
+    // "Adjust set-aside" to get its first dollar.
     function buildRouteOptions() {
       const options = [];
-      customCategoryCards.filter(c => !c.hasConnection).forEach(c => {
-        options.push({ value: `manual:${c.id}`, label: c.name });
-      });
       ['savings', 'investment', 'expenses', 'checking'].forEach(key => {
-        const envelopes = envelopesByCategoryId[key] || [];
+        const envelopes = (envelopesByCategoryId[key] || []).filter(e => e.amount > 0);
         if (envelopes.length) options.push({ value: `envelope:${envelopes[0].id}`, label: `${CATEGORY_LABELS[key]} set-aside${envelopes.length > 1 ? ` (${envelopes[0].accountName})` : ''}` });
       });
-      customCategoryCards.filter(c => c.envelopes.length).forEach(c => {
-        options.push({ value: `envelope:${c.envelopes[0].id}`, label: `${c.name} set-aside${c.envelopes.length > 1 ? ` (${c.envelopes[0].accountName})` : ''}` });
+      customCategoryCards.forEach(c => {
+        const envelopes = (c.envelopes || []).filter(e => e.amount > 0);
+        if (envelopes.length) options.push({ value: `envelope:${envelopes[0].id}`, label: `${c.name} set-aside${envelopes.length > 1 ? ` (${envelopes[0].accountName})` : ''}` });
       });
       return options;
     }
@@ -1399,31 +1406,19 @@
       const remainingTotal = splitRowsWrap ? Number(splitRowsWrap.dataset.total) || 0 : 0;
       if (routeAmount > remainingTotal) { alert(`Can't route more than what's left to allocate (${money(remainingTotal)}).`); return; }
 
-      let writeError = null;
-      let targetCategoryId = null;
-      let targetCategoryName = null;
-      if (targetType === 'manual') {
-        const cat = customCategoryCards.find(c => c.id === targetId);
-        if (!cat) return;
-        const newManualAmount = round2((cat.manualAmount || 0) + routeAmount);
-        const { error } = await supabaseClient.from('budget_categories').update({ manual_amount: newManualAmount }).eq('id', targetId);
-        writeError = error;
-        targetCategoryId = targetId;
-        targetCategoryName = cat.name;
-      } else if (targetType === 'envelope') {
-        const { data: envelope, error: fetchError } = await supabaseClient
-          .from('account_category_splits')
-          .select('envelope_balance, category_id')
-          .eq('id', targetId)
-          .maybeSingle();
-        if (fetchError || !envelope) { alert('Could not find that set-aside amount — it may have been removed.'); return; }
-        const newEnvelopeAmount = round2(Number(envelope.envelope_balance || 0) + routeAmount);
-        const { error } = await supabaseClient.from('account_category_splits').update({ envelope_balance: newEnvelopeAmount }).eq('id', targetId);
-        writeError = error;
-        targetCategoryId = envelope.category_id;
-        const { data: catRow } = await supabaseClient.from('budget_categories').select('name').eq('id', envelope.category_id).maybeSingle();
-        targetCategoryName = catRow ? catRow.name : 'Category';
-      }
+      // Envelope-only now, matching buildRouteOptions' scope — see that
+      // function's comment for why the manual-category path was removed.
+      const { data: envelope, error: fetchError } = await supabaseClient
+        .from('account_category_splits')
+        .select('envelope_balance, category_id')
+        .eq('id', targetId)
+        .maybeSingle();
+      if (fetchError || !envelope) { alert('Could not find that set-aside amount — it may have been removed.'); return; }
+      const newEnvelopeAmount = round2(Number(envelope.envelope_balance || 0) + routeAmount);
+      const { error: writeError } = await supabaseClient.from('account_category_splits').update({ envelope_balance: newEnvelopeAmount }).eq('id', targetId);
+      const targetCategoryId = envelope.category_id;
+      const { data: catRow } = await supabaseClient.from('budget_categories').select('name').eq('id', envelope.category_id).maybeSingle();
+      const targetCategoryName = catRow ? catRow.name : 'Category';
       if (writeError) { alert('Could not route: ' + writeError.message); return; }
 
       // The routed portion gets its own log entry too — separate from
