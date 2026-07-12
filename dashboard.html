@@ -870,10 +870,19 @@
                 <option value="subtract" ${r.suggested_action === 'subtract' ? 'selected' : ''}>Subtract from</option>
                 <option value="add" ${r.suggested_action === 'add' ? 'selected' : ''}>Add to</option>
               </select>
-              <select class="txn-category-select" data-id="${r.id}">
-                ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
-                  `<option value="${key}" ${key === categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
-              </select>
+              <div class="txn-simple-split-wrap">
+                <div class="txn-transfer-split-rows" id="txn-simple-split-rows-${r.id}" data-id="${r.id}" data-kind="simple" data-total="${r.amount}">
+                  <div class="txn-transfer-split-row">
+                    <select class="txn-simple-split-select">
+                      ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
+                        `<option value="${key}" ${key === categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
+                    </select>
+                    <input type="number" class="txn-transfer-split-amount" step="0.01" value="${r.amount}" />
+                  </div>
+                </div>
+                <button type="button" class="txn-transfer-add-split" data-id="${r.id}" data-kind="simple">+ Split into another category</button>
+                <p class="txn-transfer-split-total" id="txn-simple-split-total-${r.id}"></p>
+              </div>
             </div>
             <div class="txn-change-transfer" id="txn-change-transfer-${r.id}" style="${r.is_transfer && !r.is_credit_card_payment ? 'display:block;' : 'display:none;'}">
               <div class="txn-transfer-field">
@@ -885,7 +894,7 @@
               </div>
               <div class="txn-transfer-to-wrap" id="txn-transfer-to-wrap-${r.id}">
                 <label>To ${r.is_transfer ? '<span class="txn-split-hint">— split across more than one if it went to several places</span>' : ''}</label>
-                <div class="txn-transfer-split-rows" id="txn-transfer-split-rows-${r.id}" data-id="${r.id}" data-total="${r.amount}">
+                <div class="txn-transfer-split-rows" id="txn-transfer-split-rows-${r.id}" data-id="${r.id}" data-kind="transfer" data-total="${r.amount}">
                   <div class="txn-transfer-split-row">
                     <select class="txn-transfer-to-select">
                       ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
@@ -894,7 +903,7 @@
                     <input type="number" class="txn-transfer-split-amount" step="0.01" value="${r.amount}" />
                   </div>
                 </div>
-                <button type="button" class="txn-transfer-add-split" data-id="${r.id}">+ Split into another category</button>
+                <button type="button" class="txn-transfer-add-split" data-id="${r.id}" data-kind="transfer">+ Split into another category</button>
                 <p class="txn-transfer-split-total" id="txn-transfer-split-total-${r.id}"></p>
               </div>
             </div>
@@ -908,13 +917,15 @@
         </div>`;
     }
 
-    function updateSplitTotal(id) {
-      const wrap = document.getElementById('txn-transfer-split-rows-' + id);
+    function updateSplitTotal(id, kind = 'transfer') {
+      const wrapId = (kind === 'simple' ? 'txn-simple-split-rows-' : 'txn-transfer-split-rows-') + id;
+      const totalId = (kind === 'simple' ? 'txn-simple-split-total-' : 'txn-transfer-split-total-') + id;
+      const wrap = document.getElementById(wrapId);
       if (!wrap) return;
       const total = Number(wrap.dataset.total) || 0;
       const rows = Array.from(wrap.querySelectorAll('.txn-transfer-split-row'));
       const sum = round2(rows.reduce((s, row) => s + (parseFloat(row.querySelector('.txn-transfer-split-amount').value) || 0), 0));
-      const label = document.getElementById('txn-transfer-split-total-' + id);
+      const label = document.getElementById(totalId);
       if (!label) return;
       const remaining = round2(total - sum);
       if (rows.length === 1) {
@@ -943,40 +954,44 @@
           simple.style.display = switchingToTransfer ? 'none' : 'flex';
           transfer.style.display = switchingToTransfer ? 'block' : 'none';
           btn.textContent = switchingToTransfer ? 'Switch to a single category' : 'This is actually a transfer';
-          if (switchingToTransfer) updateSplitTotal(id);
+          if (switchingToTransfer) updateSplitTotal(id, 'transfer');
+          else updateSplitTotal(id, 'simple');
         });
       });
       document.querySelectorAll('.txn-transfer-add-split').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = btn.dataset.id;
-          const rowsWrap = document.getElementById('txn-transfer-split-rows-' + id);
+          const kind = btn.dataset.kind || 'transfer';
+          const rowsWrap = document.getElementById((kind === 'simple' ? 'txn-simple-split-rows-' : 'txn-transfer-split-rows-') + id);
+          const selectClass = kind === 'simple' ? 'txn-simple-split-select' : 'txn-transfer-to-select';
           const row = document.createElement('div');
           row.className = 'txn-transfer-split-row';
           row.innerHTML = `
-            <select class="txn-transfer-to-select">
+            <select class="${selectClass}">
               ${Object.entries(CATEGORY_LABELS).map(([key, label]) => `<option value="${key}">${label}</option>`).join('')}
             </select>
             <input type="number" class="txn-transfer-split-amount" step="0.01" value="" />
             <button type="button" class="txn-transfer-remove-split">×</button>
           `;
           rowsWrap.appendChild(row);
-          updateSplitTotal(id);
+          updateSplitTotal(id, kind);
         });
       });
       document.querySelectorAll('.txn-transfer-split-rows').forEach(wrap => {
         const id = wrap.dataset.id;
-        wrap.addEventListener('input', () => updateSplitTotal(id));
+        const kind = wrap.dataset.kind || 'transfer';
+        wrap.addEventListener('input', () => updateSplitTotal(id, kind));
         wrap.addEventListener('click', (e) => {
           if (e.target.classList.contains('txn-transfer-remove-split')) {
             // Always leave at least one row — removing the last one
             // would leave nothing to actually log against.
             if (wrap.querySelectorAll('.txn-transfer-split-row').length > 1) {
               e.target.closest('.txn-transfer-split-row').remove();
-              updateSplitTotal(id);
+              updateSplitTotal(id, kind);
             }
           }
         });
-        updateSplitTotal(id);
+        updateSplitTotal(id, kind);
       });
       document.querySelectorAll('.txn-note-pill').forEach(pill => {
         pill.addEventListener('click', () => {
@@ -1089,32 +1104,39 @@
       }
 
       const actionSelect = document.querySelector(`.txn-action-select[data-id="${reviewId}"]`);
-      const categorySelect = document.querySelector(`.txn-category-select[data-id="${reviewId}"]`);
       const action = actionSelect ? actionSelect.value : review.suggested_action;
-      const cat = categorySelect ? categorySelect.value : (review.category_name || '').toLowerCase();
 
-      if (!CATEGORY_LABELS[cat]) { alert('Pick a valid category before confirming.'); return; }
+      // Non-transfer entries (a plain deposit or withdrawal) can now be
+      // split across more than one category too — e.g. a paycheck that
+      // actually gets divided between Savings and Checking the moment
+      // it lands, rather than forcing the whole amount into one bucket
+      // and requiring a separate manual Transfer afterward.
+      const simpleSplitWrap = document.getElementById('txn-simple-split-rows-' + reviewId);
+      const simpleSplitRows = simpleSplitWrap ? Array.from(simpleSplitWrap.querySelectorAll('.txn-transfer-split-row')) : [];
+      const splits = simpleSplitRows.map(row => ({
+        cat: row.querySelector('.txn-simple-split-select').value,
+        amt: round2(parseFloat(row.querySelector('.txn-transfer-split-amount').value) || 0),
+      })).filter(s => s.amt > 0);
+
+      if (!splits.length) { alert('Add at least one category with an amount.'); return; }
+      if (splits.some(s => !CATEGORY_LABELS[s.cat])) { alert('Pick a valid category for every split.'); return; }
 
       const amount = round2(Number(review.amount) || 0);
-      const logActionType = review.is_credit_card_payment ? 'debt_payment' : (review.is_transfer ? 'transfer' : action);
-      // Transfers store a signed value (negative = left this category,
-      // positive = arrived in it) — same convention the manual Transfer
-      // panel already uses. A credit card payment isn't a two-sided
-      // transfer (there's no category actually receiving the money, the
-      // card was never given one to hold funds in) — it's really just
-      // money leaving, same as a plain subtract, just tagged distinctly
-      // so it doesn't get counted as new spending. Add/subtract/
-      // debt_payment entries all stay unsigned; action_type itself
-      // carries the direction for those.
-      const logAmount = (review.is_transfer && !review.is_credit_card_payment) ? (action === 'subtract' ? -amount : amount) : amount;
+      const splitSum = round2(splits.reduce((s, x) => s + x.amt, 0));
+      if (splitSum !== amount) { alert(`Splits need to add up to ${money(amount)} — currently ${money(splitSum)}.`); return; }
+
+      const logActionType = review.is_credit_card_payment ? 'debt_payment' : action;
 
       const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
-      logRow[cat] = logAmount;
+      splits.forEach(s => { logRow[s.cat] = round2((logRow[s.cat] || 0) + s.amt); });
+
       await logEntry({ amount, ...logRow, notes: note, action_type: logActionType, entryDate: review.txn_date, sourceReviewId: review.id });
-      await applyEnvelopeAdjustment(review.linked_account_id, cat, action, amount);
+      for (const s of splits) {
+        await applyEnvelopeAdjustment(review.linked_account_id, s.cat, action, s.amt);
+      }
 
       await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
-      logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, category: cat, action, is_transfer: review.is_transfer });
+      logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, splits, action, is_transfer: false });
 
       await loadPendingReviews();
     }
