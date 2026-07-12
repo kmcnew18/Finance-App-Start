@@ -5,11 +5,14 @@
 // to run only that half — used by the two separate "Refresh
 // transactions" / "Refresh subscriptions" buttons, so neither one
 // triggers the other. Omitting mode runs both, for anything that still
-// wants the old combined behavior.
+// wants the old combined behavior. 'deep-refresh' runs the combined
+// sync too, then also backfills anything that was stored but somehow
+// never made it into the review queue, and dedupes whatever's
+// currently pending — used by Dashboard's "Refresh detected activity."
 //
 // Requires: npm install plaid @supabase/supabase-js
 
-const { supabaseAdmin, processItemUpdate, refreshTransactionsForItem, refreshSubscriptionsForItem } = require('../lib/plaid-helpers');
+const { supabaseAdmin, processItemUpdate, refreshTransactionsForItem, refreshSubscriptionsForItem, backfillDashboardReviews, dedupeDashboardReviews } = require('../lib/plaid-helpers');
 const { decryptToken } = require('../lib/crypto-helpers');
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 
@@ -84,6 +87,10 @@ module.exports = async (req, res) => {
           const result = await refreshSubscriptionsForItem(item);
           totalQueued += result.queuedCount;
         } else {
+          // Both 'deep-refresh' and the default (no mode) run the same
+          // combined per-item sync — deep-refresh's extra work
+          // (backfill + dedupe) happens once, after this loop, since
+          // those are user-level operations rather than per-item ones.
           const result = await processItemUpdate(item);
           totalAdded += result.addedCount;
           totalQueued += result.queuedCount;
@@ -93,8 +100,19 @@ module.exports = async (req, res) => {
       }
     }
 
-    console.log('plaid-sync-recurring result:', { userId, mode: mode || 'combined', totalAdded, totalQueued, orphansCleaned });
-    res.status(200).json({ success: true, totalAdded, totalQueued, orphansCleaned });
+    let backfilledCount = 0;
+    let dedupedCount = 0;
+    if (mode === 'deep-refresh') {
+      try {
+        backfilledCount = await backfillDashboardReviews(userId);
+        dedupedCount = await dedupeDashboardReviews(userId);
+      } catch (deepErr) {
+        console.error('Deep refresh backfill/dedupe failed:', deepErr?.response?.data || deepErr);
+      }
+    }
+
+    console.log('plaid-sync-recurring result:', { userId, mode: mode || 'combined', totalAdded, totalQueued, orphansCleaned, backfilledCount, dedupedCount });
+    res.status(200).json({ success: true, totalAdded, totalQueued, orphansCleaned, backfilledCount, dedupedCount });
   } catch (err) {
     console.error('plaid-sync-recurring error:', err?.response?.data || err);
     res.status(500).json({ error: 'Could not sync recurring transactions' });

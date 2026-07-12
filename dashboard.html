@@ -62,7 +62,6 @@
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
             <div class="dropdown-divider"></div>
-            <button type="button" id="refresh-detected-btn" class="dropdown-item">Refresh detected activity</button>
             <button type="button" id="view-skipped-btn" class="dropdown-item">View skipped activity</button>
             <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
             <div class="dropdown-divider"></div>
@@ -95,15 +94,22 @@
       </div>
     </div>
 
-    <div class="txn-review-section" id="txn-review-section" style="display:none;">
+    <div class="txn-review-section" id="txn-review-section">
       <div class="txn-review-head">
         <div>
           <span class="txn-review-title">Detected activity</span>
           <span class="txn-review-sub">Picked up automatically from your connected accounts — each one just becomes a log entry once you confirm it. Want it in your budget too? Pull it in anytime from Budget Planner's "+ From log."</span>
         </div>
-        <button type="button" class="txn-approve-all-btn" id="txn-approve-all-btn" style="display:none;">Confirm all</button>
+        <div class="txn-review-head-actions">
+          <button type="button" class="txn-refresh-btn" id="refresh-detected-btn" title="Check for new activity">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+            <span>Refresh</span>
+          </button>
+          <button type="button" class="txn-approve-all-btn" id="txn-approve-all-btn" style="display:none;">Confirm all</button>
+        </div>
       </div>
       <div class="txn-review-list" id="txn-review-list"></div>
+      <p class="txn-review-empty" id="txn-review-empty">Nothing detected right now — hit refresh to check again.</p>
     </div>
 
     <section class="overview-section">
@@ -656,6 +662,7 @@
       setupCardDragDrop();
       setupColorPicker();
       setupSkippedActivity();
+      document.getElementById('refresh-detected-btn').addEventListener('click', refreshDetectedActivity);
 
       const dateNow = todayStr();
       document.getElementById('add-date').textContent = dateNow;
@@ -814,13 +821,19 @@
     }
 
     function renderTxnReviewSection() {
-      const section = document.getElementById('txn-review-section');
-      if (!pendingReviews.length) { section.style.display = 'none'; return; }
-      section.style.display = 'block';
-
-      document.getElementById('txn-review-list').innerHTML = pendingReviews.map(txnReviewRowHtml).join('');
-
+      const list = document.getElementById('txn-review-list');
+      const empty = document.getElementById('txn-review-empty');
       const approveAllBtn = document.getElementById('txn-approve-all-btn');
+
+      if (!pendingReviews.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        approveAllBtn.style.display = 'none';
+        return;
+      }
+
+      empty.style.display = 'none';
+      list.innerHTML = pendingReviews.map(txnReviewRowHtml).join('');
       approveAllBtn.style.display = pendingReviews.length > 1 ? 'inline-block' : 'none';
 
       wireTxnReviewEvents();
@@ -1190,26 +1203,23 @@
     }
 
     // ================= REFRESH DETECTED ACTIVITY =================
-    // Dashboard never had any manual sync trigger of its own — the
-    // background balance refresh only ever touches balances, not
-    // transactions. This calls the same combined sync endpoint
-    // Connections' "Sync now" uses (no mode = both transactions and
-    // subscriptions, covering both regular Dashboard reviews and
-    // merchant/subscription-mapped Budget matches), then reloads the
-    // review queue so anything newly detected shows up immediately
-    // rather than waiting for the next automatic sync window.
+    // Calls the same sync endpoint Connections' "Sync now" uses, but
+    // with mode: 'deep-refresh' — runs the normal combined sync, then
+    // also backfills anything that was stored but never made it into
+    // the review queue (covers gaps from before some of the fallback
+    // logic existed) and dedupes whatever's currently pending. The
+    // regular automatic sync (webhook-triggered) is untouched by any
+    // of this — this is purely an additional manual trigger.
     async function refreshDetectedActivity() {
       const btn = document.getElementById('refresh-detected-btn');
-      const originalText = btn.textContent;
       btn.disabled = true;
-      btn.textContent = 'Refreshing…';
-      gearDropdown.classList.remove('open');
+      btn.classList.add('syncing');
 
       try {
         const res = await fetch('/api/plaid-sync-recurring', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUserId })
+          body: JSON.stringify({ userId: currentUserId, mode: 'deep-refresh' })
         });
         if (!res.ok) throw new Error('Sync failed (' + res.status + ')');
         await loadPendingReviews();
@@ -1218,14 +1228,11 @@
         alert('Could not refresh right now — try again in a bit.');
       } finally {
         btn.disabled = false;
-        btn.textContent = originalText;
+        btn.classList.remove('syncing');
       }
     }
 
-    // Covers both settings-menu items added together: refreshing
-    // detected activity and viewing/restoring skipped activity.
     function setupSkippedActivity() {
-      document.getElementById('refresh-detected-btn').addEventListener('click', refreshDetectedActivity);
       document.getElementById('view-skipped-btn').addEventListener('click', openSkippedActivity);
       document.getElementById('skipped-activity-close').addEventListener('click', () => {
         document.getElementById('skipped-activity-overlay').classList.remove('open');
