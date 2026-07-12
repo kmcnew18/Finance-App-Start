@@ -708,9 +708,17 @@
         const hintEl = document.getElementById('sync-hint-' + cat);
         if (!hintEl) return;
         const envelopes = envelopesByCategoryId[cat] || [];
-        const syncText = connectedTotals[cat] ? `${connectedTotals[cat] > 0 ? '+' : ''}${money(connectedTotals[cat])} from Connections` : '';
         const adjustLink = envelopes.length
-          ? ` <button type="button" class="envelope-adjust-link" data-category-key="${cat}">Adjust set-aside${envelopes.length > 1 ? ` (${envelopes.length})` : ''}</button>`
+          ? `<button type="button" class="envelope-adjust-link" data-category-key="${cat}">Adjust set-aside${envelopes.length > 1 ? ` (${envelopes.length})` : ''}</button>`
+          : '';
+        // The "from Connections" line and the set-aside link were both
+        // fighting for the same small space and reading as clutter
+        // together — the set-aside link matters more here (it's the
+        // one thing that's actually clickable), so it takes priority
+        // and "from Connections" just doesn't show at all once there's
+        // a set-aside for this category.
+        const syncText = (!adjustLink && connectedTotals[cat])
+          ? `${connectedTotals[cat] > 0 ? '+' : ''}${money(connectedTotals[cat])} from Connections`
           : '';
         hintEl.innerHTML = syncText + adjustLink;
       });
@@ -745,14 +753,18 @@
           : `<span class="card-value card-value-manual" data-manual-cat="${cat.id}" title="Click to set aside an amount">${money(cat.total)}</span>
              <input type="number" class="card-value-input card-value-input-manual" data-manual-cat="${cat.id}" step="0.01" value="${cat.manualAmount}" style="display:none;" />`;
         const adjustLink = cat.envelopes.length
-          ? ` <button type="button" class="envelope-adjust-link" data-category-key="${cat.id}">Adjust set-aside${cat.envelopes.length > 1 ? ` (${cat.envelopes.length})` : ''}</button>`
+          ? `<button type="button" class="envelope-adjust-link" data-category-key="${cat.id}">Adjust set-aside${cat.envelopes.length > 1 ? ` (${cat.envelopes.length})` : ''}</button>`
           : '';
+        // Same declutter reasoning as the default cards — the set-aside
+        // link takes priority when it's there; the plain "synced" label
+        // isn't worth the visual noise alongside it.
+        const hintText = adjustLink ? '' : (cat.hasConnection ? 'Synced from Connections' : 'Set aside manually — not connected to an account');
         card.innerHTML = `
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
           <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor};"></button>
           <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
           ${valueHtml}
-          <span class="sync-hint">${(cat.hasConnection ? 'Synced from Connections' : 'Set aside manually — not connected to an account') + adjustLink}</span>
+          <span class="sync-hint">${hintText + adjustLink}</span>
         `;
         totalCard.parentNode.insertBefore(card, totalCard);
       });
@@ -1068,8 +1080,8 @@
           <div class="txn-review-actions">
             <button type="button" class="txn-approve-btn" data-id="${r.id}">Looks good</button>
             <button type="button" class="txn-change-btn" data-id="${r.id}">Change</button>
-            ${!r.is_transfer ? (envelopesByAccountId[r.linked_account_id] || []).map(env => `
-              <button type="button" class="txn-envelope-charge-btn" data-id="${r.id}" data-envelope-id="${env.id}" data-envelope-name="${env.categoryName.replace(/"/g,'&quot;')}">Charge to ${env.categoryName.replace(/</g,'&lt;')} set-aside</button>
+            ${!r.is_transfer ? (envelopesByCategoryId[r.category_id] || []).map(env => `
+              <button type="button" class="txn-envelope-charge-btn" data-id="${r.id}" data-envelope-id="${env.id}" data-envelope-name="${(r.category_name || '').replace(/"/g,'&quot;')}">Charge to ${(r.category_name || '').replace(/</g,'&lt;')} set-aside${env.accountName ? ` (${env.accountName.replace(/</g,'&lt;')})` : ''}</button>
             `).join('') : ''}
             <button type="button" class="txn-skip-btn" data-id="${r.id}">Skip</button>
           </div>
@@ -1505,12 +1517,19 @@
       if (!confirm('Delete this permanently? Unlike Restore, this can\'t be undone — it won\'t come back even if the same transaction gets detected again.')) return;
       // Scoped to dismissed rows only, same belt-and-suspenders reasoning
       // as restore — this should never be able to touch anything approved.
-      const { error } = await supabaseClient
+      // .select() after .delete() so the response includes which rows
+      // were actually removed — an RLS-blocked delete often returns no
+      // error at all, just zero affected rows, so checking the count is
+      // the only reliable way to catch that case instead of silently
+      // doing nothing.
+      const { data, error } = await supabaseClient
         .from('pending_dashboard_reviews')
         .delete()
         .eq('id', reviewId)
-        .eq('status', 'dismissed');
+        .eq('status', 'dismissed')
+        .select();
       if (error) { alert('Could not delete: ' + error.message); return; }
+      if (!data || !data.length) { alert('Nothing was deleted — this may be a permissions issue. Check that the delete policy on pending_dashboard_reviews has been applied in Supabase.'); return; }
       logAuditEvent('txn_review_deleted', {});
       await openSkippedActivity();
     }
@@ -1525,13 +1544,15 @@
 
       if (!confirm(`Permanently delete all ${dismissed.length} skipped item${dismissed.length === 1 ? '' : 's'}? This can't be undone.`)) return;
 
-      const { error } = await supabaseClient
+      const { data: deletedRows, error } = await supabaseClient
         .from('pending_dashboard_reviews')
         .delete()
         .eq('user_id', currentUserId)
-        .eq('status', 'dismissed');
+        .eq('status', 'dismissed')
+        .select();
       if (error) { alert('Could not clear: ' + error.message); return; }
-      logAuditEvent('skipped_activity_cleared', { count: dismissed.length });
+      if (!deletedRows || !deletedRows.length) { alert('Nothing was deleted — this may be a permissions issue. Check that the delete policy on pending_dashboard_reviews has been applied in Supabase.'); return; }
+      logAuditEvent('skipped_activity_cleared', { count: deletedRows.length });
       await openSkippedActivity();
     }
 
@@ -1590,8 +1611,7 @@
     let customCategoryCards = [];
 
     let linkedLiabilities = {}; // category key/id -> [{ name, amount }] for display
-    let envelopesByCategoryId = {}; // category_id -> [{ id, amount, accountId, accountName }] for the adjust-set-aside affordance
-    let envelopesByAccountId = {}; // linked_account_id -> [{ id, categoryId, categoryName, amount }] for the "Charge to set-aside" review option
+    let envelopesByCategoryId = {}; // category_id -> [{ id, amount, accountId, accountName }] for the adjust-set-aside affordance, and now also the review card's "Charge to set-aside" option
 
     let orderedCategories = []; // flat, sort_order-sorted list of every real category — used by the move/shuffle controls
     let lastLoadedLinkedAccounts = []; // used only to check how recently Plaid accounts were last synced, for the background-sync throttle
@@ -1604,7 +1624,6 @@
       customCategoryCards = [];
       linkedLiabilities = {};
       envelopesByCategoryId = {};
-      envelopesByAccountId = {};
       orderedCategories = [];
 
       const { data: cats } = await supabaseClient.from('budget_categories').select('*').eq('user_id', currentUserId).order('sort_order', { ascending: true });
@@ -1636,19 +1655,6 @@
       const envelopeTotalByAccountId = {};
       envelopeSplits.forEach(e => {
         envelopeTotalByAccountId[e.linked_account_id] = round2((envelopeTotalByAccountId[e.linked_account_id] || 0) + Number(e.envelope_balance || 0));
-      });
-
-      // linked_account_id -> [{ id, categoryId, categoryName, amount }]
-      // — used by the Detected Activity review card to offer "Charge to
-      // [Category]'s set-aside" whenever the account this transaction
-      // came from has an envelope set up, for any category.
-      envelopesByAccountId = {};
-      envelopeSplits.forEach(e => {
-        const cat = cats.find(c => c.id === e.category_id);
-        if (!envelopesByAccountId[e.linked_account_id]) envelopesByAccountId[e.linked_account_id] = [];
-        envelopesByAccountId[e.linked_account_id].push({
-          id: e.id, categoryId: e.category_id, categoryName: cat ? cat.name : 'Category', amount: Number(e.envelope_balance || 0),
-        });
       });
 
       // category_id -> [{ id, amount, accountId, accountName }] — used
