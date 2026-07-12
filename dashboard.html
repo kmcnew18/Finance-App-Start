@@ -63,6 +63,7 @@
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
             <div class="dropdown-divider"></div>
             <button type="button" id="view-skipped-btn" class="dropdown-item">View skipped activity</button>
+            <button type="button" id="find-missing-logs-btn" class="dropdown-item">Find missing log entries</button>
             <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
             <div class="dropdown-divider"></div>
             <div class="dropdown-toggle-row" id="override-toggle-row">
@@ -383,6 +384,21 @@
       <div class="mfa-modal-body">
         <p class="mfa-modal-sub" id="envelope-picker-sub" style="margin-bottom:12px;"></p>
         <div class="envelope-picker-list" id="envelope-picker-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= FIND MISSING LOG ENTRIES ================= -->
+  <div class="mfa-overlay" id="missing-logs-overlay">
+    <div class="mfa-modal" style="max-width: 480px;">
+      <div class="mfa-modal-head">
+        <h2>Find missing log entries</h2>
+        <button type="button" class="mfa-modal-close" id="missing-logs-close">×</button>
+      </div>
+      <div class="mfa-modal-body">
+        <p class="mfa-modal-sub" style="margin-bottom:12px;">Anything charged to a set-aside amount before that feature wrote proper log entries. Approved, but nothing in your Log to show for it — these let you fill that back in.</p>
+        <div class="missing-logs-list" id="missing-logs-list"></div>
+        <p class="mfa-modal-sub" id="missing-logs-empty" style="display:none;">Nothing missing — every approved item has a matching log entry.</p>
       </div>
     </div>
   </div>
@@ -822,6 +838,7 @@
       setupManualCategoryEdit();
       setupEnvelopePicker();
       setupSkippedActivity();
+      setupMissingLogsOverlay();
       document.getElementById('refresh-detected-btn').addEventListener('click', refreshDetectedActivity);
 
       const dateNow = todayStr();
@@ -1667,6 +1684,91 @@
         btn.disabled = false;
         btn.classList.remove('syncing');
       }
+    }
+
+    // ================= FIND MISSING LOG ENTRIES =================
+    // Recovers from the period where "Charge to set-aside" decremented
+    // the envelope but wrote no log entry at all — the transaction
+    // itself is genuinely gone from anywhere searchable, but the
+    // review row that spawned it is still sitting in the database,
+    // marked 'approved', with nothing pointing back to it. Finding
+    // those specifically: approved reviews with no finance_log row
+    // whose source_review_id matches. Can't know for certain which
+    // envelope the money actually went to (the old bug never recorded
+    // that anywhere), so this uses the review's own original suggested
+    // category as the best available guess, editable before saving.
+    async function openMissingLogsOverlay() {
+      document.getElementById('settings-dropdown').classList.remove('open');
+      document.getElementById('missing-logs-overlay').classList.add('open');
+      const list = document.getElementById('missing-logs-list');
+      const empty = document.getElementById('missing-logs-empty');
+      list.innerHTML = '<p class="mfa-modal-sub" style="opacity:0.7;">Checking…</p>';
+      empty.style.display = 'none';
+
+      const { data: approvedReviews } = await supabaseClient
+        .from('pending_dashboard_reviews')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .eq('status', 'approved');
+      if (!approvedReviews || !approvedReviews.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+
+      const { data: linkedLogs } = await supabaseClient
+        .from('finance_log')
+        .select('source_review_id')
+        .eq('user_id', currentUserId)
+        .not('source_review_id', 'is', null);
+      const loggedReviewIds = new Set((linkedLogs || []).map(l => l.source_review_id));
+
+      const missing = approvedReviews.filter(r => !loggedReviewIds.has(r.id));
+      if (!missing.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+
+      list.innerHTML = missing.map(r => `
+        <div class="missing-logs-row" data-id="${r.id}">
+          <div class="missing-logs-info">
+            <span class="missing-logs-merchant">${(r.merchant_name || 'Transaction').replace(/</g,'&lt;')}</span>
+            <span class="missing-logs-meta">${new Date(r.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${money(r.amount)} · originally suggested: ${(r.category_name || 'Uncategorized').replace(/</g,'&lt;')}</span>
+          </div>
+          <button type="button" class="missing-logs-create-btn" data-id="${r.id}">Create log entry</button>
+        </div>
+      `).join('');
+    }
+
+    async function createMissingLogEntry(reviewId) {
+      const { data: review, error: fetchError } = await supabaseClient
+        .from('pending_dashboard_reviews')
+        .select('*')
+        .eq('id', reviewId)
+        .maybeSingle();
+      if (fetchError || !review) { alert('Could not find that review.'); return; }
+
+      const amount = round2(Number(review.amount) || 0);
+      const defaultKey = Object.keys(CATEGORY_LABELS).find(k => (review.category_name || '').toLowerCase() === k);
+      const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+      if (defaultKey) logRow[defaultKey] = amount;
+
+      await logEntry({
+        amount, ...logRow, notes: (review.merchant_name || '') + ' (recovered — originally charged to set-aside before this created a log entry)',
+        action_type: 'subtract', entryDate: review.txn_date, sourceReviewId: review.id,
+        customCategoryId: defaultKey ? null : review.category_id,
+        customCategoryAmount: defaultKey ? null : amount,
+      });
+
+      logAuditEvent('missing_log_recovered', { merchant_name: review.merchant_name, amount });
+      await openMissingLogsOverlay();
+    }
+
+    function setupMissingLogsOverlay() {
+      document.getElementById('find-missing-logs-btn').addEventListener('click', openMissingLogsOverlay);
+      document.getElementById('missing-logs-close').addEventListener('click', () => {
+        document.getElementById('missing-logs-overlay').classList.remove('open');
+      });
+      document.getElementById('missing-logs-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'missing-logs-overlay') document.getElementById('missing-logs-overlay').classList.remove('open');
+      });
+      document.getElementById('missing-logs-list').addEventListener('click', (e) => {
+        const btn = e.target.closest('.missing-logs-create-btn');
+        if (btn) createMissingLogEntry(btn.dataset.id);
+      });
     }
 
     function setupSkippedActivity() {

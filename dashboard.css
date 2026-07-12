@@ -645,6 +645,29 @@ h1, h2, h3 {
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .skipped-activity-delete:hover { background: rgba(224,139,125,0.12); border-color: rgba(224,139,125,0.35); color: var(--error); }
+
+.missing-logs-list { max-height: 380px; overflow-y: auto; }
+.missing-logs-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 11px 0; border-bottom: 1px solid var(--panel-border);
+}
+.missing-logs-row:last-child { border-bottom: none; }
+.missing-logs-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.missing-logs-merchant { font-size: 0.86rem; color: var(--tan); font-weight: 600; }
+.missing-logs-meta { font-size: 0.72rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; }
+.missing-logs-create-btn {
+  flex-shrink: 0;
+  padding: 6px 13px;
+  border-radius: 7px;
+  border: 1px solid rgba(63,174,133,0.3);
+  background: rgba(63,174,133,0.08);
+  color: var(--emerald-bright, #63D9AA);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.missing-logs-create-btn:hover { background: rgba(63,174,133,0.16); border-color: rgba(63,174,133,0.5); transform: translateY(-1px); }
 .txn-transfer-badge {
   display: inline-block;
   margin-left: 8px;
