@@ -615,19 +615,61 @@ h1, h2, h3 {
 .txn-review-change-form select:hover { border-color: rgba(110,143,163,0.4); }
 .txn-review-change-form select:focus { outline: none; border-color: var(--vintage-blue-light); background-color: #161D26; }
 .txn-change-simple { display: flex; gap: 8px; }
-.txn-change-transfer { display: none; }
-.txn-transfer-pair { display: flex; align-items: flex-end; gap: 10px; }
+.txn-change-transfer { display: none; flex-direction: column; gap: 10px; }
 .txn-transfer-field { flex: 1; display: flex; flex-direction: column; gap: 4px; }
 .txn-transfer-field label {
   font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--silver-dim);
 }
-.txn-transfer-arrow {
-  padding-bottom: 9px;
-  color: var(--vintage-blue-light);
-  font-size: 0.95rem;
-  font-weight: 700;
+.txn-transfer-to-wrap { display: flex; flex-direction: column; gap: 6px; }
+.txn-transfer-to-wrap > label {
+  font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--silver-dim);
 }
+.txn-split-hint { text-transform: none; letter-spacing: normal; font-weight: 500; opacity: 0.75; font-size: 0.66rem; }
+.txn-transfer-split-rows { display: flex; flex-direction: column; gap: 6px; }
+.txn-transfer-split-row { display: flex; align-items: center; gap: 6px; }
+.txn-transfer-split-row select { flex: 1.3; }
+.txn-transfer-split-amount {
+  flex: 1;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background-color: #12181F;
+  color: var(--tan);
+  font-size: 0.8rem;
+  font-family: 'IBM Plex Mono', monospace;
+  transition: border-color 0.15s ease;
+}
+.txn-transfer-split-amount:focus { outline: none; border-color: var(--vintage-blue-light); }
+.txn-transfer-remove-split {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(224,128,106,0.1);
+  color: #E0806A;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.txn-transfer-remove-split:hover { background: rgba(224,128,106,0.2); }
+.txn-transfer-add-split {
+  align-self: flex-start;
+  padding: 5px 0;
+  border: none;
+  background: none;
+  color: var(--vintage-blue-light);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(110,143,163,0.35);
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+.txn-transfer-add-split:hover { color: var(--tan); }
+.txn-transfer-split-total { font-size: 0.72rem; font-weight: 600; margin: 0; }
 .txn-transfer-toggle {
   align-self: flex-start;
   margin-top: 2px;

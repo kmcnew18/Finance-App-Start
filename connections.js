@@ -12,6 +12,7 @@ let accountSplits = []; // account_category_splits rows
 const DEFAULT_CATEGORIES = [
   { name: 'Savings', accent: 'teal' },
   { name: 'Investment', accent: 'violet' },
+  { name: 'Expenses', accent: 'coral' },
   { name: 'Checking', accent: 'gold' },
 ];
 

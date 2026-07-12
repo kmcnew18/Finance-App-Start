@@ -127,6 +127,14 @@
           <span class="sync-hint" id="sync-hint-investment"></span>
           <input type="number" class="card-value-input" id="edit-investment" data-cat="investment" step="0.01" />
         </div>
+        <div class="card" data-cat="expenses" data-cat-key="expenses" draggable="true">
+          <span class="card-drag-handle" title="Drag to reorder">⠿</span>
+          <button type="button" class="card-color-btn" data-color-cat="expenses" title="Change color"></button>
+          <span class="card-label">Expenses</span>
+          <span class="card-value" id="val-expenses">$0.00</span>
+          <span class="sync-hint" id="sync-hint-expenses"></span>
+          <input type="number" class="card-value-input" id="edit-expenses" data-cat="expenses" step="0.01" />
+        </div>
         <div class="card" data-cat="checking" data-cat-key="checking" draggable="true">
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
           <button type="button" class="card-color-btn" data-color-cat="checking" title="Change color"></button>
@@ -514,7 +522,7 @@
       wrap.querySelectorAll('.color-picker-swatch').forEach(swatch => {
         swatch.addEventListener('click', async () => {
           const accent = swatch.dataset.accent;
-          const catId = ['savings', 'investment', 'checking'].includes(colorPickerTargetCatKey)
+          const catId = ['savings', 'investment', 'expenses', 'checking'].includes(colorPickerTargetCatKey)
             ? categoryIdByKey[colorPickerTargetCatKey]
             : colorPickerTargetCatKey;
           if (!catId) return;
@@ -542,9 +550,10 @@
 
       document.getElementById('val-savings').textContent = money(combined.savings);
       document.getElementById('val-investment').textContent = money(combined.investment);
+      document.getElementById('val-expenses').textContent = money(combined.expenses);
       document.getElementById('val-checking').textContent = money(combined.checking);
 
-      ['savings', 'investment', 'checking'].forEach(key => {
+      ['savings', 'investment', 'expenses', 'checking'].forEach(key => {
         const card = document.querySelector(`.card[data-cat="${key}"]`);
         if (!card) return;
         const accentColor = ACCENT_COLORS[categoryAccentByKey[key]] || ACCENT_COLORS.sage;
@@ -608,10 +617,10 @@
       if (error) console.error('Save totals error:', error);
     }
 
-    async function logEntry({ amount, savings=0, investment=0, expenses=0, checking=0, notes='', action_type }) {
+    async function logEntry({ amount, savings=0, investment=0, expenses=0, checking=0, notes='', action_type, entryDate=null }) {
       const { error } = await supabaseClient.from('finance_log').insert({
         user_id: currentUserId,
-        entry_date: todayISO(),
+        entry_date: entryDate || todayISO(),
         amount, savings, investment, expenses, checking,
         notes, action_type
       });
@@ -848,22 +857,26 @@
               </select>
             </div>
             <div class="txn-change-transfer" id="txn-change-transfer-${r.id}" style="${r.is_transfer ? 'display:block;' : 'display:none;'}">
-              <div class="txn-transfer-pair">
-                <div class="txn-transfer-field">
-                  <label>From</label>
-                  <select class="txn-transfer-from-select" data-id="${r.id}">
-                    ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
-                      `<option value="${key}" ${key === categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
-                  </select>
+              <div class="txn-transfer-field">
+                <label>From</label>
+                <select class="txn-transfer-from-select" data-id="${r.id}">
+                  ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
+                    `<option value="${key}" ${key === categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
+                </select>
+              </div>
+              <div class="txn-transfer-to-wrap" id="txn-transfer-to-wrap-${r.id}">
+                <label>To ${r.is_transfer ? '<span class="txn-split-hint">— split across more than one if it went to several places</span>' : ''}</label>
+                <div class="txn-transfer-split-rows" id="txn-transfer-split-rows-${r.id}" data-id="${r.id}" data-total="${r.amount}">
+                  <div class="txn-transfer-split-row">
+                    <select class="txn-transfer-to-select">
+                      ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
+                        `<option value="${key}" ${key !== categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
+                    </select>
+                    <input type="number" class="txn-transfer-split-amount" step="0.01" value="${r.amount}" />
+                  </div>
                 </div>
-                <span class="txn-transfer-arrow">→</span>
-                <div class="txn-transfer-field">
-                  <label>To</label>
-                  <select class="txn-transfer-to-select" data-id="${r.id}">
-                    ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
-                      `<option value="${key}" ${key !== categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
-                  </select>
-                </div>
+                <button type="button" class="txn-transfer-add-split" data-id="${r.id}">+ Split into another category</button>
+                <p class="txn-transfer-split-total" id="txn-transfer-split-total-${r.id}"></p>
               </div>
             </div>
             <button type="button" class="txn-transfer-toggle" data-id="${r.id}">${r.is_transfer ? 'Switch to a single category' : 'This is actually a transfer'}</button>
@@ -874,6 +887,24 @@
             <button type="button" class="txn-skip-btn" data-id="${r.id}">Skip</button>
           </div>
         </div>`;
+    }
+
+    function updateSplitTotal(id) {
+      const wrap = document.getElementById('txn-transfer-split-rows-' + id);
+      if (!wrap) return;
+      const total = Number(wrap.dataset.total) || 0;
+      const rows = Array.from(wrap.querySelectorAll('.txn-transfer-split-row'));
+      const sum = round2(rows.reduce((s, row) => s + (parseFloat(row.querySelector('.txn-transfer-split-amount').value) || 0), 0));
+      const label = document.getElementById('txn-transfer-split-total-' + id);
+      if (!label) return;
+      const remaining = round2(total - sum);
+      if (rows.length === 1) {
+        label.textContent = ''; // no need to show a running total for a single, non-split destination
+      } else if (remaining === 0) {
+        label.innerHTML = `<span style="color:var(--emerald-bright,#63D9AA);">Splits add up to ${money(total)} ✓</span>`;
+      } else {
+        label.innerHTML = `<span style="color:var(--coral,#E0806A);">${money(Math.abs(remaining))} ${remaining > 0 ? 'left to assign' : 'over the total'} — should add up to ${money(total)}</span>`;
+      }
     }
 
     function wireTxnReviewEvents() {
@@ -893,7 +924,40 @@
           simple.style.display = switchingToTransfer ? 'none' : 'flex';
           transfer.style.display = switchingToTransfer ? 'block' : 'none';
           btn.textContent = switchingToTransfer ? 'Switch to a single category' : 'This is actually a transfer';
+          if (switchingToTransfer) updateSplitTotal(id);
         });
+      });
+      document.querySelectorAll('.txn-transfer-add-split').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const rowsWrap = document.getElementById('txn-transfer-split-rows-' + id);
+          const row = document.createElement('div');
+          row.className = 'txn-transfer-split-row';
+          row.innerHTML = `
+            <select class="txn-transfer-to-select">
+              ${Object.entries(CATEGORY_LABELS).map(([key, label]) => `<option value="${key}">${label}</option>`).join('')}
+            </select>
+            <input type="number" class="txn-transfer-split-amount" step="0.01" value="" />
+            <button type="button" class="txn-transfer-remove-split">×</button>
+          `;
+          rowsWrap.appendChild(row);
+          updateSplitTotal(id);
+        });
+      });
+      document.querySelectorAll('.txn-transfer-split-rows').forEach(wrap => {
+        const id = wrap.dataset.id;
+        wrap.addEventListener('input', () => updateSplitTotal(id));
+        wrap.addEventListener('click', (e) => {
+          if (e.target.classList.contains('txn-transfer-remove-split')) {
+            // Always leave at least one row — removing the last one
+            // would leave nothing to actually log against.
+            if (wrap.querySelectorAll('.txn-transfer-split-row').length > 1) {
+              e.target.closest('.txn-transfer-split-row').remove();
+              updateSplitTotal(id);
+            }
+          }
+        });
+        updateSplitTotal(id);
       });
       document.querySelectorAll('.txn-note-pill').forEach(pill => {
         pill.addEventListener('click', () => {
@@ -967,25 +1031,39 @@
 
       if (transferModeActive) {
         const fromSelect = document.querySelector(`.txn-transfer-from-select[data-id="${reviewId}"]`);
-        const toSelect = document.querySelector(`.txn-transfer-to-select[data-id="${reviewId}"]`);
         const fromCat = fromSelect ? fromSelect.value : null;
-        const toCat = toSelect ? toSelect.value : null;
-        if (!fromCat || !toCat || !CATEGORY_LABELS[fromCat] || !CATEGORY_LABELS[toCat]) { alert('Pick both a "from" and "to" category before confirming.'); return; }
-        if (fromCat === toCat) { alert('"From" and "to" need to be different categories.'); return; }
+        if (!fromCat || !CATEGORY_LABELS[fromCat]) { alert('Pick a "from" category before confirming.'); return; }
+
+        const splitRowsWrap = document.getElementById('txn-transfer-split-rows-' + reviewId);
+        const splitRows = splitRowsWrap ? Array.from(splitRowsWrap.querySelectorAll('.txn-transfer-split-row')) : [];
+        const splits = splitRows.map(row => ({
+          cat: row.querySelector('.txn-transfer-to-select').value,
+          amt: round2(parseFloat(row.querySelector('.txn-transfer-split-amount').value) || 0),
+        })).filter(s => s.amt > 0);
+
+        if (!splits.length) { alert('Add at least one "to" category with an amount.'); return; }
+        if (splits.some(s => !CATEGORY_LABELS[s.cat])) { alert('Pick a valid category for every split.'); return; }
+        if (splits.some(s => s.cat === fromCat)) { alert('"From" and "to" need to be different categories.'); return; }
 
         const amount = round2(Number(review.amount) || 0);
+        const splitSum = round2(splits.reduce((s, x) => s + x.amt, 0));
+        if (splitSum !== amount) { alert(`Splits need to add up to ${money(amount)} — currently ${money(splitSum)}.`); return; }
+
         // Same convention as the manual Transfer panel: negative on the
-        // side money left, positive on the side it arrived — a single
-        // log entry captures the whole movement, not two separate ones.
+        // side money left, positive on the side(s) it arrived — a
+        // single log entry captures the whole movement, split across
+        // as many categories as it actually went to.
         const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
         logRow[fromCat] += -amount;
-        logRow[toCat] += amount;
-        await logEntry({ amount, ...logRow, notes: note, action_type: 'transfer' });
+        splits.forEach(s => { logRow[s.cat] = round2((logRow[s.cat] || 0) + s.amt); });
+        await logEntry({ amount, ...logRow, notes: note, action_type: 'transfer', entryDate: review.txn_date });
         await applyEnvelopeAdjustment(review.linked_account_id, fromCat, 'subtract', amount);
-        await applyEnvelopeAdjustment(review.linked_account_id, toCat, 'add', amount);
+        for (const s of splits) {
+          await applyEnvelopeAdjustment(review.linked_account_id, s.cat, 'add', s.amt);
+        }
 
         await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
-        logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, from: fromCat, to: toCat, is_transfer: true });
+        logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, from: fromCat, splits, is_transfer: true });
 
         await loadPendingReviews();
         return;
@@ -1008,7 +1086,7 @@
 
       const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       logRow[cat] = logAmount;
-      await logEntry({ amount, ...logRow, notes: note, action_type: logActionType });
+      await logEntry({ amount, ...logRow, notes: note, action_type: logActionType, entryDate: review.txn_date });
       await applyEnvelopeAdjustment(review.linked_account_id, cat, action, amount);
 
       await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
@@ -1037,7 +1115,7 @@
 
         const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
         logRow[cat] = logAmount;
-        await logEntry({ amount, ...logRow, notes: autoNoteFor(review), action_type: logActionType });
+        await logEntry({ amount, ...logRow, notes: autoNoteFor(review), action_type: logActionType, entryDate: review.txn_date });
         await applyEnvelopeAdjustment(review.linked_account_id, cat, action, amount);
 
         await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', review.id);
@@ -1134,9 +1212,9 @@
 
     let orderedCategories = []; // flat, sort_order-sorted list of every real category — used by the move/shuffle controls
     let lastLoadedLinkedAccounts = []; // used only to check how recently Plaid accounts were last synced, for the background-sync throttle
-    let categorySortOrderByKey = { savings: 0, investment: 0, checking: 0 };
-    let categoryAccentByKey = { savings: 'teal', investment: 'violet', checking: 'gold' }; // sensible fallbacks until the real stored values load
-    let categoryIdByKey = { savings: null, investment: null, checking: null };
+    let categorySortOrderByKey = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+    let categoryAccentByKey = { savings: 'teal', investment: 'violet', expenses: 'coral', checking: 'gold' }; // sensible fallbacks until the real stored values load
+    let categoryIdByKey = { savings: null, investment: null, expenses: null, checking: null };
 
     async function loadConnectedTotals() {
       connectedTotals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
@@ -1153,7 +1231,7 @@
       const { data: splits } = await supabaseClient.from('account_category_splits').select('*').eq('user_id', currentUserId);
 
       const balanceById = Object.fromEntries(linkedAccts.map(a => [a.id, Number(a.balance) || 0]));
-      const DEFAULT_NAME_KEYS = { savings: 'savings', investment: 'investment', checking: 'checking' };
+      const DEFAULT_NAME_KEYS = { savings: 'savings', investment: 'investment', expenses: 'expenses', checking: 'checking' };
       const totalsByCategoryId = {}; // category_id -> running total, before matching back to key/custom
 
       (splits || []).forEach(s => {

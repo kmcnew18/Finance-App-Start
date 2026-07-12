@@ -225,7 +225,7 @@
         .from('finance_log')
         .select('*')
         .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false });
+        .order('entry_date', { ascending: false });
 
       if (error) {
         console.error(error);
