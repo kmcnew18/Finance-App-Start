@@ -662,7 +662,8 @@ h1, h2, h3 {
 }
 .txn-review-change-form select:hover { border-color: rgba(110,143,163,0.4); }
 .txn-review-change-form select:focus { outline: none; border-color: var(--vintage-blue-light); background-color: #161D26; }
-.txn-change-simple { display: flex; gap: 8px; }
+.txn-change-simple { display: flex; flex-direction: column; gap: 8px; }
+.txn-simple-split-wrap { display: flex; flex-direction: column; gap: 6px; }
 .txn-change-transfer { display: none; flex-direction: column; gap: 10px; }
 .txn-transfer-field { flex: 1; display: flex; flex-direction: column; gap: 4px; }
 .txn-transfer-field label {
