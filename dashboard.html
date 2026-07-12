@@ -715,7 +715,7 @@
       FOOD_AND_DRINK_GROCERIES: 'Groceries',
       FOOD_AND_DRINK_RESTAURANT: 'Dining out',
       FOOD_AND_DRINK_COFFEE: 'Coffee',
-      FOOD_AND_DRINK_FAST_FOOD: 'Fast food',
+      FOOD_AND_DRINK_FAST_FOOD: 'Food',
       RENT_AND_UTILITIES_RENT: 'Rent',
       RENT_AND_UTILITIES_GAS_AND_ELECTRICITY: 'Utilities',
       RENT_AND_UTILITIES_INTERNET_AND_CABLE: 'Internet/Cable',
@@ -812,7 +812,10 @@
             <span class="txn-review-merchant">${(r.merchant_name || 'Transaction').replace(/</g,'&lt;')}${transferBadge}</span>
             <span class="txn-review-meta">${when} · ${money(r.amount)}</span>
           </div>
-          <input type="text" class="txn-review-note-input" data-id="${r.id}" value="${autoNoteFor(r).replace(/"/g,'&quot;')}" placeholder="Note" />
+          <div class="txn-note-wrap" data-id="${r.id}">
+            <button type="button" class="txn-note-pill" data-id="${r.id}">${(autoNoteFor(r) || 'Add a note').replace(/</g,'&lt;')}</button>
+            <input type="text" class="txn-review-note-input" data-id="${r.id}" value="${autoNoteFor(r).replace(/"/g,'&quot;')}" placeholder="Note" style="display:none;" />
+          </div>
           <div class="txn-review-suggestion-text" id="txn-suggestion-text-${r.id}">
             ${suggestionText}
           </div>
@@ -874,6 +877,28 @@
           transfer.style.display = switchingToTransfer ? 'block' : 'none';
           btn.textContent = switchingToTransfer ? 'Switch to a single category' : 'This is actually a transfer';
         });
+      });
+      document.querySelectorAll('.txn-note-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          const id = pill.dataset.id;
+          const input = document.querySelector(`.txn-review-note-input[data-id="${id}"]`);
+          pill.style.display = 'none';
+          input.style.display = 'block';
+          input.focus();
+          input.select();
+        });
+      });
+      document.querySelectorAll('.txn-review-note-input').forEach(input => {
+        const revertToPill = () => {
+          const id = input.dataset.id;
+          const pill = document.querySelector(`.txn-note-pill[data-id="${id}"]`);
+          const value = input.value.trim();
+          pill.textContent = value || 'Add a note';
+          input.style.display = 'none';
+          pill.style.display = 'inline-flex';
+        };
+        input.addEventListener('blur', revertToPill);
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
       });
       document.querySelectorAll('.txn-approve-btn').forEach(btn => {
         btn.addEventListener('click', () => approveTxnReview(btn.dataset.id));

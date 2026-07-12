@@ -170,6 +170,8 @@ async function redirectToCheckout(userId, email) {
 
 let connectionStatus = [];
 
+let pendingByAccountId = {};
+
 async function loadAccounts() {
   const { data, error } = await supabaseClient
     .from('linked_accounts')
@@ -181,8 +183,47 @@ async function loadAccounts() {
   await loadConnectionStatus();
   await loadCategories();
   await cleanUpCreditCardCategorySplits();
+  await loadPendingAmounts();
   renderAll();
   renderLastSynced();
+}
+
+// Credit card balances from Plaid mirror whatever the card issuer
+// reports — and issuers commonly report only the posted balance, with
+// pending charges not reflected until they settle, sometimes days
+// later. This sums what's actually pending right now on each credit
+// card so the real amount owed can be shown alongside the posted one,
+// rather than silently under-representing it.
+async function loadPendingAmounts() {
+  pendingByAccountId = {};
+  const creditCardIds = accounts.filter(a => a.account_type === 'credit_card').map(a => a.id);
+  if (!creditCardIds.length) return;
+
+  const { data: pendingTxns, error } = await supabaseClient
+    .from('transactions')
+    .select('linked_account_id, amount, is_pending')
+    .eq('user_id', currentUserId)
+    .eq('is_pending', true)
+    .eq('is_removed', false)
+    .in('linked_account_id', creditCardIds);
+
+  if (error) {
+    // This used to fail completely silently — if the schema migration
+    // adding is_pending hasn't been run yet, this query errors out and
+    // pendingByAccountId just stays empty with no indication anything
+    // was wrong. Logging it directly so that's actually diagnosable
+    // instead of just "nothing shows up, not sure why."
+    console.error('loadPendingAmounts failed (is the is_pending column migrated yet?):', error);
+    return;
+  }
+
+  console.log('loadPendingAmounts result:', { creditCardCount: creditCardIds.length, pendingTxnCount: (pendingTxns || []).length, pendingTxns });
+
+  (pendingTxns || []).forEach(t => {
+    const amt = Number(t.amount) || 0;
+    if (amt <= 0) return; // only actual charges count toward amount owed, not pending refunds/credits
+    pendingByAccountId[t.linked_account_id] = round2((pendingByAccountId[t.linked_account_id] || 0) + amt);
+  });
 }
 
 // Shows the most recent sync across every Plaid-connected account —
@@ -319,8 +360,12 @@ function renderNetWorth() {
   let assets = 0, liabilities = 0;
   accounts.forEach(a => {
     const bal = round2(Number(a.balance) || 0);
-    if (typeConfig(a.account_type).isLiability) liabilities += bal;
-    else assets += bal;
+    if (typeConfig(a.account_type).isLiability) {
+      liabilities += bal;
+      if (a.account_type === 'credit_card') liabilities += (pendingByAccountId[a.id] || 0);
+    } else {
+      assets += bal;
+    }
   });
   const netWorth = round2(assets - liabilities);
 
@@ -433,6 +478,15 @@ function accountCardHtml(a, t) {
         <button type="button" class="account-reconnect-btn" data-item-id="${brokenItem.item_id}" data-institution="${(brokenItem.institution_name || 'this account').replace(/"/g,'&quot;')}">Reconnect</button>
       </div>` : '';
 
+  const pendingAmount = pendingByAccountId[a.id] || 0;
+  const balanceBlock = (a.account_type === 'credit_card' && pendingAmount > 0)
+    ? `
+      <div class="account-card-balance">${money(a.balance)}</div>
+      <div class="account-card-pending-line">+ ${money(pendingAmount)} pending</div>
+      <div class="account-card-total-line">${money(round2(a.balance + pendingAmount))} total owed</div>
+    `
+    : `<div class="account-card-balance">${money(a.balance)}</div>`;
+
   return `
     <div class="account-card type-${a.account_type}${brokenItem ? ' needs-reconnect' : ''}">
       <div class="account-card-head">
@@ -442,7 +496,7 @@ function accountCardHtml(a, t) {
         </div>
         <span class="account-card-type-pill">${t.isLiability ? 'Owed' : 'Balance'}</span>
       </div>
-      <div class="account-card-balance">${money(a.balance)}</div>
+      ${balanceBlock}
       ${synced}
       ${a.account_type === 'credit_card' ? creditCardPaidFromPillHtml(a) : categoryPillHtml(a.id)}
       ${reconnectBlock}

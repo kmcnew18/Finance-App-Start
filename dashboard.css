@@ -523,10 +523,27 @@ h1, h2, h3 {
   vertical-align: middle;
 }
 .txn-review-meta { font-size: 0.76rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+.txn-note-wrap { margin-bottom: 11px; }
+.txn-note-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(110,143,163,0.3);
+  background: rgba(110,143,163,0.08);
+  color: var(--vintage-blue-light);
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.txn-note-pill::before { content: '✎'; font-size: 0.7rem; opacity: 0.6; }
+.txn-note-pill:hover { background: rgba(110,143,163,0.16); border-color: rgba(110,143,163,0.5); transform: translateY(-1px); }
 .txn-review-note-input {
   width: 100%;
   padding: 7px 10px;
-  margin-bottom: 11px;
   border-radius: 7px;
   border: 1px solid var(--panel-border);
   background: rgba(255,255,255,0.02);
