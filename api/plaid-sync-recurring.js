@@ -12,7 +12,7 @@
 //
 // Requires: npm install plaid @supabase/supabase-js
 
-const { supabaseAdmin, processItemUpdate, refreshTransactionsForItem, refreshSubscriptionsForItem, backfillDashboardReviews, dedupeDashboardReviews } = require('../lib/plaid-helpers');
+const { supabaseAdmin, processItemUpdate, refreshTransactionsForItem, refreshSubscriptionsForItem, backfillDashboardReviews, dedupeDashboardReviews, reclassifyPendingReviews } = require('../lib/plaid-helpers');
 const { decryptToken } = require('../lib/crypto-helpers');
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 
@@ -100,19 +100,21 @@ module.exports = async (req, res) => {
       }
     }
 
+    let reclassifiedCount = 0;
     let backfilledCount = 0;
     let dedupedCount = 0;
     if (mode === 'deep-refresh') {
       try {
+        reclassifiedCount = await reclassifyPendingReviews(userId);
         backfilledCount = await backfillDashboardReviews(userId);
         dedupedCount = await dedupeDashboardReviews(userId);
       } catch (deepErr) {
-        console.error('Deep refresh backfill/dedupe failed:', deepErr?.response?.data || deepErr);
+        console.error('Deep refresh reclassify/backfill/dedupe failed:', deepErr?.response?.data || deepErr);
       }
     }
 
-    console.log('plaid-sync-recurring result:', { userId, mode: mode || 'combined', totalAdded, totalQueued, orphansCleaned, backfilledCount, dedupedCount });
-    res.status(200).json({ success: true, totalAdded, totalQueued, orphansCleaned, backfilledCount, dedupedCount });
+    console.log('plaid-sync-recurring result:', { userId, mode: mode || 'combined', totalAdded, totalQueued, orphansCleaned, reclassifiedCount, backfilledCount, dedupedCount });
+    res.status(200).json({ success: true, totalAdded, totalQueued, orphansCleaned, reclassifiedCount, backfilledCount, dedupedCount });
   } catch (err) {
     console.error('plaid-sync-recurring error:', err?.response?.data || err);
     res.status(500).json({ error: 'Could not sync recurring transactions' });

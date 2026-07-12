@@ -593,17 +593,28 @@
         .eq('ignored', false)
         .order('average_amount', { ascending: false });
 
+      // recurring_streams comes from a separate Plaid endpoint that has
+      // no transfer classification of its own — a recurring self-
+      // transfer (an automatic savings transfer, say) can look exactly
+      // like a subscription to Plaid's pattern detection, since it
+      // repeats on a schedule the same way a real subscription does.
+      // Filtering by the same transfer-shaped categories used
+      // elsewhere keeps those out of what's meant to be a list of
+      // actual recurring charges.
+      const TRANSFER_SHAPED_CATEGORIES = new Set(['TRANSFER_IN', 'TRANSFER_OUT', 'LOAN_PAYMENTS']);
+      const filtered = (data || []).filter(s => !TRANSFER_SHAPED_CATEGORIES.has(s.category));
+
       const list = document.getElementById('spend-subscriptions-list');
       const empty = document.getElementById('spend-subscriptions-empty');
 
-      if (error || !data || !data.length) {
+      if (error || !filtered.length) {
         list.innerHTML = '';
         empty.style.display = 'block';
         return;
       }
       empty.style.display = 'none';
 
-      list.innerHTML = data.map(s => `
+      list.innerHTML = filtered.map(s => `
         <div class="spend-sub-row">
           <span class="spend-sub-name">${(s.description || s.merchant_name || 'Recurring charge').replace(/</g,'&lt;')}</span>
           <span class="spend-sub-freq">${s.frequency ? s.frequency.toLowerCase() : ''}</span>
