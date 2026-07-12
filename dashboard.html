@@ -508,6 +508,25 @@
       const container = document.querySelector('.overview-cards');
       if (!container) return;
 
+      container.addEventListener('click', async (e) => {
+        const adjustBtn = e.target.closest('.envelope-adjust-link');
+        if (!adjustBtn) return;
+        e.stopPropagation();
+        const currentAmount = Number(adjustBtn.dataset.envelopeAmount) || 0;
+        const input = prompt('Set aside how much? (Enter $0 to clear it entirely.)', currentAmount.toFixed(2));
+        if (input === null) return; // cancelled
+        const newAmount = round2(Math.max(0, parseFloat(input) || 0));
+
+        const { error } = await supabaseClient
+          .from('account_category_splits')
+          .update({ envelope_balance: newAmount })
+          .eq('id', adjustBtn.dataset.envelopeId);
+        if (error) { alert('Could not save: ' + error.message); return; }
+
+        await loadConnectedTotals();
+        renderTotals();
+      });
+
       container.addEventListener('click', (e) => {
         const valueEl = e.target.closest('.card-value-manual');
         if (!valueEl) return;
@@ -623,7 +642,16 @@
       ['savings', 'investment', 'expenses', 'checking'].forEach(cat => {
         const hintEl = document.getElementById('sync-hint-' + cat);
         if (!hintEl) return;
-        hintEl.textContent = connectedTotals[cat] ? `${connectedTotals[cat] > 0 ? '+' : ''}${money(connectedTotals[cat])} from Connections` : '';
+        const envelopes = envelopesByCategoryId[cat] || [];
+        const syncText = connectedTotals[cat] ? `${connectedTotals[cat] > 0 ? '+' : ''}${money(connectedTotals[cat])} from Connections` : '';
+        // Only offered when exactly one envelope applies — with two or
+        // more contributing to the same category, a single click has
+        // no unambiguous "the" envelope to adjust, so that edge case
+        // still goes through Connections instead.
+        const adjustLink = envelopes.length === 1
+          ? ` <button type="button" class="envelope-adjust-link" data-envelope-id="${envelopes[0].id}" data-envelope-amount="${envelopes[0].amount}">Adjust ${envelopes[0].accountName.replace(/</g,'&lt;')} set-aside</button>`
+          : '';
+        hintEl.innerHTML = syncText + adjustLink;
       });
 
       document.querySelectorAll('.card-value-input').forEach(input => {
@@ -655,12 +683,15 @@
           ? `<span class="card-value">${money(cat.total)}</span>`
           : `<span class="card-value card-value-manual" data-manual-cat="${cat.id}" title="Click to set aside an amount">${money(cat.total)}</span>
              <input type="number" class="card-value-input card-value-input-manual" data-manual-cat="${cat.id}" step="0.01" value="${cat.manualAmount}" style="display:none;" />`;
+        const adjustLink = cat.envelopes.length === 1
+          ? ` <button type="button" class="envelope-adjust-link" data-envelope-id="${cat.envelopes[0].id}" data-envelope-amount="${cat.envelopes[0].amount}">Adjust ${cat.envelopes[0].accountName.replace(/</g,'&lt;')} set-aside</button>`
+          : '';
         card.innerHTML = `
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
           <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor};"></button>
           <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
           ${valueHtml}
-          <span class="sync-hint">${cat.hasConnection ? 'Synced from Connections' : 'Set aside manually — not connected to an account'}</span>
+          <span class="sync-hint">${(cat.hasConnection ? 'Synced from Connections' : 'Set aside manually — not connected to an account') + adjustLink}</span>
         `;
         totalCard.parentNode.insertBefore(card, totalCard);
       });
@@ -965,6 +996,9 @@
           <div class="txn-review-actions">
             <button type="button" class="txn-approve-btn" data-id="${r.id}">Looks good</button>
             <button type="button" class="txn-change-btn" data-id="${r.id}">Change</button>
+            ${!r.is_transfer ? (envelopesByAccountId[r.linked_account_id] || []).map(env => `
+              <button type="button" class="txn-envelope-charge-btn" data-id="${r.id}" data-envelope-id="${env.id}" data-envelope-name="${env.categoryName.replace(/"/g,'&quot;')}">Charge to ${env.categoryName.replace(/</g,'&lt;')} set-aside</button>
+            `).join('') : ''}
             <button type="button" class="txn-skip-btn" data-id="${r.id}">Skip</button>
           </div>
         </div>`;
@@ -1070,6 +1104,9 @@
       });
       document.querySelectorAll('.txn-approve-btn').forEach(btn => {
         btn.addEventListener('click', () => approveTxnReview(btn.dataset.id));
+      });
+      document.querySelectorAll('.txn-envelope-charge-btn').forEach(btn => {
+        btn.addEventListener('click', () => chargeReviewToEnvelope(btn.dataset.id, btn.dataset.envelopeId, btn.dataset.envelopeName));
       });
       document.querySelectorAll('.txn-skip-btn').forEach(btn => {
         btn.addEventListener('click', () => skipTxnReview(btn.dataset.id));
@@ -1191,6 +1228,41 @@
       await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
       logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, splits, action, is_transfer: false });
 
+      await loadPendingReviews();
+    }
+
+    // Charges a detected transaction directly against an envelope's
+    // set-aside amount instead of logging it as a normal category
+    // expense. Deliberately writes no finance_log entry — the
+    // envelope's own balance (visible right on the category's card) is
+    // the record of "this much has been spent from what was set
+    // aside," and finance_log has no column to attribute an amount to
+    // a custom category anyway, so there'd be nowhere correct to log
+    // it even if this did write an entry. The review still gets marked
+    // approved either way, so it won't resurface for re-detection.
+    async function chargeReviewToEnvelope(reviewId, envelopeId, envelopeName) {
+      const review = pendingReviews.find(r => r.id === reviewId);
+      if (!review) return;
+
+      const amount = round2(Number(review.amount) || 0);
+      if (!confirm(`Charge ${money(amount)} to "${envelopeName}"'s set-aside? This won't create a log entry — the set-aside amount itself will just go down by this much.`)) return;
+
+      const { data: envelope, error: fetchError } = await supabaseClient
+        .from('account_category_splits')
+        .select('envelope_balance')
+        .eq('id', envelopeId)
+        .maybeSingle();
+      if (fetchError || !envelope) { alert('Could not find that set-aside amount — it may have been removed.'); return; }
+
+      const newBalance = Math.max(0, round2(Number(envelope.envelope_balance || 0) - amount));
+      const { error } = await supabaseClient.from('account_category_splits').update({ envelope_balance: newBalance }).eq('id', envelopeId);
+      if (error) { alert('Could not charge: ' + error.message); return; }
+
+      await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
+      logAuditEvent('txn_review_charged_to_envelope', { merchant_name: review.merchant_name, amount, envelope: envelopeName });
+
+      await loadConnectedTotals();
+      renderTotals();
       await loadPendingReviews();
     }
 
@@ -1378,6 +1450,8 @@
     let customCategoryCards = [];
 
     let linkedLiabilities = {}; // category key/id -> [{ name, amount }] for display
+    let envelopesByCategoryId = {}; // category_id -> [{ id, amount, accountId, accountName }] for the adjust-set-aside affordance
+    let envelopesByAccountId = {}; // linked_account_id -> [{ id, categoryId, categoryName, amount }] for the "Charge to set-aside" review option
 
     let orderedCategories = []; // flat, sort_order-sorted list of every real category — used by the move/shuffle controls
     let lastLoadedLinkedAccounts = []; // used only to check how recently Plaid accounts were last synced, for the background-sync throttle
@@ -1389,6 +1463,8 @@
       connectedTotals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       customCategoryCards = [];
       linkedLiabilities = {};
+      envelopesByCategoryId = {};
+      envelopesByAccountId = {};
       orderedCategories = [];
 
       const { data: cats } = await supabaseClient.from('budget_categories').select('*').eq('user_id', currentUserId).order('sort_order', { ascending: true });
@@ -1409,9 +1485,53 @@
       const DEFAULT_NAME_KEYS = { savings: 'savings', investment: 'investment', expenses: 'expenses', checking: 'checking' };
       const totalsByCategoryId = {}; // category_id -> running total, before matching back to key/custom
 
-      (splits || []).forEach(s => {
-        const bal = balanceById[s.linked_account_id] || 0;
-        totalsByCategoryId[s.category_id] = round2((totalsByCategoryId[s.category_id] || 0) + bal * Number(s.split_percent) / 100);
+      // Envelopes carve money out of the account they're set aside
+      // from — same reasoning as credit card liability: it's the same
+      // dollars, just already spoken for. The account's own percent-
+      // mapped category gets the reduced (effective) balance, and the
+      // envelope's target category gets the set-aside amount directly
+      // — so the total across both places always adds back up to the
+      // account's real, actual balance, never more.
+      const envelopeSplits = (splits || []).filter(s => s.split_type === 'envelope');
+      const envelopeTotalByAccountId = {};
+      envelopeSplits.forEach(e => {
+        envelopeTotalByAccountId[e.linked_account_id] = round2((envelopeTotalByAccountId[e.linked_account_id] || 0) + Number(e.envelope_balance || 0));
+      });
+
+      // linked_account_id -> [{ id, categoryId, categoryName, amount }]
+      // — used by the Detected Activity review card to offer "Charge to
+      // [Category]'s set-aside" whenever the account this transaction
+      // came from has an envelope set up, for any category.
+      envelopesByAccountId = {};
+      envelopeSplits.forEach(e => {
+        const cat = cats.find(c => c.id === e.category_id);
+        if (!envelopesByAccountId[e.linked_account_id]) envelopesByAccountId[e.linked_account_id] = [];
+        envelopesByAccountId[e.linked_account_id].push({
+          id: e.id, categoryId: e.category_id, categoryName: cat ? cat.name : 'Category', amount: Number(e.envelope_balance || 0),
+        });
+      });
+
+      // category_id -> [{ id, amount, accountId, accountName }] — used
+      // to decide whether a category's card gets a quick "adjust set-
+      // aside" affordance (only offered when exactly one envelope
+      // contributes, so there's never ambiguity about which one a
+      // click would be adjusting).
+      envelopesByCategoryId = {};
+      envelopeSplits.forEach(e => {
+        const acct = linkedAccts.find(a => a.id === e.linked_account_id);
+        if (!envelopesByCategoryId[e.category_id]) envelopesByCategoryId[e.category_id] = [];
+        envelopesByCategoryId[e.category_id].push({
+          id: e.id, amount: Number(e.envelope_balance || 0), accountId: e.linked_account_id,
+          accountName: acct ? (acct.nickname || acct.institution_name) : 'Account',
+        });
+        totalsByCategoryId[e.category_id] = round2((totalsByCategoryId[e.category_id] || 0) + Number(e.envelope_balance || 0));
+      });
+
+      (splits || []).filter(s => s.split_type !== 'envelope').forEach(s => {
+        const rawBal = balanceById[s.linked_account_id] || 0;
+        const envelopeAmt = envelopeTotalByAccountId[s.linked_account_id] || 0;
+        const effectiveBal = Math.max(0, rawBal - envelopeAmt);
+        totalsByCategoryId[s.category_id] = round2((totalsByCategoryId[s.category_id] || 0) + effectiveBal * Number(s.split_percent) / 100);
       });
 
       // A credit card's balance is real debt — it doesn't add to a
@@ -1460,6 +1580,7 @@
           categoryAccentByKey[matchedKey] = cat.accent || categoryAccentByKey[matchedKey];
           categoryIdByKey[matchedKey] = cat.id;
           if (linkedLiabilities[cat.id]) linkedLiabilities[matchedKey] = linkedLiabilities[cat.id];
+          if (envelopesByCategoryId[cat.id]) envelopesByCategoryId[matchedKey] = envelopesByCategoryId[cat.id];
           orderedCategories.push({ id: cat.id, key: matchedKey, name: cat.name, sortOrder });
         } else {
           const hasConnection = categoryHasConnection.has(cat.id);
@@ -1468,7 +1589,7 @@
           // number comes entirely from the connected total instead,
           // never a mix of both.
           const displayTotal = hasConnection ? catTotal : Number(cat.manual_amount) || 0;
-          customCategoryCards.push({ id: cat.id, name: cat.name, accent: cat.accent, total: displayTotal, sortOrder, hasConnection, manualAmount: Number(cat.manual_amount) || 0 });
+          customCategoryCards.push({ id: cat.id, name: cat.name, accent: cat.accent, total: displayTotal, sortOrder, hasConnection, manualAmount: Number(cat.manual_amount) || 0, envelopes: envelopesByCategoryId[cat.id] || [] });
           orderedCategories.push({ id: cat.id, key: null, name: cat.name, sortOrder });
         }
       });
