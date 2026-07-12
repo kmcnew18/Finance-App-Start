@@ -402,20 +402,47 @@
     // lightness balance so slices read as a cohesive set rather than
     // whatever colors happened to be free, with jewel-tone richness
     // instead of flatter pastels.
-    const PIE_COLORS = ['#E8896D', '#E0B65C', '#7FB88F', '#6FA3C9', '#A788C9', '#D97FA0', '#5FBFA8', '#D4A24C', '#8FA0D9', '#C97F7F'];
+    // Every category gets its own explicitly-assigned, permanent color —
+    // guaranteed different from every other one. The previous approach
+    // hashed the name into one of only 10 colors, which meant two
+    // different categories could easily land on the same color by
+    // chance with 19 categories sharing that small a palette.
+    const CATEGORY_COLOR_MAP = {
+      'Housing': '#E0806A',
+      'Utilities': '#E0B65C',
+      'Groceries': '#7FB88F',
+      'Transportation': '#6FA3C9',
+      'Insurance': '#A788C9',
+      'Healthcare': '#D97FA0',
+      'Debt Payments': '#C9605F',
+      'Childcare / Family Support': '#E8A876',
+      'Dining Out / Takeout': '#E89478',
+      'Entertainment & Recreation': '#B08AD4',
+      'Shopping & Apparel': '#5FBFA8',
+      'Personal Care & Grooming': '#C97F9E',
+      'Travel & Vacations': '#7FC4E0',
+      'Education & School Supplies': '#D4A24C',
+      'Pets': '#B8916A',
+      'Gifts & Donations': '#C97FC4',
+      'Emergency Savings': '#6ECFAE',
+      'Retirement Investments': '#7F8FD4',
+      'General Investments': '#4FA3A0',
+      'Miscellaneous / Buffer': '#8FA0AD',
+    };
+    // Fallback palette + hash, used only for anything that isn't one of
+    // the 19 above — raw uncategorized Plaid text, mainly. Kept
+    // separate so the 19 known categories never have to share with
+    // whatever ends up in this fallback pool.
+    const FALLBACK_COLORS = ['#E8896D', '#E0B65C', '#7FB88F', '#6FA3C9', '#A788C9', '#D97FA0', '#5FBFA8', '#D4A24C', '#8FA0D9', '#C97F7F'];
 
-    // Colors used to be assigned by sort position — the same category
-    // could get a different color every month depending on where it
-    // happened to rank that time. Hashing the category name itself into
-    // a stable index means "Groceries" is always the same color,
-    // whether it's your #1 spend this month or your #6.
     const categoryColorCache = {};
     function colorForCategory(name) {
-      if (!name) return PIE_COLORS[0];
+      if (!name) return FALLBACK_COLORS[0];
+      if (CATEGORY_COLOR_MAP[name]) return CATEGORY_COLOR_MAP[name];
       if (categoryColorCache[name]) return categoryColorCache[name];
       let hash = 0;
       for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-      const color = PIE_COLORS[hash % PIE_COLORS.length];
+      const color = FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
       categoryColorCache[name] = color;
       return color;
     }
