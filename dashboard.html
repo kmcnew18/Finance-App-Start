@@ -363,7 +363,10 @@
         <button type="button" class="mfa-modal-close" id="skipped-activity-close">×</button>
       </div>
       <div class="mfa-modal-body">
-        <p class="mfa-modal-sub" style="margin-bottom:12px;">Only what you've dismissed — anything already added to your log never shows up here, so there's no risk of accidentally logging it twice.</p>
+        <div class="skipped-activity-head-row">
+          <p class="mfa-modal-sub" style="margin-bottom:0;">Only what you've dismissed — anything already added to your log never shows up here, so there's no risk of accidentally logging it twice.</p>
+          <button type="button" class="skipped-activity-clear-all" id="skipped-activity-clear-all">Clear all</button>
+        </div>
         <div class="skipped-activity-list" id="skipped-activity-list"></div>
         <p class="mfa-modal-sub" id="skipped-activity-empty" style="display:none;">Nothing skipped right now.</p>
       </div>
@@ -1260,7 +1263,10 @@
               <span class="skipped-activity-merchant">${(r.merchant_name || 'Transaction').replace(/</g,'&lt;')}</span>
               <span class="skipped-activity-meta">${new Date(r.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${money(r.amount)}</span>
             </div>
-            <button type="button" class="skipped-activity-restore" data-id="${r.id}">Restore</button>
+            <div class="skipped-activity-row-actions">
+              <button type="button" class="skipped-activity-restore" data-id="${r.id}">Restore</button>
+              <button type="button" class="skipped-activity-delete" data-id="${r.id}" title="Delete permanently">×</button>
+            </div>
           </div>
         `).join('');
       }
@@ -1281,6 +1287,40 @@
       logAuditEvent('txn_review_restored', {});
       await openSkippedActivity();
       await loadPendingReviews();
+    }
+
+    async function deleteSkippedActivity(reviewId) {
+      if (!confirm('Delete this permanently? Unlike Restore, this can\'t be undone — it won\'t come back even if the same transaction gets detected again.')) return;
+      // Scoped to dismissed rows only, same belt-and-suspenders reasoning
+      // as restore — this should never be able to touch anything approved.
+      const { error } = await supabaseClient
+        .from('pending_dashboard_reviews')
+        .delete()
+        .eq('id', reviewId)
+        .eq('status', 'dismissed');
+      if (error) { alert('Could not delete: ' + error.message); return; }
+      logAuditEvent('txn_review_deleted', {});
+      await openSkippedActivity();
+    }
+
+    async function clearAllSkippedActivity() {
+      const { data: dismissed } = await supabaseClient
+        .from('pending_dashboard_reviews')
+        .select('id')
+        .eq('user_id', currentUserId)
+        .eq('status', 'dismissed');
+      if (!dismissed || !dismissed.length) return;
+
+      if (!confirm(`Permanently delete all ${dismissed.length} skipped item${dismissed.length === 1 ? '' : 's'}? This can't be undone.`)) return;
+
+      const { error } = await supabaseClient
+        .from('pending_dashboard_reviews')
+        .delete()
+        .eq('user_id', currentUserId)
+        .eq('status', 'dismissed');
+      if (error) { alert('Could not clear: ' + error.message); return; }
+      logAuditEvent('skipped_activity_cleared', { count: dismissed.length });
+      await openSkippedActivity();
     }
 
     // ================= REFRESH DETECTED ACTIVITY =================
@@ -1321,12 +1361,15 @@
       document.getElementById('skipped-activity-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'skipped-activity-overlay') document.getElementById('skipped-activity-overlay').classList.remove('open');
       });
+      document.getElementById('skipped-activity-clear-all').addEventListener('click', clearAllSkippedActivity);
       // Delegated on the static list container — repopulated on every
       // open/restore, so binding fresh per-row would risk the same
       // listener pile-up bug the old category-reorder arrows had.
       document.getElementById('skipped-activity-list').addEventListener('click', (e) => {
-        const btn = e.target.closest('.skipped-activity-restore');
-        if (btn) restoreSkippedActivity(btn.dataset.id);
+        const restoreBtn = e.target.closest('.skipped-activity-restore');
+        const deleteBtn = e.target.closest('.skipped-activity-delete');
+        if (restoreBtn) restoreSkippedActivity(restoreBtn.dataset.id);
+        else if (deleteBtn) deleteSkippedActivity(deleteBtn.dataset.id);
       });
     }
 

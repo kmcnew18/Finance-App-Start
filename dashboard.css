@@ -543,6 +543,27 @@ h1, h2, h3 {
 .txn-review-info { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; gap: 10px; }
 .txn-review-merchant { font-weight: 600; color: var(--tan); font-size: 0.92rem; }
 
+.skipped-activity-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.skipped-activity-clear-all {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(224,139,125,0.3);
+  background: rgba(224,139,125,0.06);
+  color: var(--error);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.skipped-activity-clear-all:hover { background: rgba(224,139,125,0.14); border-color: rgba(224,139,125,0.5); transform: translateY(-1px); }
 .skipped-activity-list { max-height: 340px; overflow-y: auto; }
 .skipped-activity-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -552,6 +573,7 @@ h1, h2, h3 {
 .skipped-activity-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .skipped-activity-merchant { font-size: 0.86rem; color: var(--tan); font-weight: 600; }
 .skipped-activity-meta { font-size: 0.74rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; }
+.skipped-activity-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .skipped-activity-restore {
   flex-shrink: 0;
   padding: 6px 13px;
@@ -565,6 +587,20 @@ h1, h2, h3 {
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 .skipped-activity-restore:hover { background: rgba(110,143,163,0.16); border-color: rgba(110,143,163,0.5); transform: translateY(-1px); }
+.skipped-activity-delete {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--silver-dim);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.skipped-activity-delete:hover { background: rgba(224,139,125,0.12); border-color: rgba(224,139,125,0.35); color: var(--error); }
 .txn-transfer-badge {
   display: inline-block;
   margin-left: 8px;
