@@ -843,10 +843,14 @@
       const categoryKey = (r.category_name || '').toLowerCase();
       const verb = r.suggested_action === 'add' ? 'to' : 'from';
       const when = new Date(r.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const transferBadge = r.is_transfer ? '<span class="txn-transfer-badge">Transfer</span>' : '';
-      const suggestionText = r.is_transfer
-        ? `Looks like a transfer — ${money(r.amount)} ${verb === 'to' ? 'into' : 'out of'} <strong>${r.category_name || 'Uncategorized'}</strong>, not new spending.`
-        : `We think this is ${money(r.amount)} ${verb} <strong>${r.category_name || 'Uncategorized'}</strong>.`;
+      const transferBadge = r.is_credit_card_payment
+        ? '<span class="txn-cardpayment-badge">Card payment</span>'
+        : (r.is_transfer ? '<span class="txn-transfer-badge">Transfer</span>' : '');
+      const suggestionText = r.is_credit_card_payment
+        ? `Looks like a credit card payment — ${money(r.amount)} ${verb} <strong>${r.category_name || 'Uncategorized'}</strong>, settling debt rather than new spending.`
+        : (r.is_transfer
+          ? `Looks like a transfer — ${money(r.amount)} ${verb === 'to' ? 'into' : 'out of'} <strong>${r.category_name || 'Uncategorized'}</strong>, not new spending.`
+          : `We think this is ${money(r.amount)} ${verb} <strong>${r.category_name || 'Uncategorized'}</strong>.`);
       return `
         <div class="txn-review-row" data-id="${r.id}" data-suggested="${r.suggested_action}">
           <div class="txn-review-info">
@@ -861,7 +865,7 @@
             ${suggestionText}
           </div>
           <div class="txn-review-change-form" id="txn-change-form-${r.id}" style="display:none;">
-            <div class="txn-change-simple" id="txn-change-simple-${r.id}" style="${r.is_transfer ? 'display:none;' : ''}">
+            <div class="txn-change-simple" id="txn-change-simple-${r.id}" style="${r.is_transfer && !r.is_credit_card_payment ? 'display:none;' : ''}">
               <select class="txn-action-select" data-id="${r.id}">
                 <option value="subtract" ${r.suggested_action === 'subtract' ? 'selected' : ''}>Subtract from</option>
                 <option value="add" ${r.suggested_action === 'add' ? 'selected' : ''}>Add to</option>
@@ -871,7 +875,7 @@
                   `<option value="${key}" ${key === categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
               </select>
             </div>
-            <div class="txn-change-transfer" id="txn-change-transfer-${r.id}" style="${r.is_transfer ? 'display:block;' : 'display:none;'}">
+            <div class="txn-change-transfer" id="txn-change-transfer-${r.id}" style="${r.is_transfer && !r.is_credit_card_payment ? 'display:block;' : 'display:none;'}">
               <div class="txn-transfer-field">
                 <label>From</label>
                 <select class="txn-transfer-from-select" data-id="${r.id}">
@@ -894,7 +898,7 @@
                 <p class="txn-transfer-split-total" id="txn-transfer-split-total-${r.id}"></p>
               </div>
             </div>
-            <button type="button" class="txn-transfer-toggle" data-id="${r.id}">${r.is_transfer ? 'Switch to a single category' : 'This is actually a transfer'}</button>
+            <button type="button" class="txn-transfer-toggle" data-id="${r.id}" style="${r.is_credit_card_payment ? 'display:none;' : ''}">${r.is_transfer ? 'Switch to a single category' : 'This is actually a transfer'}</button>
           </div>
           <div class="txn-review-actions">
             <button type="button" class="txn-approve-btn" data-id="${r.id}">Looks good</button>
@@ -1092,12 +1096,17 @@
       if (!CATEGORY_LABELS[cat]) { alert('Pick a valid category before confirming.'); return; }
 
       const amount = round2(Number(review.amount) || 0);
-      const logActionType = review.is_transfer ? 'transfer' : action;
+      const logActionType = review.is_credit_card_payment ? 'debt_payment' : (review.is_transfer ? 'transfer' : action);
       // Transfers store a signed value (negative = left this category,
       // positive = arrived in it) — same convention the manual Transfer
-      // panel already uses. Add/subtract entries stay unsigned, since
-      // action_type itself carries the direction for those.
-      const logAmount = review.is_transfer ? (action === 'subtract' ? -amount : amount) : amount;
+      // panel already uses. A credit card payment isn't a two-sided
+      // transfer (there's no category actually receiving the money, the
+      // card was never given one to hold funds in) — it's really just
+      // money leaving, same as a plain subtract, just tagged distinctly
+      // so it doesn't get counted as new spending. Add/subtract/
+      // debt_payment entries all stay unsigned; action_type itself
+      // carries the direction for those.
+      const logAmount = (review.is_transfer && !review.is_credit_card_payment) ? (action === 'subtract' ? -amount : amount) : amount;
 
       const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       logRow[cat] = logAmount;
@@ -1125,8 +1134,8 @@
 
         const amount = round2(Number(review.amount) || 0);
         const action = review.suggested_action;
-        const logActionType = review.is_transfer ? 'transfer' : action;
-        const logAmount = review.is_transfer ? (action === 'subtract' ? -amount : amount) : amount;
+        const logActionType = review.is_credit_card_payment ? 'debt_payment' : (review.is_transfer ? 'transfer' : action);
+        const logAmount = (review.is_transfer && !review.is_credit_card_payment) ? (action === 'subtract' ? -amount : amount) : amount;
 
         const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
         logRow[cat] = logAmount;

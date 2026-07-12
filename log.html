@@ -114,6 +114,7 @@
         <button type="button" class="log-type-pill" data-type="add">Add</button>
         <button type="button" class="log-type-pill" data-type="subtract">Subtract</button>
         <button type="button" class="log-type-pill" data-type="transfer">Transfer</button>
+        <button type="button" class="log-type-pill" data-type="debt_payment">Card payment</button>
       </div>
       <button type="button" id="log-filter-clear" class="btn-ghost" style="display:none;">Clear filters</button>
     </div>
@@ -214,7 +215,8 @@
     const rowClassByType = {
       add: 'log-row-add',
       subtract: 'log-row-subtract',
-      transfer: 'log-row-transfer'
+      transfer: 'log-row-transfer',
+      debt_payment: 'log-row-debtpayment'
     };
 
     let allLogRows = [];
