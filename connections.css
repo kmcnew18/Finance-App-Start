@@ -243,6 +243,22 @@
   font-weight: 600;
   margin-bottom: 4px;
 }
+.account-card-pending-line {
+  font-size: 0.74rem;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--liability-bright, #E0806A);
+  opacity: 0.85;
+  margin-bottom: 2px;
+}
+.account-card-total-line {
+  font-size: 0.78rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  color: var(--tan);
+  padding-top: 4px;
+  margin-bottom: 6px;
+  border-top: 1px dashed var(--vault-line);
+}
 .account-card-synced { font-size: 0.68rem; color: var(--silver-dim); margin-bottom: 10px; }
 .account-card-actions { display: flex; gap: 8px; }
 .account-card-actions button {

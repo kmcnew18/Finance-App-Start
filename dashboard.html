@@ -700,6 +700,79 @@
     let pendingReviews = [];
     const CATEGORY_LABELS = { savings: 'Savings', investment: 'Investment', expenses: 'Expenses', checking: 'Checking' };
 
+    // Auto-generates a short, sensible default note for a detected
+    // transaction — "Gas" for a gas station, "Paycheck" for a wage
+    // deposit — instead of dumping the raw merchant name into the log
+    // every time. Always editable before approving; this is just a
+    // starting point, not a final answer.
+    const PLAID_DETAILED_TO_NOTE = {
+      TRANSPORTATION_GAS: 'Gas',
+      TRANSPORTATION_PARKING: 'Parking',
+      TRANSPORTATION_PUBLIC_TRANSIT: 'Transit',
+      TRANSPORTATION_TAXIS_AND_RIDE_SHARES: 'Rideshare',
+      TRANSPORTATION_TOLLS: 'Toll',
+      GENERAL_SERVICES_AUTOMOTIVE: 'Auto service',
+      FOOD_AND_DRINK_GROCERIES: 'Groceries',
+      FOOD_AND_DRINK_RESTAURANT: 'Dining out',
+      FOOD_AND_DRINK_COFFEE: 'Coffee',
+      FOOD_AND_DRINK_FAST_FOOD: 'Fast food',
+      RENT_AND_UTILITIES_RENT: 'Rent',
+      RENT_AND_UTILITIES_GAS_AND_ELECTRICITY: 'Utilities',
+      RENT_AND_UTILITIES_INTERNET_AND_CABLE: 'Internet/Cable',
+      RENT_AND_UTILITIES_TELEPHONE: 'Phone bill',
+      RENT_AND_UTILITIES_WATER: 'Water bill',
+      GENERAL_SERVICES_INSURANCE: 'Insurance',
+      MEDICAL_PRIMARY_CARE: 'Doctor visit',
+      MEDICAL_DENTAL_CARE: 'Dentist',
+      MEDICAL_PHARMACIES_AND_SUPPLEMENTS: 'Pharmacy',
+      MEDICAL_VETERINARY_SERVICES: 'Vet',
+      LOAN_PAYMENTS_STUDENT_LOAN_PAYMENT: 'Student loan',
+      LOAN_PAYMENTS_CAR_PAYMENT: 'Car payment',
+      LOAN_PAYMENTS_MORTGAGE_PAYMENT: 'Mortgage',
+      GENERAL_SERVICES_CHILDCARE: 'Childcare',
+      ENTERTAINMENT_TV_AND_MOVIES: 'Streaming',
+      ENTERTAINMENT_VIDEO_GAMES: 'Gaming',
+      PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS: 'Gym',
+      PERSONAL_CARE_HAIR_AND_BEAUTY: 'Hair/Beauty',
+      TRAVEL_FLIGHTS: 'Flight',
+      TRAVEL_LODGING: 'Hotel',
+      GENERAL_SERVICES_EDUCATION: 'Tuition/School',
+      GENERAL_MERCHANDISE_PET_SUPPLIES: 'Pet supplies',
+      // Income side — a wage deposit reads as "Paycheck," not just a
+      // dollar amount with no context.
+      INCOME_WAGES: 'Paycheck',
+      INCOME_DIVIDENDS: 'Dividend',
+      INCOME_INTEREST_EARNED: 'Interest',
+      INCOME_RETIREMENT_PENSION: 'Pension',
+      INCOME_UNEMPLOYMENT: 'Unemployment',
+      INCOME_TAX_REFUND: 'Tax refund',
+    };
+
+    // Merchant-name keyword fallback — same reasoning as Spendings'
+    // auto-categorization: Plaid's own detailed code isn't always
+    // right, so well-known brand names get checked directly. First
+    // match wins.
+    const MERCHANT_KEYWORD_NOTE = [
+      { note: 'Gas', keywords: ['shell', 'chevron', 'exxon', 'mobil', 'bp ', 'circle k', 'speedway', 'wawa', 'quiktrip', 'valero', 'sunoco', 'racetrac', 'casey\'s', 'phillips 66', 'conoco', 'arco', 'pilot', 'flying j', 'love\'s travel'] },
+      { note: 'Rideshare', keywords: ['uber', 'lyft'] },
+      { note: 'Coffee', keywords: ['starbucks', 'dunkin'] },
+      { note: 'Groceries', keywords: ['kroger', 'safeway', 'trader joe', 'whole foods', 'aldi', 'publix', 'wegmans', 'heb', 'h-e-b', 'meijer'] },
+      { note: 'Streaming', keywords: ['netflix', 'hulu', 'disney+', 'spotify'] },
+      { note: 'Gym', keywords: ['planet fitness', 'la fitness', 'equinox'] },
+      { note: 'Paycheck', keywords: ['payroll', 'direct dep', 'gusto', 'adp '] },
+    ];
+
+    function autoNoteFor(review) {
+      const merchant = (review.merchant_name || '').toLowerCase();
+      for (const rule of MERCHANT_KEYWORD_NOTE) {
+        if (rule.keywords.some(kw => merchant.includes(kw))) return rule.note;
+      }
+      if (review.plaid_detailed_category && PLAID_DETAILED_TO_NOTE[review.plaid_detailed_category]) {
+        return PLAID_DETAILED_TO_NOTE[review.plaid_detailed_category];
+      }
+      return review.merchant_name || ''; // no confident guess — fall back to the merchant name, same as before
+    }
+
     async function loadPendingReviews() {
       const { data, error } = await supabaseClient
         .from('pending_dashboard_reviews')
@@ -739,18 +812,41 @@
             <span class="txn-review-merchant">${(r.merchant_name || 'Transaction').replace(/</g,'&lt;')}${transferBadge}</span>
             <span class="txn-review-meta">${when} · ${money(r.amount)}</span>
           </div>
+          <input type="text" class="txn-review-note-input" data-id="${r.id}" value="${autoNoteFor(r).replace(/"/g,'&quot;')}" placeholder="Note" />
           <div class="txn-review-suggestion-text" id="txn-suggestion-text-${r.id}">
             ${suggestionText}
           </div>
           <div class="txn-review-change-form" id="txn-change-form-${r.id}" style="display:none;">
-            <select class="txn-action-select" data-id="${r.id}">
-              <option value="subtract" ${r.suggested_action === 'subtract' ? 'selected' : ''}>Subtract from</option>
-              <option value="add" ${r.suggested_action === 'add' ? 'selected' : ''}>Add to</option>
-            </select>
-            <select class="txn-category-select" data-id="${r.id}">
-              ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
-                `<option value="${key}" ${key === categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
-            </select>
+            <div class="txn-change-simple" id="txn-change-simple-${r.id}" style="${r.is_transfer ? 'display:none;' : ''}">
+              <select class="txn-action-select" data-id="${r.id}">
+                <option value="subtract" ${r.suggested_action === 'subtract' ? 'selected' : ''}>Subtract from</option>
+                <option value="add" ${r.suggested_action === 'add' ? 'selected' : ''}>Add to</option>
+              </select>
+              <select class="txn-category-select" data-id="${r.id}">
+                ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
+                  `<option value="${key}" ${key === categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
+              </select>
+            </div>
+            <div class="txn-change-transfer" id="txn-change-transfer-${r.id}" style="${r.is_transfer ? 'display:block;' : 'display:none;'}">
+              <div class="txn-transfer-pair">
+                <div class="txn-transfer-field">
+                  <label>From</label>
+                  <select class="txn-transfer-from-select" data-id="${r.id}">
+                    ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
+                      `<option value="${key}" ${key === categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
+                  </select>
+                </div>
+                <span class="txn-transfer-arrow">→</span>
+                <div class="txn-transfer-field">
+                  <label>To</label>
+                  <select class="txn-transfer-to-select" data-id="${r.id}">
+                    ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
+                      `<option value="${key}" ${key !== categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="txn-transfer-toggle" data-id="${r.id}">${r.is_transfer ? 'Switch to a single category' : 'This is actually a transfer'}</button>
           </div>
           <div class="txn-review-actions">
             <button type="button" class="txn-approve-btn" data-id="${r.id}">Looks good</button>
@@ -766,6 +862,17 @@
           document.getElementById('txn-suggestion-text-' + btn.dataset.id).style.display = 'none';
           document.getElementById('txn-change-form-' + btn.dataset.id).style.display = 'flex';
           btn.style.display = 'none';
+        });
+      });
+      document.querySelectorAll('.txn-transfer-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const simple = document.getElementById('txn-change-simple-' + id);
+          const transfer = document.getElementById('txn-change-transfer-' + id);
+          const switchingToTransfer = transfer.style.display === 'none';
+          simple.style.display = switchingToTransfer ? 'none' : 'flex';
+          transfer.style.display = switchingToTransfer ? 'block' : 'none';
+          btn.textContent = switchingToTransfer ? 'Switch to a single category' : 'This is actually a transfer';
         });
       });
       document.querySelectorAll('.txn-approve-btn').forEach(btn => {
@@ -810,6 +917,38 @@
       const review = pendingReviews.find(r => r.id === reviewId);
       if (!review) return;
 
+      const noteInput = document.querySelector(`.txn-review-note-input[data-id="${reviewId}"]`);
+      const note = noteInput ? noteInput.value.trim() : autoNoteFor(review);
+
+      const transferDiv = document.getElementById('txn-change-transfer-' + reviewId);
+      const transferModeActive = transferDiv && transferDiv.style.display !== 'none';
+
+      if (transferModeActive) {
+        const fromSelect = document.querySelector(`.txn-transfer-from-select[data-id="${reviewId}"]`);
+        const toSelect = document.querySelector(`.txn-transfer-to-select[data-id="${reviewId}"]`);
+        const fromCat = fromSelect ? fromSelect.value : null;
+        const toCat = toSelect ? toSelect.value : null;
+        if (!fromCat || !toCat || !CATEGORY_LABELS[fromCat] || !CATEGORY_LABELS[toCat]) { alert('Pick both a "from" and "to" category before confirming.'); return; }
+        if (fromCat === toCat) { alert('"From" and "to" need to be different categories.'); return; }
+
+        const amount = round2(Number(review.amount) || 0);
+        // Same convention as the manual Transfer panel: negative on the
+        // side money left, positive on the side it arrived — a single
+        // log entry captures the whole movement, not two separate ones.
+        const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
+        logRow[fromCat] += -amount;
+        logRow[toCat] += amount;
+        await logEntry({ amount, ...logRow, notes: note, action_type: 'transfer' });
+        await applyEnvelopeAdjustment(review.linked_account_id, fromCat, 'subtract', amount);
+        await applyEnvelopeAdjustment(review.linked_account_id, toCat, 'add', amount);
+
+        await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
+        logAuditEvent('txn_review_approved', { merchant_name: review.merchant_name, amount, from: fromCat, to: toCat, is_transfer: true });
+
+        await loadPendingReviews();
+        return;
+      }
+
       const actionSelect = document.querySelector(`.txn-action-select[data-id="${reviewId}"]`);
       const categorySelect = document.querySelector(`.txn-category-select[data-id="${reviewId}"]`);
       const action = actionSelect ? actionSelect.value : review.suggested_action;
@@ -827,7 +966,7 @@
 
       const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       logRow[cat] = logAmount;
-      await logEntry({ amount, ...logRow, notes: review.merchant_name || '', action_type: logActionType });
+      await logEntry({ amount, ...logRow, notes: note, action_type: logActionType });
       await applyEnvelopeAdjustment(review.linked_account_id, cat, action, amount);
 
       await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', reviewId);
@@ -856,7 +995,7 @@
 
         const logRow = { savings: 0, investment: 0, expenses: 0, checking: 0 };
         logRow[cat] = logAmount;
-        await logEntry({ amount, ...logRow, notes: review.merchant_name || '', action_type: logActionType });
+        await logEntry({ amount, ...logRow, notes: autoNoteFor(review), action_type: logActionType });
         await applyEnvelopeAdjustment(review.linked_account_id, cat, action, amount);
 
         await supabaseClient.from('pending_dashboard_reviews').update({ status: 'approved' }).eq('id', review.id);

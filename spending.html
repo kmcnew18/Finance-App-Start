@@ -387,7 +387,7 @@
         <div class="spend-txn-row">
           <div class="spend-txn-info">
             <span class="spend-txn-merchant">${(t.merchant_name || 'Transaction').replace(/</g,'&lt;')}</span>
-            <span class="spend-txn-meta">${new Date(t.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${(t.custom_category || prettyCategory(t.plaid_category)).replace(/</g,'&lt;')}${t.custom_category ? ' <span class="spend-txn-custom-badge">edited</span>' : ''}</span>
+            <span class="spend-txn-meta">${new Date(t.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${effectiveCategory(t).replace(/</g,'&lt;')}${t.custom_category ? ' <span class="spend-txn-custom-badge">edited</span>' : ''}</span>
           </div>
           <span class="spend-txn-amount">${money(t.amount)}</span>
           <button type="button" class="spend-txn-edit-btn" data-txn-id="${t.id}" title="Change category">
@@ -403,6 +403,22 @@
     // whatever colors happened to be free, with jewel-tone richness
     // instead of flatter pastels.
     const PIE_COLORS = ['#E8896D', '#E0B65C', '#7FB88F', '#6FA3C9', '#A788C9', '#D97FA0', '#5FBFA8', '#D4A24C', '#8FA0D9', '#C97F7F'];
+
+    // Colors used to be assigned by sort position — the same category
+    // could get a different color every month depending on where it
+    // happened to rank that time. Hashing the category name itself into
+    // a stable index means "Groceries" is always the same color,
+    // whether it's your #1 spend this month or your #6.
+    const categoryColorCache = {};
+    function colorForCategory(name) {
+      if (!name) return PIE_COLORS[0];
+      if (categoryColorCache[name]) return categoryColorCache[name];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+      const color = PIE_COLORS[hash % PIE_COLORS.length];
+      categoryColorCache[name] = color;
+      return color;
+    }
 
     // Builds a soft radial gradient per slice — lighter toward the
     // center, settling to the base color at the outer edge — for a bit
@@ -447,7 +463,7 @@
 
       const byCategory = {};
       spends.forEach(t => {
-        const key = t.custom_category || t.plaid_category || 'OTHER';
+        const key = effectiveCategory(t);
         byCategory[key] = (byCategory[key] || 0) + Number(t.amount);
       });
 
@@ -459,11 +475,11 @@
       spendPieChart = new Chart(canvas, {
         type: 'doughnut',
         data: {
-          labels: rows.map(r => prettyCategory(r.cat)),
+          labels: rows.map(r => r.cat),
           datasets: [{
             data: rows.map(r => r.amt),
             backgroundColor: (context) => {
-              const hex = PIE_COLORS[context.dataIndex % PIE_COLORS.length];
+              const hex = colorForCategory(rows[context.dataIndex]?.cat);
               return sliceGradient(context, hex);
             },
             borderColor: '#12181F',
@@ -490,15 +506,18 @@
         },
       });
 
-      list.innerHTML = rows.map(r => `
+      list.innerHTML = rows.map(r => {
+        const color = colorForCategory(r.cat);
+        return `
         <div class="spend-cat-row">
           <div class="spend-cat-head">
-            <span class="spend-cat-name">${prettyCategory(r.cat)}</span>
+            <span class="spend-cat-name"><span class="spend-cat-dot" style="background:${color};"></span>${r.cat}</span>
             <span class="spend-cat-amt">${money(r.amt)} · ${r.pct}%</span>
           </div>
-          <div class="spend-cat-bar-track"><div class="spend-cat-bar-fill" style="width:${Math.min(r.pct, 100)}%;"></div></div>
+          <div class="spend-cat-bar-track"><div class="spend-cat-bar-fill" style="width:${Math.min(r.pct, 100)}%; background:${color};"></div></div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     async function loadSubscriptions() {
@@ -895,6 +914,104 @@
       'Emergency Savings', 'Retirement Investments', 'General Investments', 'Miscellaneous / Buffer',
     ];
 
+    // Maps Plaid's own detailed category codes (far more specific than
+    // the coarse "primary" one — a gas station purchase can land under
+    // the broad GENERAL_SERVICES primary while its detailed code still
+    // correctly says something automotive/transportation-related) onto
+    // the 19-category list above. Anything not covered here falls back
+    // to "Miscellaneous / Buffer" — that's what it's for.
+    const PLAID_DETAILED_TO_CATEGORY = {
+      RENT_AND_UTILITIES_RENT: 'Housing',
+      RENT_AND_UTILITIES_GAS_AND_ELECTRICITY: 'Utilities',
+      RENT_AND_UTILITIES_INTERNET_AND_CABLE: 'Utilities',
+      RENT_AND_UTILITIES_TELEPHONE: 'Utilities',
+      RENT_AND_UTILITIES_WATER: 'Utilities',
+      RENT_AND_UTILITIES_SEWAGE_AND_WASTE_MANAGEMENT: 'Utilities',
+      RENT_AND_UTILITIES_OTHER_UTILITIES: 'Utilities',
+      FOOD_AND_DRINK_GROCERIES: 'Groceries',
+      TRANSPORTATION_GAS: 'Transportation',
+      TRANSPORTATION_PARKING: 'Transportation',
+      TRANSPORTATION_PUBLIC_TRANSIT: 'Transportation',
+      TRANSPORTATION_TAXIS_AND_RIDE_SHARES: 'Transportation',
+      TRANSPORTATION_TOLLS: 'Transportation',
+      TRANSPORTATION_OTHER_TRANSPORTATION: 'Transportation',
+      GENERAL_SERVICES_AUTOMOTIVE: 'Transportation',
+      GENERAL_SERVICES_INSURANCE: 'Insurance',
+      MEDICAL_DENTAL_CARE: 'Healthcare',
+      MEDICAL_EYE_CARE: 'Healthcare',
+      MEDICAL_NURSING_CARE: 'Healthcare',
+      MEDICAL_PHARMACIES_AND_SUPPLEMENTS: 'Healthcare',
+      MEDICAL_PRIMARY_CARE: 'Healthcare',
+      MEDICAL_VETERINARY_SERVICES: 'Pets',
+      MEDICAL_OTHER_MEDICAL: 'Healthcare',
+      LOAN_PAYMENTS_CAR_PAYMENT: 'Debt Payments',
+      LOAN_PAYMENTS_PERSONAL_LOAN_PAYMENT: 'Debt Payments',
+      LOAN_PAYMENTS_STUDENT_LOAN_PAYMENT: 'Debt Payments',
+      LOAN_PAYMENTS_MORTGAGE_PAYMENT: 'Debt Payments',
+      LOAN_PAYMENTS_OTHER_PAYMENT: 'Debt Payments',
+      GENERAL_SERVICES_CHILDCARE: 'Childcare / Family Support',
+      FOOD_AND_DRINK_RESTAURANT: 'Dining Out / Takeout',
+      FOOD_AND_DRINK_COFFEE: 'Dining Out / Takeout',
+      FOOD_AND_DRINK_FAST_FOOD: 'Dining Out / Takeout',
+      ENTERTAINMENT_CASINOS_AND_GAMBLING: 'Entertainment & Recreation',
+      ENTERTAINMENT_MUSIC_AND_AUDIO: 'Entertainment & Recreation',
+      ENTERTAINMENT_SPORTING_EVENTS_AMUSEMENT_PARKS_AND_MUSEUMS: 'Entertainment & Recreation',
+      ENTERTAINMENT_TV_AND_MOVIES: 'Entertainment & Recreation',
+      ENTERTAINMENT_VIDEO_GAMES: 'Entertainment & Recreation',
+      ENTERTAINMENT_OTHER_ENTERTAINMENT: 'Entertainment & Recreation',
+      GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES: 'Shopping & Apparel',
+      GENERAL_MERCHANDISE_DEPARTMENT_STORES: 'Shopping & Apparel',
+      GENERAL_MERCHANDISE_DISCOUNT_STORES: 'Shopping & Apparel',
+      GENERAL_MERCHANDISE_ELECTRONICS: 'Shopping & Apparel',
+      GENERAL_MERCHANDISE_ONLINE_MARKETPLACES: 'Shopping & Apparel',
+      GENERAL_MERCHANDISE_SUPERSTORES: 'Shopping & Apparel',
+      GENERAL_MERCHANDISE_OTHER_GENERAL_MERCHANDISE: 'Shopping & Apparel',
+      GENERAL_MERCHANDISE_PET_SUPPLIES: 'Pets',
+      PERSONAL_CARE_HAIR_AND_BEAUTY: 'Personal Care & Grooming',
+      PERSONAL_CARE_LAUNDRY_AND_DRY_CLEANING: 'Personal Care & Grooming',
+      PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS: 'Personal Care & Grooming',
+      PERSONAL_CARE_OTHER_PERSONAL_CARE: 'Personal Care & Grooming',
+      TRAVEL_FLIGHTS: 'Travel & Vacations',
+      TRAVEL_LODGING: 'Travel & Vacations',
+      TRAVEL_RENTAL_CARS: 'Travel & Vacations',
+      TRAVEL_OTHER_TRAVEL: 'Travel & Vacations',
+      GENERAL_SERVICES_EDUCATION: 'Education & School Supplies',
+      GENERAL_MERCHANDISE_GIFTS_AND_NOVELTIES: 'Gifts & Donations',
+      GENERAL_SERVICES_CHARITABLE_GIVING: 'Gifts & Donations',
+    };
+
+    // Merchant-name keyword fallback — Plaid's own automatic
+    // categorization isn't always right (the exact gas-station-showing-
+    // as-General-Services case this was built for), so well-known brand
+    // names get checked directly regardless of what Plaid's detailed
+    // code says. Checked in order; first match wins.
+    const MERCHANT_KEYWORD_CATEGORY = [
+      { category: 'Transportation', keywords: ['shell', 'chevron', 'exxon', 'mobil', 'bp ', 'circle k', 'speedway', 'wawa', 'quiktrip', 'valero', 'sunoco', 'marathon petroleum', 'costco gas', 'sam\'s club fuel', 'racetrac', 'casey\'s', 'phillips 66', 'conoco', '76 ', 'arco', 'pilot', 'flying j', 'love\'s travel', 'uber', 'lyft'] },
+      { category: 'Groceries', keywords: ['kroger', 'safeway', 'trader joe', 'whole foods', 'aldi', 'publix', 'wegmans', 'heb', 'h-e-b', 'meijer', 'giant eagle', 'sprouts', 'winco', 'food lion', 'stop & shop'] },
+      { category: 'Dining Out / Takeout', keywords: ['starbucks', 'mcdonald', 'chipotle', 'doordash', 'grubhub', 'uber eats', 'postmates', 'chick-fil-a', 'taco bell', 'wendy', 'subway', 'panera', 'dunkin'] },
+      { category: 'Entertainment & Recreation', keywords: ['netflix', 'spotify', 'hulu', 'disney+', 'amc theatres', 'steam', 'playstation network', 'xbox', 'ticketmaster'] },
+      { category: 'Personal Care & Grooming', keywords: ['planet fitness', 'la fitness', 'equinox', 'great clips', 'supercuts'] },
+    ];
+
+    function autoCategoryFor(txn) {
+      const merchant = (txn.merchant_name || '').toLowerCase();
+      for (const rule of MERCHANT_KEYWORD_CATEGORY) {
+        if (rule.keywords.some(kw => merchant.includes(kw))) return rule.category;
+      }
+      if (txn.plaid_detailed_category && PLAID_DETAILED_TO_CATEGORY[txn.plaid_detailed_category]) {
+        return PLAID_DETAILED_TO_CATEGORY[txn.plaid_detailed_category];
+      }
+      return null; // no confident match — caller falls back to Plaid's own primary category
+    }
+
+    // Single source of truth for "what category does this transaction
+    // actually display under" — a manual override always wins, then the
+    // automatic mapping above, then Plaid's own (coarser) category as a
+    // last resort.
+    function effectiveCategory(txn) {
+      return txn.custom_category || autoCategoryFor(txn) || prettyCategory(txn.plaid_category);
+    }
+
     function setupSpendCategoriesOverlay() {
       document.getElementById('spend-categories-btn').addEventListener('click', () => {
         document.getElementById('spend-categories-list').innerHTML = SPENDING_CATEGORIES_LIST
@@ -923,7 +1040,7 @@
         editTxnCategoryTargetId = btn.dataset.txnId;
         const txn = currentSpendTxns.find(t => t.id === editTxnCategoryTargetId);
         document.getElementById('edit-txn-category-merchant').textContent =
-          `${(txn?.merchant_name || 'Transaction')} — currently ${txn?.custom_category || prettyCategory(txn?.plaid_category)}`;
+          `${(txn?.merchant_name || 'Transaction')} — currently ${txn ? effectiveCategory(txn) : ''}`;
         document.getElementById('edit-txn-category-list').innerHTML = SPENDING_CATEGORIES_LIST
           .map(name => `<button type="button" class="spend-category-item spend-category-item-btn" data-category="${name}">${name}</button>`).join('');
         document.getElementById('edit-txn-category-overlay').classList.add('open');

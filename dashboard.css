@@ -523,13 +523,58 @@ h1, h2, h3 {
   vertical-align: middle;
 }
 .txn-review-meta { font-size: 0.76rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+.txn-review-note-input {
+  width: 100%;
+  padding: 7px 10px;
+  margin-bottom: 11px;
+  border-radius: 7px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,0.02);
+  color: var(--tan);
+  font-size: 0.8rem;
+  font-family: 'Public Sans', sans-serif;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.txn-review-note-input::placeholder { color: var(--silver-dim); }
+.txn-review-note-input:focus { outline: none; border-color: var(--vintage-blue-light); background: rgba(110,143,163,0.06); }
 .txn-review-suggestion-text { font-size: 0.86rem; color: var(--silver); margin-bottom: 11px; line-height: 1.45; }
 .txn-review-suggestion-text strong { color: var(--tan); font-weight: 600; }
-.txn-review-change-form { display: none; gap: 8px; margin-bottom: 11px; }
+.txn-review-change-form { display: none; flex-direction: column; gap: 8px; margin-bottom: 11px; }
 .txn-review-change-form select {
   flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--panel-border);
   background: #12181F; color: var(--tan); font-size: 0.8rem;
 }
+.txn-change-simple { display: flex; gap: 8px; }
+.txn-change-transfer { display: none; }
+.txn-transfer-pair { display: flex; align-items: flex-end; gap: 10px; }
+.txn-transfer-field { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.txn-transfer-field label {
+  font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--silver-dim);
+}
+.txn-transfer-arrow {
+  padding-bottom: 9px;
+  color: var(--vintage-blue-light);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.txn-transfer-toggle {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 5px 0;
+  border: none;
+  background: none;
+  color: var(--vintage-blue-light);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(110,143,163,0.35);
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+.txn-transfer-toggle:hover { color: var(--tan); }
+
 .txn-review-actions { display: flex; gap: 8px; }
 .txn-approve-btn, .txn-change-btn, .txn-skip-btn {
   padding: 7px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
