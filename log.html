@@ -462,8 +462,27 @@
       }
       if (!confirm(`Delete ${ids.length} selected entr${ids.length === 1 ? 'y' : 'ies'}? This cannot be undone.`)) return;
 
-      const { error } = await supabaseClient.from('finance_log').delete().in('id', ids);
+      const { data: deletedRows, error } = await supabaseClient
+        .from('finance_log')
+        .delete()
+        .in('id', ids)
+        .select('source_review_id');
       if (error) { console.error(error); alert('Could not delete entries.'); return; }
+
+      // Any deleted entry that came from a detected transaction gets its
+      // review flipped back to 'pending' so it can resurface on Dashboard
+      // instead of being stuck as 'approved' with nothing pointing to it.
+      const restoredReviewIds = (deletedRows || [])
+        .map(r => r.source_review_id)
+        .filter(Boolean);
+      if (restoredReviewIds.length) {
+        const { error: restoreError } = await supabaseClient
+          .from('pending_dashboard_reviews')
+          .update({ status: 'pending' })
+          .in('id', restoredReviewIds);
+        if (restoreError) console.error('Could not restore reviews:', restoreError);
+      }
+
       await loadLog();
     });
 
