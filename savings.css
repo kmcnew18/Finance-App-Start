@@ -199,14 +199,24 @@
   transition: background 0.15s ease;
 }
 .sav-edit-alloc-btn:hover { background: rgba(110,143,163,0.12); }
-.sav-alloc-mode-row { display: flex; gap: 12px; flex-wrap: wrap; }
-.sav-alloc-mode-option {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 0.78rem;
-  color: var(--silver-dim);
-  cursor: pointer;
+.sav-alloc-mode-row { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Compact chip variant — the full Dashboard chip is sized for a wide
+   panel; these live in a narrow modal, so padding and font shrink down
+   while keeping the same dot-indicator interaction and active-state
+   animation. Teal for the active state, matching this page's identity. */
+.sav-alloc-chip {
+  padding: 6px 12px 6px 9px;
+  font-size: 0.76rem;
 }
-.sav-alloc-mode-option input { accent-color: var(--vintage-blue-light); cursor: pointer; }
+.sav-alloc-chip .chip-dot { width: 13px; height: 13px; }
+.sav-alloc-chip .chip-dot::after { width: 5px; height: 5px; }
+.sav-alloc-chip.chip-active {
+  background: rgba(110,196,184,0.12);
+  border-color: #6EC4B8;
+  color: var(--tan);
+}
+.sav-alloc-chip.chip-active .chip-dot { border-color: #6EC4B8; }
+.sav-alloc-chip.chip-active .chip-dot::after { background: #6EC4B8; }
 .sav-unlink-btn {
   flex-shrink: 0;
   background: none;

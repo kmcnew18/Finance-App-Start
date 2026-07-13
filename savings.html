@@ -364,6 +364,17 @@
       return `${money(contribution)} · whole account`;
     }
 
+    // Matches the chip toggle already used for Dashboard's Subtract/
+    // Transfer category pickers — same dot indicator, same active-state
+    // animation — rather than falling back to a plain native radio,
+    // which would be the only unstyled control on the page.
+    function chipRadioHtml(name, value, label, checked) {
+      return `<label class="chip sav-alloc-chip${checked ? ' chip-active' : ''}">
+        <input type="radio" name="${name}" value="${value}" ${checked ? 'checked' : ''} />
+        <span class="chip-dot"></span> ${label}
+      </label>`;
+    }
+
     function openGoalDetail(goalId) {
       const g = goals.find(x => x.id === goalId);
       if (!g) return;
@@ -384,9 +395,9 @@
           </select>
         </div>
         <div class="sav-alloc-mode-row">
-          <label class="sav-alloc-mode-option"><input type="radio" name="sav-alloc-mode" value="whole" checked /> Whole account</label>
-          <label class="sav-alloc-mode-option"><input type="radio" name="sav-alloc-mode" value="percent" /> Percent</label>
-          <label class="sav-alloc-mode-option"><input type="radio" name="sav-alloc-mode" value="amount" /> Fixed $</label>
+          ${chipRadioHtml('sav-alloc-mode', 'whole', 'Whole account', true)}
+          ${chipRadioHtml('sav-alloc-mode', 'percent', 'Percent', false)}
+          ${chipRadioHtml('sav-alloc-mode', 'amount', 'Fixed $', false)}
         </div>
         <input type="number" id="sav-alloc-value-input" step="0.01" placeholder="e.g. 20" style="display:none; margin-top:8px;" />
         <button type="button" class="mfa-verify-btn" id="sav-link-account-btn" style="margin-top:10px;">Link account</button>
@@ -440,6 +451,7 @@
       // inputs competing for attention.
       document.querySelectorAll('input[name="sav-alloc-mode"]').forEach(radio => {
         radio.addEventListener('change', () => {
+          document.querySelectorAll('input[name="sav-alloc-mode"]').forEach(r => r.closest('.chip').classList.toggle('chip-active', r.checked));
           const valueInput = document.getElementById('sav-alloc-value-input');
           const mode = document.querySelector('input[name="sav-alloc-mode"]:checked').value;
           if (mode === 'whole') { valueInput.style.display = 'none'; return; }
@@ -482,15 +494,16 @@
           const wrap = document.getElementById('sav-edit-alloc-wrap');
           wrap.innerHTML = `
             <div class="sav-alloc-mode-row" style="margin-top:8px;">
-              <label class="sav-alloc-mode-option"><input type="radio" name="sav-edit-mode" value="whole" ${currentMode === 'whole' ? 'checked' : ''} /> Whole account</label>
-              <label class="sav-alloc-mode-option"><input type="radio" name="sav-edit-mode" value="percent" ${currentMode === 'percent' ? 'checked' : ''} /> Percent</label>
-              <label class="sav-alloc-mode-option"><input type="radio" name="sav-edit-mode" value="amount" ${currentMode === 'amount' ? 'checked' : ''} /> Fixed $</label>
+              ${chipRadioHtml('sav-edit-mode', 'whole', 'Whole account', currentMode === 'whole')}
+              ${chipRadioHtml('sav-edit-mode', 'percent', 'Percent', currentMode === 'percent')}
+              ${chipRadioHtml('sav-edit-mode', 'amount', 'Fixed $', currentMode === 'amount')}
             </div>
             <input type="number" id="sav-edit-alloc-value" step="0.01" value="${currentMode === 'whole' ? '' : currentValue}" style="margin-top:8px; ${currentMode === 'whole' ? 'display:none;' : ''}" />
             <button type="button" class="mfa-verify-btn" id="sav-edit-alloc-save-btn" style="margin-top:8px;">Save allocation</button>
           `;
           document.querySelectorAll('input[name="sav-edit-mode"]').forEach(radio => {
             radio.addEventListener('change', () => {
+              document.querySelectorAll('input[name="sav-edit-mode"]').forEach(r => r.closest('.chip').classList.toggle('chip-active', r.checked));
               const valueInput = document.getElementById('sav-edit-alloc-value');
               const mode = document.querySelector('input[name="sav-edit-mode"]:checked').value;
               valueInput.style.display = mode === 'whole' ? 'none' : 'block';
