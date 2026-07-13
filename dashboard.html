@@ -905,6 +905,7 @@
         totals = { savings: row.savings, investment: row.investment, expenses: row.expenses, checking: row.checking };
       }
 
+      console.log('[charge-to-set-aside debug] init() about to call loadConnectedTotals');
       await loadConnectedTotals();
       await loadPendingReviews();
 
@@ -1768,6 +1769,7 @@
     let categoryIdByKey = { savings: null, investment: null, expenses: null, checking: null };
 
     async function loadConnectedTotals() {
+      console.log('[charge-to-set-aside debug] loadConnectedTotals started');
       connectedTotals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       customCategoryCards = [];
       linkedLiabilities = {};
@@ -1775,13 +1777,16 @@
       envelopesByCategoryName = {};
       orderedCategories = [];
 
-      const { data: cats } = await supabaseClient.from('budget_categories').select('*').eq('user_id', currentUserId).order('sort_order', { ascending: true });
-      if (!cats || !cats.length) return;
+      const { data: cats, error: catsError } = await supabaseClient.from('budget_categories').select('*').eq('user_id', currentUserId).order('sort_order', { ascending: true });
+      if (catsError) console.error('[charge-to-set-aside debug] budget_categories query failed:', catsError);
+      if (!cats || !cats.length) { console.log('[charge-to-set-aside debug] loadConnectedTotals returning early — no categories found'); return; }
 
-      const { data: linkedAccts } = await supabaseClient.from('linked_accounts').select('id, balance, account_type, institution_name, nickname, paid_from_category_id, source, last_synced_at').eq('user_id', currentUserId);
+      const { data: linkedAccts, error: linkedAcctsError } = await supabaseClient.from('linked_accounts').select('id, balance, account_type, institution_name, nickname, paid_from_category_id, source, last_synced_at').eq('user_id', currentUserId);
+      if (linkedAcctsError) console.error('[charge-to-set-aside debug] linked_accounts query failed:', linkedAcctsError);
       lastLoadedLinkedAccounts = linkedAccts || [];
-      if (!linkedAccts) return;
-      const { data: splits } = await supabaseClient.from('account_category_splits').select('*').eq('user_id', currentUserId);
+      if (!linkedAccts) { console.log('[charge-to-set-aside debug] loadConnectedTotals returning early — linked_accounts query returned null'); return; }
+      const { data: splits, error: splitsError } = await supabaseClient.from('account_category_splits').select('*').eq('user_id', currentUserId);
+      if (splitsError) console.error('[charge-to-set-aside debug] account_category_splits query failed:', splitsError);
       // Whether a category has ANY connected account mapped to it at
       // all — regardless of the resulting dollar total, which could
       // legitimately be $0 for a connected account with no balance.
