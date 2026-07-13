@@ -197,6 +197,32 @@
     let isPaidUser = false;
     let trialExpired = false;
 
+    function arkoDialog(message, { mode = 'alert', danger = false } = {}) {
+      return new Promise(resolve => {
+        const overlay = document.getElementById('arko-dialog-overlay');
+        const msgEl = document.getElementById('arko-dialog-message');
+        const actionsEl = document.getElementById('arko-dialog-actions');
+        const iconEl = document.getElementById('arko-dialog-icon');
+        msgEl.textContent = message;
+        overlay.classList.toggle('arko-dialog-danger', danger);
+        iconEl.innerHTML = danger
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
+        actionsEl.innerHTML = mode === 'confirm'
+          ? `<button type="button" class="arko-dialog-btn arko-dialog-btn-cancel" id="arko-dialog-cancel-btn">Cancel</button><button type="button" class="arko-dialog-btn arko-dialog-btn-confirm" id="arko-dialog-confirm-btn">Confirm</button>`
+          : `<button type="button" class="arko-dialog-btn arko-dialog-btn-confirm arko-dialog-btn-single" id="arko-dialog-confirm-btn">OK</button>`;
+
+        overlay.classList.add('open');
+        const cleanup = (result) => { overlay.classList.remove('open'); resolve(result); };
+        document.getElementById('arko-dialog-confirm-btn').addEventListener('click', () => cleanup(true), { once: true });
+        const cancelBtn = document.getElementById('arko-dialog-cancel-btn');
+        if (cancelBtn) cancelBtn.addEventListener('click', () => cleanup(false), { once: true });
+      });
+    }
+    function arkoConfirm(message, danger = false) { return arkoDialog(message, { mode: 'confirm', danger }); }
+    function arkoAlert(message, danger = false) { return arkoDialog(message, { mode: 'alert', danger }); }
+
     function money(n) {
       const num = Number(n || 0);
       const sign = num < 0 ? '-' : '';
@@ -464,17 +490,17 @@
     document.getElementById('delete-selected-btn').addEventListener('click', async () => {
       const ids = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.dataset.id);
       if (ids.length === 0) {
-        alert('No entries selected.');
+        await arkoAlert('No entries selected.');
         return;
       }
-      if (!confirm(`Delete ${ids.length} selected entr${ids.length === 1 ? 'y' : 'ies'}? This cannot be undone.`)) return;
+      if (!await arkoConfirm(`Delete ${ids.length} selected entr${ids.length === 1 ? 'y' : 'ies'}? This cannot be undone.`)) return;
 
       const { data: deletedRows, error } = await supabaseClient
         .from('finance_log')
         .delete()
         .in('id', ids)
         .select('source_review_id');
-      if (error) { console.error(error); alert('Could not delete entries.'); return; }
+      if (error) { console.error(error); await arkoAlert('Could not delete entries.'); return; }
 
       // Any deleted entry that came from a detected transaction gets its
       // review flipped back to 'pending' so it can resurface on Dashboard
@@ -648,7 +674,7 @@
 
       document.querySelectorAll('.mfa-remove-factor-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-          if (!confirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
+          if (!await arkoConfirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
 
           const factorId = btn.dataset.id;
           const { currentLevel } = await getMfaLevel();
@@ -658,7 +684,7 @@
           }
 
           const { error: unenrollError } = await supabaseClient.auth.mfa.unenroll({ factorId });
-          if (unenrollError) { alert('Could not remove: ' + unenrollError.message); return; }
+          if (unenrollError) { await arkoAlert('Could not remove: ' + unenrollError.message); return; }
           logAuditEvent('mfa_factor_removed', {});
           await renderMfaManage();
         });
@@ -769,18 +795,18 @@
     }
 
     document.getElementById('reset-categories-btn').addEventListener('click', async () => {
-      if (!confirm('Reset all category totals to $0.00? This cannot be undone.')) return;
+      if (!await arkoConfirm('Reset all category totals to $0.00? This cannot be undone.')) return;
       const { error } = await supabaseClient
         .from('finance_totals')
         .update({ savings: 0, investment: 0, expenses: 0, checking: 0, updated_at: new Date().toISOString() })
         .eq('user_id', currentUserId);
       if (error) console.error(error);
       gearDropdown.classList.remove('open');
-      alert('Category totals reset.');
+      await arkoAlert('Category totals reset.');
     });
 
     document.getElementById('clear-log-btn').addEventListener('click', async () => {
-      if (!confirm('This will clear your entire log and reset all category totals to $0.00 \u2014 just like a fresh account. This cannot be undone.')) return;
+      if (!await arkoConfirm('This will clear your entire log and reset all category totals to $0.00 \u2014 just like a fresh account. This cannot be undone.')) return;
 
       const { count: beforeCount } = await supabaseClient
         .from('finance_log')
@@ -795,7 +821,7 @@
 
       if (logError) {
         console.error('Clear log error:', logError);
-        alert('Could not clear the log: ' + logError.message);
+        await arkoAlert('Could not clear the log: ' + logError.message);
         return;
       }
 
@@ -809,9 +835,9 @@
       await loadLog();
 
       if (beforeCount > 0 && (!deletedRows || deletedRows.length === 0)) {
-        alert('Category totals were reset, but the log entries could not be deleted. Your Supabase "finance_log" table is likely missing a DELETE policy that lets a user delete their own rows (e.g. USING (auth.uid() = user_id)). Check Row Level Security policies on that table.');
+        await arkoAlert('Category totals were reset, but the log entries could not be deleted. Your Supabase "finance_log" table is likely missing a DELETE policy that lets a user delete their own rows (e.g. USING (auth.uid() = user_id)). Check Row Level Security policies on that table.');
       } else {
-        alert('Your account has been reset to a fresh state.');
+        await arkoAlert('Your account has been reset to a fresh state.');
       }
     });
 
@@ -1030,11 +1056,11 @@
         if (data.url) {
           window.location.href = data.url;
         } else {
-          alert('Could not start checkout. Please try again.');
+          await arkoAlert('Could not start checkout. Please try again.');
         }
       } catch (err) {
         console.error(err);
-        alert('Network error — please try again.');
+        await arkoAlert('Network error — please try again.');
       }
     }
 
@@ -1053,13 +1079,13 @@
         if (data.url) {
           window.location.href = data.url;
         } else {
-          alert('Could not start checkout. Please try again.');
+          await arkoAlert('Could not start checkout. Please try again.');
           btn.disabled = false;
           btn.textContent = originalText;
         }
       } catch (err) {
         console.error(err);
-        alert('Network error — please try again.');
+        await arkoAlert('Network error — please try again.');
         btn.disabled = false;
         btn.textContent = originalText;
       }
@@ -1146,6 +1172,15 @@
 
     init();
   </script>
+
+  <!-- ================= CONFIRM / ALERT (replaces native browser dialogs) ================= -->
+  <div class="arko-dialog-overlay" id="arko-dialog-overlay">
+    <div class="arko-dialog-modal">
+      <div class="arko-dialog-icon" id="arko-dialog-icon"></div>
+      <p class="arko-dialog-message" id="arko-dialog-message"></p>
+      <div class="arko-dialog-actions" id="arko-dialog-actions"></div>
+    </div>
+  </div>
 
 </body>
 </html>

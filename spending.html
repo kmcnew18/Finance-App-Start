@@ -223,6 +223,32 @@
       const sign = num < 0 ? '-' : '';
       return sign + '$' + Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+    function arkoDialog(message, { mode = 'alert', danger = false } = {}) {
+      return new Promise(resolve => {
+        const overlay = document.getElementById('arko-dialog-overlay');
+        const msgEl = document.getElementById('arko-dialog-message');
+        const actionsEl = document.getElementById('arko-dialog-actions');
+        const iconEl = document.getElementById('arko-dialog-icon');
+        msgEl.textContent = message;
+        overlay.classList.toggle('arko-dialog-danger', danger);
+        iconEl.innerHTML = danger
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
+        actionsEl.innerHTML = mode === 'confirm'
+          ? `<button type="button" class="arko-dialog-btn arko-dialog-btn-cancel" id="arko-dialog-cancel-btn">Cancel</button><button type="button" class="arko-dialog-btn arko-dialog-btn-confirm" id="arko-dialog-confirm-btn">Confirm</button>`
+          : `<button type="button" class="arko-dialog-btn arko-dialog-btn-confirm arko-dialog-btn-single" id="arko-dialog-confirm-btn">OK</button>`;
+
+        overlay.classList.add('open');
+        const cleanup = (result) => { overlay.classList.remove('open'); resolve(result); };
+        document.getElementById('arko-dialog-confirm-btn').addEventListener('click', () => cleanup(true), { once: true });
+        const cancelBtn = document.getElementById('arko-dialog-cancel-btn');
+        if (cancelBtn) cancelBtn.addEventListener('click', () => cleanup(false), { once: true });
+      });
+    }
+    function arkoConfirm(message, danger = false) { return arkoDialog(message, { mode: 'confirm', danger }); }
+    function arkoAlert(message, danger = false) { return arkoDialog(message, { mode: 'alert', danger }); }
+
     function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 
     function prettyCategory(raw) {
@@ -708,7 +734,7 @@
         </div>`;
       document.querySelectorAll('.mfa-remove-factor-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-          if (!confirm("Remove this authenticator? You won't be able to open Connections or Spendings until you enroll a new one.")) return;
+          if (!await arkoConfirm("Remove this authenticator? You won't be able to open Connections or Spendings until you enroll a new one.")) return;
           const factorId = btn.dataset.id;
           const { currentLevel } = await getMfaLevel();
           if (currentLevel !== 'aal2') {
@@ -716,7 +742,7 @@
             if (!verified) { await renderMfaManage(); return; }
           }
           const { error: unenrollError } = await supabaseClient.auth.mfa.unenroll({ factorId });
-          if (unenrollError) { alert('Could not remove: ' + unenrollError.message); return; }
+          if (unenrollError) { await arkoAlert('Could not remove: ' + unenrollError.message); return; }
           logAuditEvent('mfa_factor_removed', {});
           await renderMfaManage();
         });
@@ -851,7 +877,7 @@
           setTimeout(() => { btn.textContent = originalText; }, 2000);
         } catch (err) {
           console.error(err);
-          alert(err.message || 'Could not refresh subscriptions right now.');
+          await arkoAlert(err.message || 'Could not refresh subscriptions right now.');
           btn.textContent = originalText;
         } finally {
           btn.disabled = false;
@@ -883,7 +909,7 @@
           setTimeout(() => { btn.textContent = originalText; }, 2000);
         } catch (err) {
           console.error(err);
-          alert(err.message || 'Could not refresh transactions right now.');
+          await arkoAlert(err.message || 'Could not refresh transactions right now.');
           btn.textContent = originalText;
         } finally {
           btn.disabled = false;
@@ -895,7 +921,7 @@
     function setupClearTransactions() {
       document.getElementById('clear-transactions-btn').addEventListener('click', async () => {
         document.getElementById('settings-dropdown').classList.remove('open');
-        if (!confirm("Clear your transaction history? This removes everything Spendings and Dashboard have detected so far — nothing about your connected accounts, balances, or subscriptions changes. Going forward, only new activity from this point on will show up.")) return;
+        if (!await arkoConfirm("Clear your transaction history? This removes everything Spendings and Dashboard have detected so far — nothing about your connected accounts, balances, or subscriptions changes. Going forward, only new activity from this point on will show up.")) return;
 
         const [{ error: txnError }, { error: dashError }, { error: recurError }] = await Promise.all([
           supabaseClient.from('transactions').delete().eq('user_id', currentUserId),
@@ -903,25 +929,25 @@
           supabaseClient.from('pending_transaction_reviews').delete().eq('user_id', currentUserId),
         ]);
         if (txnError || dashError || recurError) {
-          alert('Could not fully clear your transaction history: ' + (txnError || dashError || recurError).message);
+          await arkoAlert('Could not fully clear your transaction history: ' + (txnError || dashError || recurError).message);
           return;
         }
         logAuditEvent('transaction_history_cleared', {});
-        alert('Your transaction history has been cleared.');
+        await arkoAlert('Your transaction history has been cleared.');
         await loadSpendingData();
       });
 
       document.getElementById('clear-subscriptions-btn').addEventListener('click', async () => {
         document.getElementById('settings-dropdown').classList.remove('open');
-        if (!confirm("Clear your detected subscriptions? This removes everything currently shown here — nothing about your connected accounts, balances, or other transaction history changes. Anything still genuinely recurring will reappear next time you refresh.")) return;
+        if (!await arkoConfirm("Clear your detected subscriptions? This removes everything currently shown here — nothing about your connected accounts, balances, or other transaction history changes. Anything still genuinely recurring will reappear next time you refresh.")) return;
 
         const { error: streamError } = await supabaseClient.from('recurring_streams').delete().eq('user_id', currentUserId);
         if (streamError) {
-          alert('Could not clear your subscriptions: ' + streamError.message);
+          await arkoAlert('Could not clear your subscriptions: ' + streamError.message);
           return;
         }
         logAuditEvent('subscriptions_cleared', {});
-        alert('Your subscriptions have been cleared.');
+        await arkoAlert('Your subscriptions have been cleared.');
         await loadSpendingData();
       });
     }
@@ -1182,7 +1208,7 @@
         const btn = e.target.closest('.spend-txn-map-btn');
         if (!btn) return;
         const merchant = btn.dataset.merchant;
-        if (!merchant) { alert('This transaction has no merchant name to map by.'); return; }
+        if (!merchant) { await arkoAlert('This transaction has no merchant name to map by.'); return; }
         mapBudgetTargetType = 'merchant';
         mapBudgetTargetId = merchant;
         await openMapBudgetOverlay(`Which Bills line do "${merchant}" purchases belong to? Future transactions from this merchant will be suggested there automatically.`, !!merchantMappingByName[merchant.toLowerCase()]);
@@ -1269,7 +1295,7 @@
 
     async function saveTxnCategoryOverride(txnId, category) {
       const { error } = await supabaseClient.from('transactions').update({ custom_category: category }).eq('id', txnId);
-      if (error) { alert('Could not update category: ' + error.message); return; }
+      if (error) { await arkoAlert('Could not update category: ' + error.message); return; }
 
       const txn = currentSpendTxns.find(t => t.id === txnId);
       if (txn) txn.custom_category = category;
@@ -1452,10 +1478,10 @@
         });
         const data = await res.json();
         if (data.url) { window.location.href = data.url; }
-        else { alert('Could not start checkout. Please try again.'); }
+        else { await arkoAlert('Could not start checkout. Please try again.'); }
       } catch (err) {
         console.error(err);
-        alert('Network error — please try again.');
+        await arkoAlert('Network error — please try again.');
       }
     }
 
@@ -1471,10 +1497,10 @@
         });
         const data = await res.json();
         if (data.url) { window.location.href = data.url; }
-        else { alert('Could not start checkout. Please try again.'); btn.disabled = false; btn.textContent = originalText; }
+        else { await arkoAlert('Could not start checkout. Please try again.'); btn.disabled = false; btn.textContent = originalText; }
       } catch (err) {
         console.error(err);
-        alert('Network error — please try again.');
+        await arkoAlert('Network error — please try again.');
         btn.disabled = false;
         btn.textContent = originalText;
       }
@@ -1525,6 +1551,15 @@
 
     init();
   </script>
+
+  <!-- ================= CONFIRM / ALERT (replaces native browser dialogs) ================= -->
+  <div class="arko-dialog-overlay" id="arko-dialog-overlay">
+    <div class="arko-dialog-modal">
+      <div class="arko-dialog-icon" id="arko-dialog-icon"></div>
+      <p class="arko-dialog-message" id="arko-dialog-message"></p>
+      <div class="arko-dialog-actions" id="arko-dialog-actions"></div>
+    </div>
+  </div>
 
 </body>
 </html>

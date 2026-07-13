@@ -142,17 +142,10 @@ module.exports = async (req, res) => {
     // batch is purely historical backfill for Spendings' charts. The
     // frontend uses the counts returned here to ask whether to keep or
     // remove that backfill before continuing.
-    //
-    // 6 months back rather than just the current + previous month —
-    // transactionsSync doesn't support a date filter at the API level,
-    // Plaid always returns everything available through the cursor
-    // regardless, so this costs zero additional Plaid calls compared to
-    // the narrower window. It's the same data already being fetched;
-    // this just keeps more of it instead of discarding it.
     let historicalImport = { count: 0, windowStart: null };
     try {
       const connectedDate = new Date().toISOString().slice(0, 10);
-      const storageCutoff = startOfMonthsAgo(connectedDate, 6);
+      const storageCutoff = startOfMonthsAgo(connectedDate, 1);
       const eligibleAccountIds = new Set(
         rows.filter(r => r.account_type === 'checking' || r.account_type === 'credit_card').map(r => r.plaid_account_id)
       );

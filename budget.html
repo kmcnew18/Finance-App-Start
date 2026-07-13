@@ -378,6 +378,35 @@
     };
 
     function uid() { return (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2)); }
+    // Replaces native confirm()/alert() with a modal matching the
+    // app's own aesthetic — same call shape, await arkoConfirm/arkoAlert
+    // in place of confirm/alert.
+    function arkoDialog(message, { mode = 'alert', danger = false } = {}) {
+      return new Promise(resolve => {
+        const overlay = document.getElementById('arko-dialog-overlay');
+        const msgEl = document.getElementById('arko-dialog-message');
+        const actionsEl = document.getElementById('arko-dialog-actions');
+        const iconEl = document.getElementById('arko-dialog-icon');
+        msgEl.textContent = message;
+        overlay.classList.toggle('arko-dialog-danger', danger);
+        iconEl.innerHTML = danger
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
+        actionsEl.innerHTML = mode === 'confirm'
+          ? `<button type="button" class="arko-dialog-btn arko-dialog-btn-cancel" id="arko-dialog-cancel-btn">Cancel</button><button type="button" class="arko-dialog-btn arko-dialog-btn-confirm" id="arko-dialog-confirm-btn">Confirm</button>`
+          : `<button type="button" class="arko-dialog-btn arko-dialog-btn-confirm arko-dialog-btn-single" id="arko-dialog-confirm-btn">OK</button>`;
+
+        overlay.classList.add('open');
+        const cleanup = (result) => { overlay.classList.remove('open'); resolve(result); };
+        document.getElementById('arko-dialog-confirm-btn').addEventListener('click', () => cleanup(true), { once: true });
+        const cancelBtn = document.getElementById('arko-dialog-cancel-btn');
+        if (cancelBtn) cancelBtn.addEventListener('click', () => cleanup(false), { once: true });
+      });
+    }
+    function arkoConfirm(message, danger = false) { return arkoDialog(message, { mode: 'confirm', danger }); }
+    function arkoAlert(message, danger = false) { return arkoDialog(message, { mode: 'alert', danger }); }
+
     function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
     function money(n) {
       const num = Number(n || 0);
@@ -471,7 +500,7 @@
         .from('budget_periods')
         .insert({ user_id: currentUserId, start_date: startISO, end_date: endISO, status: 'active', categories })
         .select().single();
-      if (error) { console.error(error); alert('Could not create a new period: ' + error.message); return null; }
+      if (error) { console.error(error); await arkoAlert('Could not create a new period: ' + error.message); return null; }
       return data;
     }
 
@@ -749,7 +778,7 @@
         });
 
         container.querySelectorAll('.expense-entry-delete').forEach(btn => {
-          btn.addEventListener('click', () => {
+          btn.addEventListener('click', async () => {
             if (isLocked()) return;
             const id = btn.dataset.id;
             const entryId = btn.dataset.entryId;
@@ -757,7 +786,7 @@
             if (!line || !Array.isArray(line.entries)) return;
             const entry = line.entries.find(e => e.id === entryId);
             if (!entry) return;
-            if (!confirm(`Remove this ${money(entry.amount)} entry${entry.note ? ' ("' + entry.note + '")' : ''}?`)) return;
+            if (!await arkoConfirm(`Remove this ${money(entry.amount)} entry${entry.note ? ' ("' + entry.note + '")' : ''}?`)) return;
             line.entries = line.entries.filter(e => e.id !== entryId);
             line.actual = Math.max(0, round2((Number(line.actual) || 0) - entry.amount));
 
@@ -1080,7 +1109,7 @@
       if (c_shouldMarkPaid(cat, line)) line.done = true;
 
       const { error } = await supabaseClient.from('pending_transaction_reviews').update({ status: 'approved' }).eq('id', reviewId);
-      if (error) { alert('Could not approve: ' + error.message); return; }
+      if (error) { await arkoAlert('Could not approve: ' + error.message); return; }
 
       renderCategoryPanel(cat);
       recalcSummary();
@@ -1093,7 +1122,7 @@
 
     async function dismissRecurringReview(reviewId) {
       const { error } = await supabaseClient.from('pending_transaction_reviews').update({ status: 'dismissed' }).eq('id', reviewId);
-      if (error) { alert('Could not dismiss: ' + error.message); return; }
+      if (error) { await arkoAlert('Could not dismiss: ' + error.message); return; }
       recurringReviews = recurringReviews.filter(r => r.id !== reviewId);
       renderRecurringReviews();
     }
@@ -1235,7 +1264,7 @@
 
       document.querySelectorAll('.mfa-remove-factor-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-          if (!confirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
+          if (!await arkoConfirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
 
           const factorId = btn.dataset.id;
           const { currentLevel } = await getMfaLevel();
@@ -1245,7 +1274,7 @@
           }
 
           const { error: unenrollError } = await supabaseClient.auth.mfa.unenroll({ factorId });
-          if (unenrollError) { alert('Could not remove: ' + unenrollError.message); return; }
+          if (unenrollError) { await arkoAlert('Could not remove: ' + unenrollError.message); return; }
           logAuditEvent('mfa_factor_removed', {});
           await renderMfaManage();
         });
@@ -1448,17 +1477,17 @@
       document.getElementById('archives-delete-selected').addEventListener('click', async () => {
         const ids = Array.from(document.querySelectorAll('.archive-select:checked')).map(cb => cb.dataset.id);
         if (ids.length === 0) {
-          alert('No archived periods selected.');
+          await arkoAlert('No archived periods selected.');
           return;
         }
-        if (!confirm(`Delete ${ids.length} selected archived period${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+        if (!await arkoConfirm(`Delete ${ids.length} selected archived period${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
 
         const { error } = await supabaseClient
           .from('budget_periods')
           .delete()
           .eq('user_id', currentUserId)
           .in('id', ids);
-        if (error) { console.error(error); alert('Could not delete the selected periods: ' + error.message); return; }
+        if (error) { console.error(error); await arkoAlert('Could not delete the selected periods: ' + error.message); return; }
 
         periods = periods.filter(p => !ids.includes(p.id));
 
@@ -1793,7 +1822,7 @@
       logMirrorSplitChoice = {};
     }
 
-    function addSelectedLogRowsToTargetLine() {
+    async function addSelectedLogRowsToTargetLine() {
       const cat = logMirrorTargetCat;
       const lines = cat && current.categories[cat];
       const line = lines && lines.find(l => l.id === logMirrorTargetLineId);
@@ -1817,7 +1846,7 @@
       });
 
       if (addedCount === 0) {
-        alert('None of the selected entries have a dollar amount to add.');
+        await arkoAlert('None of the selected entries have a dollar amount to add.');
         return;
       }
 
@@ -1981,15 +2010,15 @@
         const { error } = await supabaseClient
           .from('budget_defaults')
           .upsert({ user_id: currentUserId, categories: template, updated_at: new Date().toISOString() });
-        if (error) { console.error(error); alert('Could not save your default layout: ' + error.message); return; }
-        alert('Saved. New periods will start filled in with this layout.');
+        if (error) { console.error(error); await arkoAlert('Could not save your default layout: ' + error.message); return; }
+        await arkoAlert('Saved. New periods will start filled in with this layout.');
       });
 
       document.getElementById('new-period-btn').addEventListener('click', async () => {
         const today = todayISO();
         const start = firstOfMonthISO(today);
         const end = lastOfMonthISO(today);
-        if (!confirm(`Create a new period for ${fmtDate(start)} – ${fmtDate(end)}, filled in from your saved default layout?`)) return;
+        if (!await arkoConfirm(`Create a new period for ${fmtDate(start)} – ${fmtDate(end)}, filled in from your saved default layout?`)) return;
         const created = await createPeriod(start, end);
         if (!created) return;
         periods.unshift(created);
@@ -1999,12 +2028,12 @@
       });
 
       document.getElementById('finalize-btn').addEventListener('click', async () => {
-        if (!confirm('Finalize this period? It will move to your archive as a record you can still pull up or unlock later.')) return;
+        if (!await arkoConfirm('Finalize this period? It will move to your archive as a record you can still pull up or unlock later.')) return;
         const { data, error } = await supabaseClient
           .from('budget_periods')
           .update({ status: 'finalized', finalized_at: new Date().toISOString() })
           .eq('id', current.id).select().single();
-        if (error) { console.error(error); alert('Could not finalize: ' + error.message); return; }
+        if (error) { console.error(error); await arkoAlert('Could not finalize: ' + error.message); return; }
         current = data;
         const idx = periods.findIndex(p => p.id === current.id);
         if (idx > -1) periods[idx] = current;
@@ -2018,10 +2047,10 @@
       });
 
       document.getElementById('reopen-btn').addEventListener('click', async () => {
-        if (!confirm('Reopen this period? Its status will change back to active.')) return;
+        if (!await arkoConfirm('Reopen this period? Its status will change back to active.')) return;
         const { data, error } = await supabaseClient
           .from('budget_periods').update({ status: 'active' }).eq('id', current.id).select().single();
-        if (error) { console.error(error); alert('Could not reopen: ' + error.message); return; }
+        if (error) { console.error(error); await arkoAlert('Could not reopen: ' + error.message); return; }
         current = data;
         const idx = periods.findIndex(p => p.id === current.id);
         if (idx > -1) periods[idx] = current;
@@ -2120,6 +2149,15 @@
 
     init();
   </script>
+
+  <!-- ================= CONFIRM / ALERT (replaces native browser dialogs) ================= -->
+  <div class="arko-dialog-overlay" id="arko-dialog-overlay">
+    <div class="arko-dialog-modal">
+      <div class="arko-dialog-icon" id="arko-dialog-icon"></div>
+      <p class="arko-dialog-message" id="arko-dialog-message"></p>
+      <div class="arko-dialog-actions" id="arko-dialog-actions"></div>
+    </div>
+  </div>
 
 </body>
 </html>

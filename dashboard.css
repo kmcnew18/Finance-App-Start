@@ -551,6 +551,22 @@ h1, h2, h3 {
   border: 1px dashed var(--panel-border);
   border-radius: 10px;
 }
+.txn-review-see-all-btn {
+  display: block;
+  width: 100%;
+  padding: 11px;
+  margin-top: 4px;
+  border-radius: 9px;
+  border: 1px dashed rgba(110,143,163,0.35);
+  background: rgba(110,143,163,0.04);
+  color: var(--vintage-blue-light);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.txn-review-see-all-btn:hover { background: rgba(110,143,163,0.1); border-color: rgba(110,143,163,0.55); }
 .txn-approve-all-btn {
   padding: 8px 16px; border: 1px solid var(--vintage-blue-light); border-radius: 8px;
   background: linear-gradient(135deg, var(--vintage-blue), #24455e); color: var(--tan);
@@ -2300,3 +2316,75 @@ textarea:focus-visible,
   font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 2px 4px;
 }
 .mfa-banner-dismiss-btn:hover { color: var(--tan); }
+
+/* ==========================================================================
+   ARKO CONFIRM / ALERT — replaces native browser confirm()/alert() with a
+   modal matching the app's own vintage/blue aesthetic. Shared across every
+   page; each page includes the small JS helper (arkoConfirm/arkoAlert) that
+   drives this markup, but the visual styling lives here once, centrally.
+   ========================================================================== */
+.arko-dialog-overlay {
+  position: fixed; inset: 0; background: rgba(6,8,11,0.82);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; z-index: 400;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.18s ease, visibility 0.18s;
+}
+.arko-dialog-overlay.open { opacity: 1; visibility: visible; }
+.arko-dialog-modal {
+  background: var(--dark-vintage);
+  border: 1px solid var(--vintage-blue);
+  border-radius: 14px;
+  width: 100%; max-width: 380px;
+  padding: 26px 24px 22px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 26px rgba(46,84,114,0.2);
+  transform: translateY(-8px) scale(0.97);
+  transition: transform 0.22s cubic-bezier(.2,.9,.25,1.1);
+}
+.arko-dialog-overlay.open .arko-dialog-modal { transform: translateY(0) scale(1); }
+.arko-dialog-overlay.arko-dialog-danger .arko-dialog-modal { border-color: var(--error); box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 26px rgba(224,139,125,0.18); }
+.arko-dialog-icon {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(110,143,163,0.12);
+  border: 1px solid rgba(110,143,163,0.32);
+  margin-bottom: 14px;
+}
+.arko-dialog-icon svg { width: 20px; height: 20px; stroke: var(--vintage-blue-light); }
+.arko-dialog-overlay.arko-dialog-danger .arko-dialog-icon { background: rgba(224,139,125,0.12); border-color: rgba(224,139,125,0.35); }
+.arko-dialog-overlay.arko-dialog-danger .arko-dialog-icon svg { stroke: var(--error); }
+.arko-dialog-message {
+  font-size: 0.9rem;
+  color: var(--tan);
+  line-height: 1.55;
+  margin-bottom: 20px;
+  white-space: pre-line;
+}
+.arko-dialog-actions { display: flex; gap: 10px; }
+.arko-dialog-btn {
+  flex: 1;
+  padding: 11px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.arko-dialog-btn-cancel {
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--silver-dim);
+}
+.arko-dialog-btn-cancel:hover { color: var(--tan); border-color: var(--silver-dim); background: rgba(255,255,255,0.03); }
+.arko-dialog-btn-confirm {
+  border: none;
+  background: var(--vintage-blue);
+  color: var(--tan);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+}
+.arko-dialog-btn-confirm:hover { background: var(--vintage-blue-light); transform: translateY(-1px); }
+.arko-dialog-overlay.arko-dialog-danger .arko-dialog-btn-confirm { background: var(--error); }
+.arko-dialog-overlay.arko-dialog-danger .arko-dialog-btn-confirm:hover { background: #E8A896; }
+.arko-dialog-btn-single { width: 100%; }

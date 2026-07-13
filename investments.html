@@ -116,6 +116,32 @@
     let currentUserEmail = null;
     let isPaidUser = false;
 
+    function arkoDialog(message, { mode = 'alert', danger = false } = {}) {
+      return new Promise(resolve => {
+        const overlay = document.getElementById('arko-dialog-overlay');
+        const msgEl = document.getElementById('arko-dialog-message');
+        const actionsEl = document.getElementById('arko-dialog-actions');
+        const iconEl = document.getElementById('arko-dialog-icon');
+        msgEl.textContent = message;
+        overlay.classList.toggle('arko-dialog-danger', danger);
+        iconEl.innerHTML = danger
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
+        actionsEl.innerHTML = mode === 'confirm'
+          ? `<button type="button" class="arko-dialog-btn arko-dialog-btn-cancel" id="arko-dialog-cancel-btn">Cancel</button><button type="button" class="arko-dialog-btn arko-dialog-btn-confirm" id="arko-dialog-confirm-btn">Confirm</button>`
+          : `<button type="button" class="arko-dialog-btn arko-dialog-btn-confirm arko-dialog-btn-single" id="arko-dialog-confirm-btn">OK</button>`;
+
+        overlay.classList.add('open');
+        const cleanup = (result) => { overlay.classList.remove('open'); resolve(result); };
+        document.getElementById('arko-dialog-confirm-btn').addEventListener('click', () => cleanup(true), { once: true });
+        const cancelBtn = document.getElementById('arko-dialog-cancel-btn');
+        if (cancelBtn) cancelBtn.addEventListener('click', () => cleanup(false), { once: true });
+      });
+    }
+    function arkoConfirm(message, danger = false) { return arkoDialog(message, { mode: 'confirm', danger }); }
+    function arkoAlert(message, danger = false) { return arkoDialog(message, { mode: 'alert', danger }); }
+
     function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
     function money(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
@@ -406,6 +432,15 @@
 
     init();
   </script>
+
+  <!-- ================= CONFIRM / ALERT (replaces native browser dialogs) ================= -->
+  <div class="arko-dialog-overlay" id="arko-dialog-overlay">
+    <div class="arko-dialog-modal">
+      <div class="arko-dialog-icon" id="arko-dialog-icon"></div>
+      <p class="arko-dialog-message" id="arko-dialog-message"></p>
+      <div class="arko-dialog-actions" id="arko-dialog-actions"></div>
+    </div>
+  </div>
 
 </body>
 </html>

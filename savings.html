@@ -101,6 +101,32 @@
     let goals = [];
     let linkedAccounts = [];
 
+    function arkoDialog(message, { mode = 'alert', danger = false } = {}) {
+      return new Promise(resolve => {
+        const overlay = document.getElementById('arko-dialog-overlay');
+        const msgEl = document.getElementById('arko-dialog-message');
+        const actionsEl = document.getElementById('arko-dialog-actions');
+        const iconEl = document.getElementById('arko-dialog-icon');
+        msgEl.textContent = message;
+        overlay.classList.toggle('arko-dialog-danger', danger);
+        iconEl.innerHTML = danger
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
+        actionsEl.innerHTML = mode === 'confirm'
+          ? `<button type="button" class="arko-dialog-btn arko-dialog-btn-cancel" id="arko-dialog-cancel-btn">Cancel</button><button type="button" class="arko-dialog-btn arko-dialog-btn-confirm" id="arko-dialog-confirm-btn">Confirm</button>`
+          : `<button type="button" class="arko-dialog-btn arko-dialog-btn-confirm arko-dialog-btn-single" id="arko-dialog-confirm-btn">OK</button>`;
+
+        overlay.classList.add('open');
+        const cleanup = (result) => { overlay.classList.remove('open'); resolve(result); };
+        document.getElementById('arko-dialog-confirm-btn').addEventListener('click', () => cleanup(true), { once: true });
+        const cancelBtn = document.getElementById('arko-dialog-cancel-btn');
+        if (cancelBtn) cancelBtn.addEventListener('click', () => cleanup(false), { once: true });
+      });
+    }
+    function arkoConfirm(message, danger = false) { return arkoDialog(message, { mode: 'confirm', danger }); }
+    function arkoAlert(message, danger = false) { return arkoDialog(message, { mode: 'alert', danger }); }
+
     function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
     function money(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
@@ -508,16 +534,16 @@
       const linkBtn = document.getElementById('sav-link-account-btn');
       if (linkBtn) linkBtn.addEventListener('click', async () => {
         const accountId = document.getElementById('sav-link-account-select').value;
-        if (!accountId) { alert('Choose an account first.'); return; }
+        if (!accountId) { await arkoAlert('Choose an account first.'); return; }
         const mode = document.querySelector('input[name="sav-alloc-mode"]:checked').value;
         const rawValue = parseFloat(document.getElementById('sav-alloc-value-input').value) || 0;
 
         const row = { user_id: currentUserId, goal_id: g.id, linked_account_id: accountId };
         if (mode === 'percent') {
-          if (rawValue <= 0 || rawValue > 100) { alert('Percent needs to be between 0 and 100.'); return; }
+          if (rawValue <= 0 || rawValue > 100) { await arkoAlert('Percent needs to be between 0 and 100.'); return; }
           row.allocated_percent = round2(rawValue);
         } else if (mode === 'amount') {
-          if (rawValue <= 0) { alert('Enter an amount greater than $0.'); return; }
+          if (rawValue <= 0) { await arkoAlert('Enter an amount greater than $0.'); return; }
           row.allocated_amount = round2(rawValue);
         }
         await supabaseClient.from('savings_goal_accounts').insert(row);
@@ -559,10 +585,10 @@
             const rawValue = parseFloat(document.getElementById('sav-edit-alloc-value').value) || 0;
             const updates = { allocated_percent: null, allocated_amount: null };
             if (mode === 'percent') {
-              if (rawValue <= 0 || rawValue > 100) { alert('Percent needs to be between 0 and 100.'); return; }
+              if (rawValue <= 0 || rawValue > 100) { await arkoAlert('Percent needs to be between 0 and 100.'); return; }
               updates.allocated_percent = round2(rawValue);
             } else if (mode === 'amount') {
-              if (rawValue <= 0) { alert('Enter an amount greater than $0.'); return; }
+              if (rawValue <= 0) { await arkoAlert('Enter an amount greater than $0.'); return; }
               updates.allocated_amount = round2(rawValue);
             }
             await supabaseClient.from('savings_goal_accounts').update(updates).eq('id', link.id);
@@ -588,7 +614,7 @@
       });
 
       document.getElementById('sav-delete-goal-btn').addEventListener('click', async () => {
-        if (!confirm(`Delete "${g.name}"? This can't be undone.`)) return;
+        if (!await arkoConfirm(`Delete "${g.name}"? This can't be undone.`)) return;
         await supabaseClient.from('savings_goals').delete().eq('id', g.id);
         document.getElementById('goal-detail-overlay').classList.remove('open');
         await loadGoals();
@@ -729,6 +755,15 @@
 
     init();
   </script>
+
+  <!-- ================= CONFIRM / ALERT (replaces native browser dialogs) ================= -->
+  <div class="arko-dialog-overlay" id="arko-dialog-overlay">
+    <div class="arko-dialog-modal">
+      <div class="arko-dialog-icon" id="arko-dialog-icon"></div>
+      <p class="arko-dialog-message" id="arko-dialog-message"></p>
+      <div class="arko-dialog-actions" id="arko-dialog-actions"></div>
+    </div>
+  </div>
 
 </body>
 </html>

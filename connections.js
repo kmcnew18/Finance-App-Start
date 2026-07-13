@@ -39,6 +39,32 @@ const ACCOUNT_TYPES = [
 ];
 function typeConfig(key) { return ACCOUNT_TYPES.find(t => t.key === key) || ACCOUNT_TYPES[ACCOUNT_TYPES.length - 1]; }
 
+function arkoDialog(message, { mode = 'alert', danger = false } = {}) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('arko-dialog-overlay');
+    const msgEl = document.getElementById('arko-dialog-message');
+    const actionsEl = document.getElementById('arko-dialog-actions');
+    const iconEl = document.getElementById('arko-dialog-icon');
+    msgEl.textContent = message;
+    overlay.classList.toggle('arko-dialog-danger', danger);
+    iconEl.innerHTML = danger
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
+    actionsEl.innerHTML = mode === 'confirm'
+      ? `<button type="button" class="arko-dialog-btn arko-dialog-btn-cancel" id="arko-dialog-cancel-btn">Cancel</button><button type="button" class="arko-dialog-btn arko-dialog-btn-confirm" id="arko-dialog-confirm-btn">Confirm</button>`
+      : `<button type="button" class="arko-dialog-btn arko-dialog-btn-confirm arko-dialog-btn-single" id="arko-dialog-confirm-btn">OK</button>`;
+
+    overlay.classList.add('open');
+    const cleanup = (result) => { overlay.classList.remove('open'); resolve(result); };
+    document.getElementById('arko-dialog-confirm-btn').addEventListener('click', () => cleanup(true), { once: true });
+    const cancelBtn = document.getElementById('arko-dialog-cancel-btn');
+    if (cancelBtn) cancelBtn.addEventListener('click', () => cleanup(false), { once: true });
+  });
+}
+function arkoConfirm(message, danger = false) { return arkoDialog(message, { mode: 'confirm', danger }); }
+function arkoAlert(message, danger = false) { return arkoDialog(message, { mode: 'alert', danger }); }
+
 function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 function uid() {
   return (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -282,10 +308,10 @@ async function cleanUpCreditCardCategorySplits() {
 // an account to a category, blocking it and telling the user to clear
 // the manual amount first rather than silently mixing real and
 // manually-typed money into one total.
-function blockIfCategoryHasManualAmount(categoryId) {
+async function blockIfCategoryHasManualAmount(categoryId) {
   const cat = categories.find(c => c.id === categoryId);
   if (cat && Number(cat.manual_amount) > 0) {
-    alert(`"${cat.name}" has ${money(Number(cat.manual_amount))} set aside manually on Dashboard. Clear that amount first before connecting an account here — a category can't be both manually tracked and connected at once.`);
+    await arkoAlert(`"${cat.name}" has ${money(Number(cat.manual_amount))} set aside manually on Dashboard. Clear that amount first before connecting an account here — a category can't be both manually tracked and connected at once.`);
     return true;
   }
   return false;
@@ -662,12 +688,12 @@ async function saveManualAccount() {
       .from('linked_accounts')
       .update({ institution_name: institution, nickname, account_type: type, balance, updated_at: new Date().toISOString() })
       .eq('id', editingAccountId);
-    if (error) { console.error(error); alert('Could not save changes: ' + error.message); return; }
+    if (error) { console.error(error); await arkoAlert('Could not save changes: ' + error.message); return; }
   } else {
     const { error } = await supabaseClient
       .from('linked_accounts')
       .insert({ user_id: currentUserId, institution_name: institution, nickname, account_type: type, balance, source: 'manual' });
-    if (error) { console.error(error); alert('Could not add this account: ' + error.message); return; }
+    if (error) { console.error(error); await arkoAlert('Could not add this account: ' + error.message); return; }
   }
 
   closeConnectModal();
@@ -677,9 +703,9 @@ async function saveManualAccount() {
 async function deleteAccount(id) {
   const acct = accounts.find(a => a.id === id);
   if (!acct) return;
-  if (!confirm(`Remove ${acct.institution_name}${acct.nickname ? ' — ' + acct.nickname : ''}? This cannot be undone.`)) return;
+  if (!await arkoConfirm(`Remove ${acct.institution_name}${acct.nickname ? ' — ' + acct.nickname : ''}? This cannot be undone.`)) return;
   const { error } = await supabaseClient.from('linked_accounts').delete().eq('id', id);
-  if (error) { console.error(error); alert('Could not remove this account: ' + error.message); return; }
+  if (error) { console.error(error); await arkoAlert('Could not remove this account: ' + error.message); return; }
   logAuditEvent('linked_account_removed', { institution_name: acct.institution_name, account_type: acct.account_type, source: acct.source });
 
   // If this was the last account backed by this Plaid Item, fully
@@ -791,7 +817,7 @@ async function completeAccountExchange(publicToken, institutionName, selectedPla
     const result = await exRes.json().catch(() => ({}));
 
     if (!result.accountsAdded) {
-      alert(`Connected to ${institutionName}, but no accounts were added — this shouldn't happen. Try "Sync all accounts" from Settings, or reach out if it keeps happening.`);
+      await arkoAlert(`Connected to ${institutionName}, but no accounts were added — this shouldn't happen. Try "Sync all accounts" from Settings, or reach out if it keeps happening.`);
     }
 
     closeConnectModal();
@@ -802,7 +828,7 @@ async function completeAccountExchange(publicToken, institutionName, selectedPla
     await loadAccounts();
   } catch (err) {
     console.error(err);
-    alert(err.message || 'Something went wrong finishing this connection.');
+    await arkoAlert(err.message || 'Something went wrong finishing this connection.');
   }
 }
 
@@ -905,7 +931,7 @@ async function finishReconnect(itemId) {
     if (!confirmRes.ok) throw new Error('Could not confirm the reconnection (' + confirmRes.status + ')');
   } catch (err) {
     console.error(err);
-    alert(err.message || `Reconnected, but couldn't finish syncing — try "Sync all accounts" from Settings.`);
+    await arkoAlert(err.message || `Reconnected, but couldn't finish syncing — try "Sync all accounts" from Settings.`);
   }
 }
 
@@ -919,7 +945,7 @@ async function finishAddNewAccounts(itemId) {
     if (!addRes.ok) throw new Error('Could not add the new account (' + addRes.status + ')');
   } catch (err) {
     console.error(err);
-    alert(err.message || `Granted access, but couldn't finish adding the account — try "Sync all accounts" from Settings.`);
+    await arkoAlert(err.message || `Granted access, but couldn't finish adding the account — try "Sync all accounts" from Settings.`);
   }
 }
 
@@ -971,7 +997,7 @@ async function startPlaidLink() {
     handler.open();
   } catch (err) {
     console.error(err);
-    alert(err.message || 'Could not start Plaid Link. Make sure the backend endpoints are deployed — see setup notes.');
+    await arkoAlert(err.message || 'Could not start Plaid Link. Make sure the backend endpoints are deployed — see setup notes.');
     btn.disabled = false;
     btn.innerHTML = originalText;
   }
@@ -1018,7 +1044,7 @@ async function reconnectItem(itemId, institutionName, btn) {
     handler.open();
   } catch (err) {
     console.error(err);
-    alert(err.message || `Could not start reconnecting ${institutionName}.`);
+    await arkoAlert(err.message || `Could not start reconnecting ${institutionName}.`);
     btn.disabled = false;
     btn.textContent = originalText;
   }
@@ -1065,7 +1091,7 @@ async function addNewAccounts(itemId, institutionName, btn) {
     handler.open();
   } catch (err) {
     console.error(err);
-    alert(err.message || `Could not add the new account at ${institutionName}.`);
+    await arkoAlert(err.message || `Could not add the new account at ${institutionName}.`);
     btn.disabled = false;
     btn.textContent = originalText;
   }
@@ -1116,7 +1142,7 @@ async function syncAllPlaidAccounts() {
     }
   } catch (err) {
     console.error(err);
-    alert(err.message || 'Could not sync accounts right now.');
+    await arkoAlert(err.message || 'Could not sync accounts right now.');
   } finally {
     syncBtn.classList.remove('syncing');
     syncBtn.disabled = false;
@@ -1167,7 +1193,7 @@ function setupSettingsGear() {
       setTimeout(() => { btn.textContent = originalText; }, 2000);
     } catch (err) {
       console.error(err);
-      alert(err.message || 'Could not refresh transactions right now.');
+      await arkoAlert(err.message || 'Could not refresh transactions right now.');
       btn.textContent = originalText;
     } finally {
       btn.disabled = false;
@@ -1191,7 +1217,7 @@ function setupSettingsGear() {
       setTimeout(() => { btn.textContent = originalText; }, 2000);
     } catch (err) {
       console.error(err);
-      alert(err.message || 'Could not refresh subscriptions right now.');
+      await arkoAlert(err.message || 'Could not refresh subscriptions right now.');
       btn.textContent = originalText;
     } finally {
       btn.disabled = false;
@@ -1200,7 +1226,7 @@ function setupSettingsGear() {
 
   document.getElementById('clear-transactions-btn').addEventListener('click', async () => {
     gearDropdown.classList.remove('open');
-    if (!confirm("Clear your transaction history? This removes everything Spendings and Dashboard have detected so far — nothing about your connected accounts, balances, or subscriptions changes. Going forward, only new activity from this point on will show up.")) return;
+    if (!await arkoConfirm("Clear your transaction history? This removes everything Spendings and Dashboard have detected so far — nothing about your connected accounts, balances, or subscriptions changes. Going forward, only new activity from this point on will show up.")) return;
 
     const [{ error: txnError }, { error: dashError }, { error: recurError }] = await Promise.all([
       supabaseClient.from('transactions').delete().eq('user_id', currentUserId),
@@ -1208,37 +1234,37 @@ function setupSettingsGear() {
       supabaseClient.from('pending_transaction_reviews').delete().eq('user_id', currentUserId),
     ]);
     if (txnError || dashError || recurError) {
-      alert('Could not fully clear your transaction history: ' + (txnError || dashError || recurError).message);
+      await arkoAlert('Could not fully clear your transaction history: ' + (txnError || dashError || recurError).message);
       return;
     }
     logAuditEvent('transaction_history_cleared', {});
-    alert('Your transaction history has been cleared.');
+    await arkoAlert('Your transaction history has been cleared.');
   });
 
   document.getElementById('clear-subscriptions-btn').addEventListener('click', async () => {
     gearDropdown.classList.remove('open');
-    if (!confirm("Clear your detected subscriptions? This removes everything currently shown in Spendings — nothing about your connected accounts, balances, or other transaction history changes. Anything still genuinely recurring will reappear next time you refresh.")) return;
+    if (!await arkoConfirm("Clear your detected subscriptions? This removes everything currently shown in Spendings — nothing about your connected accounts, balances, or other transaction history changes. Anything still genuinely recurring will reappear next time you refresh.")) return;
 
     const { error: streamError } = await supabaseClient.from('recurring_streams').delete().eq('user_id', currentUserId);
     if (streamError) {
-      alert('Could not clear your subscriptions: ' + streamError.message);
+      await arkoAlert('Could not clear your subscriptions: ' + streamError.message);
       return;
     }
     logAuditEvent('subscriptions_cleared', {});
-    alert('Your subscriptions have been cleared.');
+    await arkoAlert('Your subscriptions have been cleared.');
   });
 
   document.getElementById('remove-all-btn').addEventListener('click', async () => {
     gearDropdown.classList.remove('open');
-    if (!accounts.length) { alert('No accounts to remove.'); return; }
-    if (!confirm('Remove every connected account? This cannot be undone. (Manually added and Plaid-linked accounts are both removed — this only clears them from Arko, it does not close any real account.)')) return;
+    if (!accounts.length) { await arkoAlert('No accounts to remove.'); return; }
+    if (!await arkoConfirm('Remove every connected account? This cannot be undone. (Manually added and Plaid-linked accounts are both removed — this only clears them from Arko, it does not close any real account.)')) return;
 
     // Collect distinct Plaid Items before the local rows are gone, so
     // each one can be fully revoked at Plaid's end too.
     const itemIds = [...new Set(accounts.filter(a => a.source === 'plaid' && a.plaid_item_id).map(a => a.plaid_item_id))];
 
     const { error } = await supabaseClient.from('linked_accounts').delete().eq('user_id', currentUserId);
-    if (error) { console.error(error); alert('Could not remove your accounts: ' + error.message); return; }
+    if (error) { console.error(error); await arkoAlert('Could not remove your accounts: ' + error.message); return; }
     logAuditEvent('all_linked_accounts_removed', { count: accounts.length });
 
     itemIds.forEach(itemId => {
@@ -1569,7 +1595,7 @@ async function renderMfaManage() {
 
   document.querySelectorAll('.mfa-remove-factor-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
+      if (!await arkoConfirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
 
       // Supabase requires the session to already be AAL2 (a completed
       // 2FA challenge this session) before it'll let you remove a
@@ -1586,7 +1612,7 @@ async function renderMfaManage() {
       }
 
       const { error: unenrollError } = await supabaseClient.auth.mfa.unenroll({ factorId });
-      if (unenrollError) { alert('Could not remove: ' + unenrollError.message); return; }
+      if (unenrollError) { await arkoAlert('Could not remove: ' + unenrollError.message); return; }
       logAuditEvent('mfa_factor_removed', {});
       await renderMfaManage();
     });
@@ -1834,7 +1860,7 @@ function renderCreditCardCategoryBlock() {
   document.getElementById('cc-paid-from-save-btn').addEventListener('click', async () => {
     const newCatId = document.getElementById('cc-paid-from-select').value || null;
     const { error } = await supabaseClient.from('linked_accounts').update({ paid_from_category_id: newCatId }).eq('id', acct.id);
-    if (error) { alert('Could not save: ' + error.message); return; }
+    if (error) { await arkoAlert('Could not save: ' + error.message); return; }
     const catName = newCatId ? (categories.find(c => c.id === newCatId)?.name || '') : null;
     logAuditEvent('credit_card_linked_to_category', { institution_name: acct.institution_name, category: catName });
     closeCategoryOverlay();
@@ -1938,8 +1964,8 @@ function renderEnvelopeCreateForm() {
   document.getElementById('envelope-save-btn').addEventListener('click', async () => {
     const categoryId = document.getElementById('envelope-cat-select').value;
     const amount = round2(Math.abs(parseFloat(document.getElementById('envelope-amount-input').value) || 0));
-    if (!amount) { alert('Enter an amount greater than $0.'); return; }
-    if (blockIfCategoryHasManualAmount(categoryId)) return;
+    if (!amount) { await arkoAlert('Enter an amount greater than $0.'); return; }
+    if (await blockIfCategoryHasManualAmount(categoryId)) return;
 
     const { error } = await supabaseClient.from('account_category_splits').insert({
       user_id: currentUserId,
@@ -1948,7 +1974,7 @@ function renderEnvelopeCreateForm() {
       split_type: 'envelope',
       envelope_balance: amount,
     });
-    if (error) { alert('Could not save: ' + error.message); return; }
+    if (error) { await arkoAlert('Could not save: ' + error.message); return; }
 
     const cat = categories.find(c => c.id === categoryId);
     logAuditEvent('envelope_created', { category: cat?.name, amount });
@@ -1978,7 +2004,7 @@ function renderEnvelopeAdjustForm(splitId) {
   document.getElementById('envelope-adjust-save-btn').addEventListener('click', async () => {
     const newAmount = round2(Math.abs(parseFloat(document.getElementById('envelope-adjust-input').value) || 0));
     const { error } = await supabaseClient.from('account_category_splits').update({ envelope_balance: newAmount }).eq('id', splitId);
-    if (error) { alert('Could not save: ' + error.message); return; }
+    if (error) { await arkoAlert('Could not save: ' + error.message); return; }
     logAuditEvent('envelope_adjusted', { category: cat?.name, amount: newAmount });
     await loadAccounts();
     openCategoryMapping(categoryMappingAccountId);
@@ -1989,21 +2015,21 @@ async function removeEnvelope(splitId) {
   const envelope = accountSplits.find(s => s.id === splitId);
   if (!envelope) return;
   const cat = categories.find(c => c.id === envelope.category_id);
-  if (!confirm(`Remove the ${cat ? cat.name : ''} envelope on this account? This only stops tracking it — doesn't move any real money.`)) return;
+  if (!await arkoConfirm(`Remove the ${cat ? cat.name : ''} envelope on this account? This only stops tracking it — doesn't move any real money.`)) return;
   const { error } = await supabaseClient.from('account_category_splits').delete().eq('id', splitId);
-  if (error) { alert('Could not remove: ' + error.message); return; }
+  if (error) { await arkoAlert('Could not remove: ' + error.message); return; }
   logAuditEvent('envelope_removed', { category: cat?.name });
   await loadAccounts();
   openCategoryMapping(categoryMappingAccountId);
 }
 
 async function assignSingleCategory(categoryId) {
-  if (blockIfCategoryHasManualAmount(categoryId)) return;
+  if (await blockIfCategoryHasManualAmount(categoryId)) return;
   await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId).eq('split_type', 'percent');
   const { error } = await supabaseClient.from('account_category_splits').insert({
     user_id: currentUserId, linked_account_id: categoryMappingAccountId, category_id: categoryId, split_percent: 100, split_type: 'percent',
   });
-  if (error) { alert('Could not save: ' + error.message); return; }
+  if (error) { await arkoAlert('Could not save: ' + error.message); return; }
   logAuditEvent('account_categorized', {});
   closeCategoryOverlay();
   await loadAccounts();
@@ -2035,7 +2061,7 @@ function renderAddCategoryForm() {
     const { data, error } = await supabaseClient.from('budget_categories').insert({
       user_id: currentUserId, name, accent, is_default: false, sort_order: categories.length,
     }).select().maybeSingle();
-    if (error) { alert('Could not add category: ' + error.message); return; }
+    if (error) { await arkoAlert('Could not add category: ' + error.message); return; }
     categories.push(data);
     logAuditEvent('category_created', { name });
     renderCategorySimpleMode();
@@ -2090,13 +2116,15 @@ function renderCategorySplitMode() {
       total += pct;
       if (pct > 0) rows.push({ user_id: currentUserId, linked_account_id: categoryMappingAccountId, category_id: i.dataset.catId, split_percent: pct, split_type: 'percent' });
     });
-    if (total > 100) { alert("That adds up to more than 100% — adjust the numbers before saving."); return; }
-    if (rows.some(r => blockIfCategoryHasManualAmount(r.category_id))) return;
+    if (total > 100) { await arkoAlert("That adds up to more than 100% — adjust the numbers before saving."); return; }
+    for (const r of rows) {
+      if (await blockIfCategoryHasManualAmount(r.category_id)) return;
+    }
 
     await supabaseClient.from('account_category_splits').delete().eq('linked_account_id', categoryMappingAccountId).eq('split_type', 'percent');
     if (rows.length) {
       const { error } = await supabaseClient.from('account_category_splits').insert(rows);
-      if (error) { alert('Could not save: ' + error.message); return; }
+      if (error) { await arkoAlert('Could not save: ' + error.message); return; }
     }
     logAuditEvent('account_categorized', { split: true });
     closeCategoryOverlay();
@@ -2151,7 +2179,7 @@ function renderManageCategories() {
       const newName = input.value.trim();
       if (!newName) return;
       const { error } = await supabaseClient.from('budget_categories').update({ name: newName }).eq('id', btn.dataset.id);
-      if (error) { alert('Could not rename: ' + error.message); return; }
+      if (error) { await arkoAlert('Could not rename: ' + error.message); return; }
       logAuditEvent('category_renamed', { name: newName });
       await loadCategories();
       renderManageCategories();
@@ -2163,9 +2191,9 @@ function renderManageCategories() {
     btn.addEventListener('click', async () => {
       const cat = categories.find(c => c.id === btn.dataset.id);
       if (!cat) return;
-      if (!confirm(`Remove "${cat.name}"? Any accounts mapped to it will become uncategorized.`)) return;
+      if (!await arkoConfirm(`Remove "${cat.name}"? Any accounts mapped to it will become uncategorized.`)) return;
       const { error } = await supabaseClient.from('budget_categories').delete().eq('id', btn.dataset.id);
-      if (error) { alert('Could not remove: ' + error.message); return; }
+      if (error) { await arkoAlert('Could not remove: ' + error.message); return; }
       logAuditEvent('category_deleted', { name: cat.name });
       await loadCategories();
       renderManageCategories();
@@ -2182,7 +2210,7 @@ function renderManageCategories() {
     const { error } = await supabaseClient.from('budget_categories').insert({
       user_id: currentUserId, name, accent, is_default: false, sort_order: categories.length,
     });
-    if (error) { alert('Could not add category: ' + error.message); return; }
+    if (error) { await arkoAlert('Could not add category: ' + error.message); return; }
     logAuditEvent('category_created', { name });
     await loadCategories();
     renderManageCategories();

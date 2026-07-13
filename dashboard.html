@@ -312,6 +312,15 @@
   </div>
 
   <!-- ================= IDLE SESSION TIMEOUT ================= -->
+  <!-- ================= CONFIRM / ALERT (replaces native browser dialogs) ================= -->
+  <div class="arko-dialog-overlay" id="arko-dialog-overlay">
+    <div class="arko-dialog-modal">
+      <div class="arko-dialog-icon" id="arko-dialog-icon"></div>
+      <p class="arko-dialog-message" id="arko-dialog-message"></p>
+      <div class="arko-dialog-actions" id="arko-dialog-actions"></div>
+    </div>
+  </div>
+
   <div class="idle-overlay" id="idle-overlay">
     <div class="idle-modal">
       <h2>Still there?</h2>
@@ -419,6 +428,38 @@
     const loadingMessage = document.getElementById('loading-message');
 
     function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+
+    // Replaces native await arkoConfirm()/await arkoAlert() with a modal matching the
+    // app's own aesthetic. Same call shape as the native versions —
+    // await arkoConfirm('...') returns true/false, await arkoAlert('...')
+    // resolves once dismissed — so every call site just needed "await"
+    // added in front rather than a structural rewrite.
+    function arkoDialog(message, { mode = 'alert', danger = false } = {}) {
+      return new Promise(resolve => {
+        const overlay = document.getElementById('arko-dialog-overlay');
+        const msgEl = document.getElementById('arko-dialog-message');
+        const actionsEl = document.getElementById('arko-dialog-actions');
+        const iconEl = document.getElementById('arko-dialog-icon');
+        msgEl.textContent = message;
+        overlay.classList.toggle('arko-dialog-danger', danger);
+        iconEl.innerHTML = danger
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
+        actionsEl.innerHTML = mode === 'confirm'
+          ? `<button type="button" class="arko-dialog-btn arko-dialog-btn-cancel" id="arko-dialog-cancel-btn">Cancel</button><button type="button" class="arko-dialog-btn arko-dialog-btn-confirm" id="arko-dialog-confirm-btn">Confirm</button>`
+          : `<button type="button" class="arko-dialog-btn arko-dialog-btn-confirm arko-dialog-btn-single" id="arko-dialog-confirm-btn">OK</button>`;
+
+        overlay.classList.add('open');
+        const cleanup = (result) => { overlay.classList.remove('open'); resolve(result); };
+        document.getElementById('arko-dialog-confirm-btn').addEventListener('click', () => cleanup(true), { once: true });
+        const cancelBtn = document.getElementById('arko-dialog-cancel-btn');
+        if (cancelBtn) cancelBtn.addEventListener('click', () => cleanup(false), { once: true });
+      });
+    }
+    function arkoConfirm(message, danger = false) { return arkoDialog(message, { mode: 'confirm', danger }); }
+    function arkoAlert(message, danger = false) { return arkoDialog(message, { mode: 'alert', danger }); }
+
     function uid() {
       return (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
         const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -571,7 +612,7 @@
         .from('account_category_splits')
         .update({ envelope_balance: newAmount })
         .eq('id', envelopeId);
-      if (error) { alert('Could not save: ' + error.message); return; }
+      if (error) { await arkoAlert('Could not save: ' + error.message); return; }
 
       await loadConnectedTotals();
       renderTotals();
@@ -628,7 +669,7 @@
         const newAmount = round2(parseFloat(input.value) || 0);
 
         const { error } = await supabaseClient.from('budget_categories').update({ manual_amount: newAmount }).eq('id', id);
-        if (error) { alert('Could not save: ' + error.message); return; }
+        if (error) { await arkoAlert('Could not save: ' + error.message); return; }
 
         input.style.display = 'none';
         if (valueEl) valueEl.style.display = 'inline';
@@ -683,7 +724,7 @@
           if (!catId) return;
 
           const { error } = await supabaseClient.from('budget_categories').update({ accent }).eq('id', catId);
-          if (error) { alert('Could not update color: ' + error.message); return; }
+          if (error) { await arkoAlert('Could not update color: ' + error.message); return; }
 
           document.getElementById('color-picker-overlay').classList.remove('open');
           await loadConnectedTotals();
@@ -910,6 +951,8 @@
 
     // ================= TRANSACTION REVIEW QUEUE =================
     let pendingReviews = [];
+    let txnReviewShowAll = false;
+    const TXN_REVIEW_COLLAPSED_COUNT = 5;
     const CATEGORY_LABELS = { savings: 'Savings', investment: 'Investment', expenses: 'Expenses', checking: 'Checking' };
 
     // Auto-generates a short, sensible default note for a detected
@@ -986,14 +1029,23 @@
     }
 
     async function loadPendingReviews() {
+      // Only the current month — without this, the query (and the
+      // section itself) just keeps growing forever as anything
+      // un-reviewed piles up across every month since the account was
+      // connected. Anything older than this month that's still
+      // pending stays in the database untouched — it's just not
+      // pulled into this particular view.
+      const firstOfMonth = todayISO().slice(0, 8) + '01';
       const { data, error } = await supabaseClient
         .from('pending_dashboard_reviews')
         .select('*')
         .eq('user_id', currentUserId)
         .eq('status', 'pending')
+        .gte('txn_date', firstOfMonth)
         .order('txn_date', { ascending: false });
       if (error) { console.error(error); pendingReviews = []; return; }
       pendingReviews = data || [];
+      txnReviewShowAll = false;
       renderTxnReviewSection();
     }
 
@@ -1010,8 +1062,18 @@
       }
 
       empty.style.display = 'none';
-      list.innerHTML = pendingReviews.map(txnReviewRowHtml).join('');
+      const visibleReviews = txnReviewShowAll ? pendingReviews : pendingReviews.slice(0, TXN_REVIEW_COLLAPSED_COUNT);
+      const remaining = pendingReviews.length - visibleReviews.length;
+      list.innerHTML = visibleReviews.map(txnReviewRowHtml).join('')
+        + (remaining > 0
+          ? `<button type="button" class="txn-review-see-all-btn" id="txn-review-see-all-btn">See all ${pendingReviews.length} (${remaining} more)</button>`
+          : (txnReviewShowAll && pendingReviews.length > TXN_REVIEW_COLLAPSED_COUNT
+            ? `<button type="button" class="txn-review-see-all-btn" id="txn-review-see-all-btn">Show fewer</button>`
+            : ''));
       approveAllBtn.style.display = pendingReviews.length > 1 ? 'inline-block' : 'none';
+
+      const seeAllBtn = document.getElementById('txn-review-see-all-btn');
+      if (seeAllBtn) seeAllBtn.addEventListener('click', () => { txnReviewShowAll = !txnReviewShowAll; renderTxnReviewSection(); });
 
       wireTxnReviewEvents();
     }
@@ -1244,7 +1306,7 @@
       if (transferModeActive) {
         const fromSelect = document.querySelector(`.txn-transfer-from-select[data-id="${reviewId}"]`);
         const fromCat = fromSelect ? fromSelect.value : null;
-        if (!fromCat || !CATEGORY_LABELS[fromCat]) { alert('Pick a "from" category before confirming.'); return; }
+        if (!fromCat || !CATEGORY_LABELS[fromCat]) { await arkoAlert('Pick a "from" category before confirming.'); return; }
 
         const splitRowsWrap = document.getElementById('txn-transfer-split-rows-' + reviewId);
         const splitRows = splitRowsWrap ? Array.from(splitRowsWrap.querySelectorAll('.txn-transfer-split-row')) : [];
@@ -1253,13 +1315,13 @@
           amt: round2(parseFloat(row.querySelector('.txn-transfer-split-amount').value) || 0),
         })).filter(s => s.amt > 0);
 
-        if (!splits.length) { alert('Add at least one "to" category with an amount.'); return; }
-        if (splits.some(s => !CATEGORY_LABELS[s.cat])) { alert('Pick a valid category for every split.'); return; }
-        if (splits.some(s => s.cat === fromCat)) { alert('"From" and "to" need to be different categories.'); return; }
+        if (!splits.length) { await arkoAlert('Add at least one "to" category with an amount.'); return; }
+        if (splits.some(s => !CATEGORY_LABELS[s.cat])) { await arkoAlert('Pick a valid category for every split.'); return; }
+        if (splits.some(s => s.cat === fromCat)) { await arkoAlert('"From" and "to" need to be different categories.'); return; }
 
         const amount = round2(Number(review.amount) || 0);
         const splitSum = round2(splits.reduce((s, x) => s + x.amt, 0));
-        if (splitSum !== amount) { alert(`Splits need to add up to ${money(amount)} — currently ${money(splitSum)}.`); return; }
+        if (splitSum !== amount) { await arkoAlert(`Splits need to add up to ${money(amount)} — currently ${money(splitSum)}.`); return; }
 
         // Same convention as the manual Transfer panel: negative on the
         // side money left, positive on the side(s) it arrived — a
@@ -1296,14 +1358,14 @@
         amt: round2(parseFloat(row.querySelector('.txn-transfer-split-amount').value) || 0),
       })).filter(s => s.amt > 0);
 
-      if (!allSplits.length) { alert('Add at least one category with an amount.'); return; }
+      if (!allSplits.length) { await arkoAlert('Add at least one category with an amount.'); return; }
       const defaultSplits = allSplits.filter(s => !s.cat.startsWith('manual:'));
       const setAsideSplits = allSplits.filter(s => s.cat.startsWith('manual:'));
-      if (defaultSplits.some(s => !CATEGORY_LABELS[s.cat])) { alert('Pick a valid category for every split.'); return; }
+      if (defaultSplits.some(s => !CATEGORY_LABELS[s.cat])) { await arkoAlert('Pick a valid category for every split.'); return; }
 
       const amount = round2(Number(review.amount) || 0);
       const splitSum = round2(allSplits.reduce((s, x) => s + x.amt, 0));
-      if (splitSum !== amount) { alert(`Splits need to add up to ${money(amount)} — currently ${money(splitSum)}.`); return; }
+      if (splitSum !== amount) { await arkoAlert(`Splits need to add up to ${money(amount)} — currently ${money(splitSum)}.`); return; }
 
       const logActionType = review.is_credit_card_payment ? 'debt_payment' : action;
 
@@ -1367,7 +1429,7 @@
         .select('envelope_balance, category_id')
         .eq('id', envelopeId)
         .maybeSingle();
-      if (fetchError || !envelope) { alert('Could not find that set-aside amount — it may have been removed.'); return; }
+      if (fetchError || !envelope) { await arkoAlert('Could not find that set-aside amount — it may have been removed.'); return; }
 
       // If this purchase happened on a credit card whose balance is
       // already being subtracted from this same category (via the
@@ -1384,12 +1446,12 @@
       const alreadyCountedViaCardLiability = !!(sourceAccount && sourceAccount.account_type === 'credit_card' && sourceAccount.paid_from_category_id === envelope.category_id);
 
       if (!alreadyCountedViaCardLiability) {
-        if (!confirm(`Charge ${money(amount)} to "${envelopeName}"'s set-aside?`)) return;
+        if (!await arkoConfirm(`Charge ${money(amount)} to "${envelopeName}"'s set-aside?`)) return;
         const newBalance = Math.max(0, round2(Number(envelope.envelope_balance || 0) - amount));
         const { error } = await supabaseClient.from('account_category_splits').update({ envelope_balance: newBalance }).eq('id', envelopeId);
-        if (error) { alert('Could not charge: ' + error.message); return; }
+        if (error) { await arkoAlert('Could not charge: ' + error.message); return; }
       } else {
-        if (!confirm(`Log ${money(amount)} against "${envelopeName}"? This card's balance already counts against that category automatically, so the set-aside amount itself won't change — this just records the purchase.`)) return;
+        if (!await arkoConfirm(`Log ${money(amount)} against "${envelopeName}"? This card's balance already counts against that category automatically, so the set-aside amount itself won't change — this just records the purchase.`)) return;
       }
 
       // Which of the four default columns (if any) this category maps
@@ -1416,7 +1478,7 @@
 
     async function approveAllTxnReviews() {
       const count = pendingReviews.length;
-      if (!confirm(`Confirm all ${count} detected transaction${count === 1 ? '' : 's'}? Each one is added to your log.`)) return;
+      if (!await arkoConfirm(`Confirm all ${count} detected transaction${count === 1 ? '' : 's'}? Each one is added to your log.`)) return;
 
       const btn = document.getElementById('txn-approve-all-btn');
       btn.disabled = true;
@@ -1502,14 +1564,14 @@
         .update({ status: 'pending' })
         .eq('id', reviewId)
         .eq('status', 'dismissed');
-      if (error) { alert('Could not restore: ' + error.message); return; }
+      if (error) { await arkoAlert('Could not restore: ' + error.message); return; }
       logAuditEvent('txn_review_restored', {});
       await openSkippedActivity();
       await loadPendingReviews();
     }
 
     async function deleteSkippedActivity(reviewId) {
-      if (!confirm('Delete this permanently? Unlike Restore, this can\'t be undone — it won\'t come back even if the same transaction gets detected again.')) return;
+      if (!await arkoConfirm('Delete this permanently? Unlike Restore, this can\'t be undone — it won\'t come back even if the same transaction gets detected again.')) return;
       // Scoped to dismissed rows only, same belt-and-suspenders reasoning
       // as restore — this should never be able to touch anything approved.
       // .select() after .delete() so the response includes which rows
@@ -1523,8 +1585,8 @@
         .eq('id', reviewId)
         .eq('status', 'dismissed')
         .select();
-      if (error) { alert('Could not delete: ' + error.message); return; }
-      if (!data || !data.length) { alert('Nothing was deleted — this may be a permissions issue. Check that the delete policy on pending_dashboard_reviews has been applied in Supabase.'); return; }
+      if (error) { await arkoAlert('Could not delete: ' + error.message); return; }
+      if (!data || !data.length) { await arkoAlert('Nothing was deleted — this may be a permissions issue. Check that the delete policy on pending_dashboard_reviews has been applied in Supabase.'); return; }
       logAuditEvent('txn_review_deleted', {});
       await openSkippedActivity();
     }
@@ -1537,7 +1599,7 @@
         .eq('status', 'dismissed');
       if (!dismissed || !dismissed.length) return;
 
-      if (!confirm(`Permanently delete all ${dismissed.length} skipped item${dismissed.length === 1 ? '' : 's'}? This can't be undone.`)) return;
+      if (!await arkoConfirm(`Permanently delete all ${dismissed.length} skipped item${dismissed.length === 1 ? '' : 's'}? This can't be undone.`)) return;
 
       const { data: deletedRows, error } = await supabaseClient
         .from('pending_dashboard_reviews')
@@ -1545,8 +1607,8 @@
         .eq('user_id', currentUserId)
         .eq('status', 'dismissed')
         .select();
-      if (error) { alert('Could not clear: ' + error.message); return; }
-      if (!deletedRows || !deletedRows.length) { alert('Nothing was deleted — this may be a permissions issue. Check that the delete policy on pending_dashboard_reviews has been applied in Supabase.'); return; }
+      if (error) { await arkoAlert('Could not clear: ' + error.message); return; }
+      if (!deletedRows || !deletedRows.length) { await arkoAlert('Nothing was deleted — this may be a permissions issue. Check that the delete policy on pending_dashboard_reviews has been applied in Supabase.'); return; }
       logAuditEvent('skipped_activity_cleared', { count: deletedRows.length });
       await openSkippedActivity();
     }
@@ -1574,7 +1636,7 @@
         await loadPendingReviews();
       } catch (err) {
         console.error('Refresh detected activity failed:', err);
-        alert('Could not refresh right now — try again in a bit.');
+        await arkoAlert('Could not refresh right now — try again in a bit.');
       } finally {
         btn.disabled = false;
         btn.classList.remove('syncing');
@@ -1634,7 +1696,7 @@
         .select('*')
         .eq('id', reviewId)
         .maybeSingle();
-      if (fetchError || !review) { alert('Could not find that review.'); return; }
+      if (fetchError || !review) { await arkoAlert('Could not find that review.'); return; }
 
       const amount = round2(Number(review.amount) || 0);
       const defaultKey = Object.keys(CATEGORY_LABELS).find(k => (review.category_name || '').toLowerCase() === k);
@@ -1987,7 +2049,7 @@
 
       document.querySelectorAll('.mfa-remove-factor-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-          if (!confirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
+          if (!await arkoConfirm("Remove this authenticator? You won't be able to open Connections or connect Plaid accounts until you enroll a new one.")) return;
 
           const factorId = btn.dataset.id;
           const { currentLevel } = await getMfaLevel();
@@ -1997,7 +2059,7 @@
           }
 
           const { error: unenrollError } = await supabaseClient.auth.mfa.unenroll({ factorId });
-          if (unenrollError) { alert('Could not remove: ' + unenrollError.message); return; }
+          if (unenrollError) { await arkoAlert('Could not remove: ' + unenrollError.message); return; }
           logAuditEvent('mfa_factor_removed', {});
           await renderMfaManage();
         });
@@ -2133,7 +2195,7 @@
       const msg = hasAnyConnected
         ? 'Reset your manually-tracked category totals to $0.00? Amounts synced from Connections aren\'t affected and will still show. This cannot be undone.'
         : 'Reset all category totals to $0.00? This cannot be undone.';
-      if (!confirm(msg)) return;
+      if (!await arkoConfirm(msg)) return;
       totals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       await saveTotals();
       renderTotals();
@@ -2145,7 +2207,7 @@
       const msg = hasAnyConnected
         ? 'This will clear your entire log and reset your manually-tracked totals to $0.00 — amounts synced from Connections aren\'t affected. This cannot be undone.'
         : 'This will clear your entire log and reset all category totals to $0.00 — just like a fresh account. This cannot be undone.';
-      if (!confirm(msg)) return;
+      if (!await arkoConfirm(msg)) return;
 
       const { count: beforeCount } = await supabaseClient
         .from('finance_log')
@@ -2160,7 +2222,7 @@
 
       if (logError) {
         console.error('Clear log error:', logError);
-        alert('Could not clear the log: ' + logError.message);
+        await arkoAlert('Could not clear the log: ' + logError.message);
         return;
       }
 
@@ -2183,9 +2245,9 @@
       gearDropdown.classList.remove('open');
 
       if (beforeCount > 0 && (!deletedRows || deletedRows.length === 0)) {
-        alert('Category totals were reset, but the log entries could not be deleted. Your Supabase "finance_log" table is likely missing a DELETE policy that lets a user delete their own rows (e.g. USING (auth.uid() = user_id)). Check Row Level Security policies on that table.');
+        await arkoAlert('Category totals were reset, but the log entries could not be deleted. Your Supabase "finance_log" table is likely missing a DELETE policy that lets a user delete their own rows (e.g. USING (auth.uid() = user_id)). Check Row Level Security policies on that table.');
       } else {
-        alert('Your account has been reset to a fresh state.');
+        await arkoAlert('Your account has been reset to a fresh state.');
       }
     });
 
@@ -2700,11 +2762,11 @@
         if (data.url) {
           window.location.href = data.url;
         } else {
-          alert('Could not start checkout. Please try again.');
+          await arkoAlert('Could not start checkout. Please try again.');
         }
       } catch (err) {
         console.error(err);
-        alert('Network error — please try again.');
+        await arkoAlert('Network error — please try again.');
       }
     }
 
@@ -2723,13 +2785,13 @@
         if (data.url) {
           window.location.href = data.url;
         } else {
-          alert('Could not start checkout. Please try again.');
+          await arkoAlert('Could not start checkout. Please try again.');
           btn.disabled = false;
           btn.textContent = originalText;
         }
       } catch (err) {
         console.error(err);
-        alert('Network error — please try again.');
+        await arkoAlert('Network error — please try again.');
         btn.disabled = false;
         btn.textContent = originalText;
       }
