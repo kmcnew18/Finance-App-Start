@@ -206,7 +206,17 @@
         const sec = securityById[h.security_id] || {};
         const key = h.security_id;
         if (!combinedBySecurityId[key]) {
-          combinedBySecurityId[key] = { name: sec.name || 'Unknown security', ticker: sec.ticker_symbol || '—', logoUrl: sec.logo_url, value: 0 };
+          // Plaid's own security logos are inconsistent, especially for
+          // ETFs/funds (VOO, VTI, SPY and similar routinely come back
+          // with no logo_url at all, even though individual stocks
+          // often do). This fills that gap with a second, ticker-keyed
+          // public logo source, tried only when Plaid has nothing —
+          // the styled-initials badge is still the final fallback if
+          // this one 404s too, so nothing ever renders broken.
+          const fallbackLogoUrl = sec.ticker_symbol
+            ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(sec.ticker_symbol)}?format=png`
+            : null;
+          combinedBySecurityId[key] = { name: sec.name || 'Unknown security', ticker: sec.ticker_symbol || '—', logoUrl: sec.logo_url || fallbackLogoUrl, value: 0 };
         }
         combinedBySecurityId[key].value += Number(h.institution_value) || 0;
       });
@@ -265,16 +275,15 @@
         const byPct = (by / 300) * 100;
 
         const pctLabel = Math.round(pct * 100);
+        const displayPctLabel = pctLabel > 0 ? pctLabel : (pct > 0 ? '<1' : '0');
         const initials = (h.ticker || h.name || '?').slice(0, 4);
         const logoHtml = h.logoUrl
           ? `<img src="${h.logoUrl}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class="inv-badge-fallback" style="display:none;">${initials}</span>`
           : `<span class="inv-badge-fallback">${initials}</span>`;
-        if (pctLabel >= 2) {
-          badgesHtml += `<div class="inv-ring-badge" style="left:${bxPct}%; top:${byPct}%;" title="${h.name.replace(/"/g,'&quot;')}">
-            <span class="inv-badge-icon">${logoHtml}</span>
-            <span class="inv-badge-pct">${pctLabel}%</span>
-          </div>`;
-        }
+        badgesHtml += `<div class="inv-ring-badge" style="left:${bxPct}%; top:${byPct}%;" title="${h.name.replace(/"/g,'&quot;')}">
+          <span class="inv-badge-icon">${logoHtml}</span>
+          <span class="inv-badge-pct">${displayPctLabel}%</span>
+        </div>`;
 
         cursorDeg = startDeg + pct * 360;
       });
