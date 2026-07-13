@@ -1,0 +1,249 @@
+/* ===========================================================
+   INVESTMENTS — uses violet, the accent explicitly reserved for
+   this feature back when custom category colors were first built.
+   =========================================================== */
+:root {
+  --violet-bright: #A88FD8;
+  --violet-dim: #8670B8;
+}
+
+.inv-title {
+  color: var(--tan);
+}
+.inv-title::after {
+  background: linear-gradient(90deg, var(--violet-bright), transparent) !important;
+}
+.overview-section-title.inv-title {
+  text-shadow: 0 0 24px rgba(168,143,216,0.35);
+}
+
+/* ---------- EMPTY STATE ---------- */
+.inv-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 60px 24px;
+  border: 1.5px dashed rgba(168,143,216,0.3);
+  border-radius: 16px;
+  background: linear-gradient(155deg, rgba(168,143,216,0.06), rgba(255,255,255,0.02));
+}
+.inv-empty-icon {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(168,143,216,0.1);
+  border: 1px solid rgba(168,143,216,0.28);
+  margin-bottom: 16px;
+}
+.inv-empty-icon svg { width: 26px; height: 26px; stroke: var(--violet-bright); }
+.inv-empty-title { font-family: 'Fraunces', serif; font-size: 1.15rem; color: var(--tan); margin-bottom: 8px; }
+.inv-empty-sub { font-size: 0.85rem; color: var(--silver-dim); max-width: 420px; line-height: 1.55; }
+
+/* ---------- RING CARD ---------- */
+.inv-ring-card {
+  background: linear-gradient(155deg, rgba(168,143,216,0.09), rgba(255,255,255,0.02) 55%, rgba(168,143,216,0.05));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(168,143,216,0.22);
+  border-radius: 20px;
+  padding: 34px 24px 26px;
+  margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04);
+  position: relative;
+}
+
+.inv-ring-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+  aspect-ratio: 1;
+  margin: 34px auto 22px;
+}
+.inv-ring-svg { width: 100%; height: 100%; overflow: visible; }
+.inv-ring-arc {
+  filter: drop-shadow(0 0 6px currentColor);
+  transition: stroke-width 0.2s ease;
+}
+
+.inv-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.inv-ring-total {
+  font-family: 'Fraunces', serif;
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--tan);
+  text-shadow: 0 0 20px rgba(168,143,216,0.3);
+}
+.inv-period-select {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(168,143,216,0.3);
+  background: rgba(168,143,216,0.08);
+  color: var(--violet-bright);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.inv-period-select:hover { background: rgba(168,143,216,0.16); border-color: rgba(168,143,216,0.5); }
+.inv-period-select svg { width: 12px; height: 12px; }
+
+.inv-period-dropdown {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -40%) scale(0.94);
+  width: 168px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(168,143,216,0.3);
+  background: linear-gradient(160deg, #1B222A, #171D24);
+  box-shadow: 0 16px 34px rgba(0,0,0,0.5);
+  z-index: 20;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, transform 0.18s ease, visibility 0.18s;
+}
+.inv-period-dropdown.open { opacity: 1; visibility: visible; transform: translate(-50%, -40%) scale(1); }
+.inv-period-option {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tan);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.inv-period-option:hover { background: rgba(168,143,216,0.14); }
+.inv-period-option.active { color: var(--violet-bright); background: rgba(168,143,216,0.1); }
+
+/* ---------- FLOATING ICON BADGES AROUND THE RING ---------- */
+.inv-ring-badges { position: absolute; inset: 0; pointer-events: none; }
+.inv-ring-badge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 20px;
+  background: #171D24;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  white-space: nowrap;
+  pointer-events: auto;
+  animation: invBadgeIn 0.4s cubic-bezier(.2,.8,.3,1) backwards;
+}
+@keyframes invBadgeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+.inv-badge-icon {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.06);
+}
+.inv-badge-icon img { width: 100%; height: 100%; object-fit: cover; }
+.inv-badge-fallback {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--violet-bright);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.inv-badge-pct { font-size: 0.76rem; font-weight: 700; color: var(--tan); }
+
+/* ---------- RETURN PILL ---------- */
+.inv-return-pill {
+  padding: 9px 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  color: var(--silver-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: default;
+}
+.inv-return-positive { border-color: rgba(110,196,150,0.35); background: rgba(110,196,150,0.08); color: var(--add-accent-hover); }
+.inv-return-negative { border-color: rgba(224,128,106,0.35); background: rgba(224,128,106,0.08); color: var(--subtract-accent-hover); }
+
+/* ---------- HOLDINGS LIST ---------- */
+.inv-holdings-list { display: flex; flex-direction: column; gap: 2px; }
+.inv-holding-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--panel-border);
+  transition: background 0.15s ease;
+}
+.inv-holding-row:hover { background: rgba(255,255,255,0.02); }
+.inv-holding-row:last-child { border-bottom: none; }
+.inv-row-icon {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.inv-row-icon img { width: 100%; height: 100%; object-fit: cover; }
+.inv-row-icon-fallback {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.inv-row-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.inv-row-ticker { font-size: 0.92rem; font-weight: 700; color: var(--tan); font-family: 'IBM Plex Mono', monospace; }
+.inv-row-name { font-size: 0.76rem; color: var(--silver-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-row-values { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.inv-row-value { font-size: 0.92rem; font-weight: 700; color: var(--tan); font-family: 'Fraunces', serif; }
+.inv-row-pct { font-size: 0.74rem; color: var(--violet-bright); font-weight: 600; }
+
+/* ---------- LEDGER MENU ICON (matches the pattern for each page's own tinted icon) ---------- */
+.ledger-tool-icon.icon-investments {
+  background: linear-gradient(155deg, rgba(168,143,216,0.24), rgba(168,143,216,0.05));
+  border-color: rgba(168,143,216,0.32);
+}
+.ledger-tool-icon.icon-investments svg { stroke: var(--violet-bright); }
+.ledger-tool-item:hover .ledger-tool-icon.icon-investments {
+  background: linear-gradient(155deg, rgba(168,143,216,0.36), rgba(168,143,216,0.08));
+  transform: scale(1.08);
+}
+
+@media (max-width: 600px) {
+  .inv-ring-wrap { max-width: 260px; margin: 26px auto 18px; }
+  .inv-ring-total { font-size: 1.5rem; }
+  .inv-ring-card { padding: 24px 16px 20px; }
+  .inv-badge-pct { font-size: 0.7rem; }
+  .inv-ring-badge { padding: 3px 8px 3px 3px; }
+  .inv-badge-icon { width: 18px; height: 18px; }
+}

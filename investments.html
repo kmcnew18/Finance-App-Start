@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Investments · Arko</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="investments.css" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+</head>
+<body>
+
+  <header class="dash-header">
+    <nav class="nav">
+      <a href="dashboard.html" class="wordmark" style="text-decoration:none;"><span class="wordmark-brand">Arko</span> | Early Access</a>
+      <div class="nav-auth">
+        <span id="user-email" class="user-email"></span>
+        <button type="button" id="view-log-button" class="btn-ghost">Dashboard</button>
+
+        <div class="settings-wrap">
+          <button type="button" id="ledger-menu-btn" class="btn-icon btn-ledger" aria-label="Premium tools">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <line x1="8.5" y1="7" x2="15.5" y2="7"></line>
+              <line x1="8.5" y1="11" x2="15.5" y2="11"></line>
+            </svg>
+            <span class="lock-badge" id="ledger-lock-badge" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="1"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+            </span>
+          </button>
+          <div class="ledger-dropdown" id="ledger-dropdown">
+            <div class="ledger-dropdown-inner" id="ledger-dropdown-inner"></div>
+          </div>
+        </div>
+
+        <button type="button" id="logout-button" class="btn-logout">Log out</button>
+      </div>
+    </nav>
+  </header>
+
+  <div class="wip-banner">Early development · some features may not be live</div>
+
+  <main class="dash-main" id="inv-main" style="display:none; max-width: 640px;">
+
+    <section class="overview-section">
+      <div class="overview-section-head">
+        <span class="overview-section-title inv-title">Investments</span>
+        <span class="overview-section-sub">Synced from your connected brokerage accounts</span>
+      </div>
+    </section>
+
+    <!-- ================= NO HOLDINGS EMPTY STATE ================= -->
+    <div class="inv-empty-state" id="inv-empty-state" style="display:none;">
+      <div class="inv-empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8 13 13.7l-3-3L4.3 16.4"></path></svg>
+      </div>
+      <p class="inv-empty-title">No investment holdings yet</p>
+      <p class="inv-empty-sub" id="inv-empty-sub">Connect a brokerage account in Connections, and holdings will show up here automatically once your bank supports it. Not every institution shares investment data through Plaid — if this stays empty after connecting, that's likely why.</p>
+      <button type="button" class="btn-primary" id="inv-go-connections-btn" style="margin-top:14px; background:var(--violet-bright,#A88FD8);">Go to Connections</button>
+    </div>
+
+    <!-- ================= DONUT + LIST ================= -->
+    <div id="inv-content" style="display:none;">
+      <div class="inv-ring-card">
+        <div class="inv-ring-wrap" id="inv-ring-wrap">
+          <svg viewBox="0 0 300 300" class="inv-ring-svg" id="inv-ring-svg"></svg>
+          <div class="inv-ring-center">
+            <span class="inv-ring-total" id="inv-ring-total">$0.00</span>
+            <button type="button" class="inv-period-select" id="inv-period-select">
+              <span id="inv-period-label">All time</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+          </div>
+          <div class="inv-ring-badges" id="inv-ring-badges"></div>
+        </div>
+
+        <div class="inv-period-dropdown" id="inv-period-dropdown">
+          <button type="button" class="inv-period-option" data-period="1w">1 Week</button>
+          <button type="button" class="inv-period-option" data-period="1m">1 Month</button>
+          <button type="button" class="inv-period-option" data-period="3m">3 Months</button>
+          <button type="button" class="inv-period-option" data-period="1y">1 Year</button>
+          <button type="button" class="inv-period-option" data-period="all">All time</button>
+        </div>
+
+        <button type="button" class="inv-return-pill" id="inv-return-pill">
+          <span id="inv-return-text">Tracking since today</span>
+        </button>
+      </div>
+
+      <section class="overview-section">
+        <div class="overview-section-head">
+          <span class="overview-section-title inv-title" style="font-size:1.1rem;">Holdings</span>
+        </div>
+        <div class="inv-holdings-list" id="inv-holdings-list"></div>
+      </section>
+    </div>
+
+  </main>
+
+  <p id="loading-message" class="loading-message">Loading your portfolio...</p>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUserId = null;
+    let currentUserEmail = null;
+    let isPaidUser = false;
+
+    function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+    function money(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+    // Distinct, high-contrast ring colors — cycles if there are more
+    // holdings than colors, same reasoning as Spendings' category
+    // palette: stable, readable segments rather than random hash colors.
+    const RING_COLORS = ['#6EC496', '#A88FD8', '#E0806A', '#6E8FA3', '#D8BC7A', '#63D9AA', '#E08B7D', '#8F7AA8', '#6EC4B8', '#C97B4A'];
+
+    let currentHoldings = []; // [{ name, ticker, value, logoUrl, color }]
+    let currentPeriod = 'all';
+    let snapshots = []; // [{ snapshot_date, total_value }]
+
+    async function init() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+      currentUserId = session.user.id;
+      currentUserEmail = session.user.email;
+      document.getElementById('user-email').textContent = session.user.email;
+
+      const { data: billing } = await supabaseClient.from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
+      if (billing) {
+        isPaidUser = !!billing.is_paid;
+        const trialExpired = new Date(billing.trial_end) < new Date();
+        if (trialExpired && !billing.is_paid) { window.location.href = 'paywall.html'; return; }
+        if (!isPaidUser) { window.location.href = 'dashboard.html'; return; }
+      }
+
+      setupLedgerMenu();
+      document.getElementById('logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.href = 'login.html'; });
+      document.getElementById('view-log-button').addEventListener('click', () => { window.location.href = 'dashboard.html'; });
+      document.getElementById('inv-go-connections-btn').addEventListener('click', () => { window.location.href = 'connections.html'; });
+      setupPeriodPicker();
+
+      await loadPortfolio();
+
+      document.getElementById('loading-message').style.display = 'none';
+      document.getElementById('inv-main').style.display = 'block';
+    }
+
+    async function loadPortfolio() {
+      const { data: holdings } = await supabaseClient
+        .from('investment_holdings')
+        .select('*, linked_accounts(nickname, institution_name)')
+        .eq('user_id', currentUserId);
+
+      if (!holdings || !holdings.length) {
+        document.getElementById('inv-empty-state').style.display = 'flex';
+        document.getElementById('inv-content').style.display = 'none';
+        return;
+      }
+
+      const securityIds = [...new Set(holdings.map(h => h.security_id))];
+      const { data: securities } = await supabaseClient.from('investment_securities').select('*').in('security_id', securityIds);
+      const securityById = Object.fromEntries((securities || []).map(s => [s.security_id, s]));
+
+      // Combine holdings of the same security across multiple accounts
+      // into one line — a brokerage split across a taxable and a
+      // retirement account showing the same ticker twice would just be
+      // confusing, not more informative.
+      const combinedBySecurityId = {};
+      holdings.forEach(h => {
+        const sec = securityById[h.security_id] || {};
+        const key = h.security_id;
+        if (!combinedBySecurityId[key]) {
+          combinedBySecurityId[key] = { name: sec.name || 'Unknown security', ticker: sec.ticker_symbol || '—', logoUrl: sec.logo_url, value: 0 };
+        }
+        combinedBySecurityId[key].value += Number(h.institution_value) || 0;
+      });
+
+      currentHoldings = Object.values(combinedBySecurityId)
+        .filter(h => h.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .map((h, i) => ({ ...h, value: round2(h.value), color: RING_COLORS[i % RING_COLORS.length] }));
+
+      const { data: snapData } = await supabaseClient
+        .from('investment_portfolio_snapshots')
+        .select('snapshot_date, total_value')
+        .eq('user_id', currentUserId)
+        .order('snapshot_date', { ascending: true });
+      snapshots = snapData || [];
+
+      document.getElementById('inv-empty-state').style.display = 'none';
+      document.getElementById('inv-content').style.display = 'block';
+      renderRing();
+      renderHoldingsList();
+      updateReturnPill();
+    }
+
+    function renderRing() {
+      const total = round2(currentHoldings.reduce((s, h) => s + h.value, 0));
+      document.getElementById('inv-ring-total').textContent = money(total);
+
+      const svg = document.getElementById('inv-ring-svg');
+      const badgesWrap = document.getElementById('inv-ring-badges');
+      const cx = 150, cy = 150, r = 118, strokeWidth = 34;
+      const circumference = 2 * Math.PI * r;
+      const gapDeg = 2.2; // small visual gap between segments, matching Dashboard's card-style separation
+
+      let cursorDeg = -90; // start at 12 o'clock
+      let arcsHtml = '';
+      let badgesHtml = '';
+
+      currentHoldings.forEach(h => {
+        const pct = total > 0 ? (h.value / total) : 0;
+        const sweepDeg = Math.max(0, pct * 360 - gapDeg);
+        const startDeg = cursorDeg;
+        const endDeg = startDeg + sweepDeg;
+
+        const dashLen = (sweepDeg / 360) * circumference;
+        const rotation = startDeg;
+        arcsHtml += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${h.color}" stroke-width="${strokeWidth}"
+          stroke-dasharray="${dashLen} ${circumference - dashLen}" stroke-dashoffset="0"
+          transform="rotate(${rotation} ${cx} ${cy})" stroke-linecap="round" class="inv-ring-arc"></circle>`;
+
+        const midDeg = startDeg + sweepDeg / 2;
+        const midRad = (midDeg * Math.PI) / 180;
+        const badgeR = r + strokeWidth / 2 + 26;
+        const bx = cx + badgeR * Math.cos(midRad);
+        const by = cy + badgeR * Math.sin(midRad);
+        const bxPct = (bx / 300) * 100;
+        const byPct = (by / 300) * 100;
+
+        const pctLabel = Math.round(pct * 100);
+        const initials = (h.ticker || h.name || '?').slice(0, 4);
+        const logoHtml = h.logoUrl
+          ? `<img src="${h.logoUrl}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class="inv-badge-fallback" style="display:none;">${initials}</span>`
+          : `<span class="inv-badge-fallback">${initials}</span>`;
+        if (pctLabel >= 2) {
+          badgesHtml += `<div class="inv-ring-badge" style="left:${bxPct}%; top:${byPct}%;" title="${h.name.replace(/"/g,'&quot;')}">
+            <span class="inv-badge-icon">${logoHtml}</span>
+            <span class="inv-badge-pct">${pctLabel}%</span>
+          </div>`;
+        }
+
+        cursorDeg = startDeg + pct * 360;
+      });
+
+      svg.innerHTML = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="${strokeWidth}"></circle>` + arcsHtml;
+      badgesWrap.innerHTML = badgesHtml;
+    }
+
+    function renderHoldingsList() {
+      const total = round2(currentHoldings.reduce((s, h) => s + h.value, 0));
+      const list = document.getElementById('inv-holdings-list');
+      list.innerHTML = currentHoldings.map(h => {
+        const pct = total > 0 ? round2((h.value / total) * 100) : 0;
+        const initials = (h.ticker || h.name || '?').slice(0, 4);
+        const logoHtml = h.logoUrl
+          ? `<img src="${h.logoUrl}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class="inv-row-icon-fallback" style="display:none; background:${h.color}22; color:${h.color};">${initials}</span>`
+          : `<span class="inv-row-icon-fallback" style="background:${h.color}22; color:${h.color};">${initials}</span>`;
+        return `
+        <div class="inv-holding-row">
+          <span class="inv-row-icon">${logoHtml}</span>
+          <div class="inv-row-text">
+            <span class="inv-row-ticker">${(h.ticker || '—').replace(/</g,'&lt;')}</span>
+            <span class="inv-row-name">${h.name.replace(/</g,'&lt;')}</span>
+          </div>
+          <div class="inv-row-values">
+            <span class="inv-row-value">${money(h.value)}</span>
+            <span class="inv-row-pct">${pct}%</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // Snapshots only exist from whenever this feature started recording
+    // data forward — there's no way to get genuine historical portfolio
+    // value from Plaid retroactively, so period returns are calculated
+    // from the earliest available snapshot within the selected window,
+    // not a guessed or invented baseline.
+    function updateReturnPill() {
+      const pillText = document.getElementById('inv-return-text');
+      const pill = document.getElementById('inv-return-pill');
+      const currentTotal = round2(currentHoldings.reduce((s, h) => s + h.value, 0));
+
+      if (!snapshots.length) {
+        pillText.textContent = 'Tracking starts today';
+        pill.className = 'inv-return-pill';
+        return;
+      }
+
+      const now = new Date();
+      const daysBack = { '1w': 7, '1m': 30, '3m': 90, '1y': 365, 'all': 99999 }[currentPeriod];
+      const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - daysBack);
+      const inWindow = snapshots.filter(s => new Date(s.snapshot_date + 'T00:00:00') >= cutoff);
+      const baseline = inWindow.length ? inWindow[0] : snapshots[0];
+      const baselineDate = new Date(baseline.snapshot_date + 'T00:00:00');
+      const daysOfData = Math.round((now - baselineDate) / (1000 * 60 * 60 * 24));
+
+      if (daysOfData < 1) {
+        pillText.textContent = 'Tracking starts today';
+        pill.className = 'inv-return-pill';
+        return;
+      }
+
+      const change = round2(currentTotal - Number(baseline.total_value));
+      const changePct = Number(baseline.total_value) > 0 ? round2((change / Number(baseline.total_value)) * 100) : 0;
+      const sign = change >= 0 ? '+' : '';
+      pillText.textContent = `${sign}${money(change)} (${sign}${changePct}%) over ${daysOfData} day${daysOfData === 1 ? '' : 's'} tracked`;
+      pill.className = 'inv-return-pill ' + (change >= 0 ? 'inv-return-positive' : 'inv-return-negative');
+    }
+
+    function setupPeriodPicker() {
+      const btn = document.getElementById('inv-period-select');
+      const dd = document.getElementById('inv-period-dropdown');
+      btn.addEventListener('click', (e) => { e.stopPropagation(); dd.classList.toggle('open'); });
+      document.addEventListener('click', () => dd.classList.remove('open'));
+      dd.addEventListener('click', (e) => e.stopPropagation());
+      document.querySelectorAll('.inv-period-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          currentPeriod = opt.dataset.period;
+          document.getElementById('inv-period-label').textContent = opt.textContent;
+          document.querySelectorAll('.inv-period-option').forEach(o => o.classList.remove('active'));
+          opt.classList.add('active');
+          dd.classList.remove('open');
+          updateReturnPill();
+        });
+      });
+    }
+
+    // ================= PREMIUM FEATURE MENU (shared pattern) =================
+    const TRIAL_COVERED_TOOL_IDS = ['dashboard', 'connections'];
+    const PREMIUM_TOOLS = [
+      { id: 'dashboard', label: 'Dashboard', desc: 'Your accounts, at a glance.', href: 'dashboard.html', iconClass: 'icon-dashboard', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>' },
+      { id: 'connections', label: 'Connections', desc: 'Every account, one net worth.', href: 'connections.html', iconClass: 'icon-connections', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>' },
+      { id: 'budget', label: 'Budget Planner', desc: 'Plan, track, and archive monthly budgets.', href: 'budget.html', iconClass: 'icon-ledger', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><line x1="8.5" y1="7" x2="15.5" y2="7"></line><line x1="8.5" y1="11" x2="15.5" y2="11"></line></svg>' },
+      { id: 'spending', label: 'Spendings', desc: 'Monthly breakdown and subscriptions.', href: 'spending.html', iconClass: 'icon-spending', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>' },
+      { id: 'investments', label: 'Investments', desc: 'Your portfolio, broken down by holding.', href: 'investments.html', iconClass: 'icon-investments', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8 13 13.7l-3-3L4.3 16.4"></path></svg>' },
+      { id: 'savings', label: 'Visual Savings', desc: 'Watch your goals grow.', href: 'savings.html', iconClass: 'icon-savings', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"></path><path d="M8 8h8l2 12H6z"></path><path d="M9 13h6"></path></svg>' },
+    ];
+
+    function currentFileName() {
+      const seg = window.location.pathname.split('/').pop();
+      const raw = seg && seg.length ? seg : 'dashboard.html';
+      return raw.replace(/\.html?$/i, '');
+    }
+
+    function renderLedgerMenu() {
+      const inner = document.getElementById('ledger-dropdown-inner');
+      const lockBadge = document.getElementById('ledger-lock-badge');
+      lockBadge.style.display = isPaidUser ? 'none' : 'flex';
+      document.getElementById('ledger-menu-btn').classList.toggle('unlocked', isPaidUser);
+      const here = currentFileName();
+
+      const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
+        const isCurrent = tool.href.replace(/\.html?$/i, '') === here;
+        const isLocked = !isPaidUser && !TRIAL_COVERED_TOOL_IDS.includes(tool.id);
+        const classes = ['ledger-tool-item'];
+        if (isCurrent) classes.push('current');
+        if (isLocked) classes.push('locked-preview');
+        return `
+          <button type="button" class="${classes.join(' ')}" data-href="${tool.href}" data-tool-id="${tool.id}"
+                  style="animation-delay:${i * 55}ms" ${isCurrent ? 'disabled' : ''}>
+            <span class="ledger-tool-icon ${tool.iconClass}">${tool.icon}</span>
+            <span class="ledger-tool-text">
+              <span class="ledger-tool-title">${tool.label}${isCurrent ? ' <span class="current-pill">current</span>' : ''}</span>
+              <span class="ledger-tool-desc">${tool.desc}</span>
+            </span>
+            <span class="ledger-tool-arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span>
+          </button>`;
+      }).join('');
+
+      inner.innerHTML = `
+        <div class="ledger-heading">Premium Tools</div>
+        <p class="ledger-sub">Your unlocked workspace for deeper financial planning.</p>
+        <div class="ledger-tool-list">${itemsHtml}</div>
+        <div class="ledger-future-hint">More premium tools are on the way</div>
+      `;
+
+      inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
+        btn.addEventListener('click', () => { if (!btn.disabled) window.location.href = btn.dataset.href; });
+      });
+    }
+
+    function setupLedgerMenu() {
+      const btn = document.getElementById('ledger-menu-btn');
+      const dd = document.getElementById('ledger-dropdown');
+      renderLedgerMenu();
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const opening = !dd.classList.contains('open');
+        dd.classList.toggle('open', opening);
+        if (opening) { renderLedgerMenu(); btn.classList.remove('stamp'); void btn.offsetWidth; btn.classList.add('stamp'); }
+      });
+      dd.addEventListener('click', (e) => e.stopPropagation());
+      document.addEventListener('click', () => { dd.classList.remove('open'); btn.classList.remove('stamp'); });
+    }
+
+    init();
+  </script>
+
+</body>
+</html>

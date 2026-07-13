@@ -1,0 +1,178 @@
+/* ===========================================================
+   VISUAL SAVINGS — each goal card glows in its own theme color via
+   the --goal-glow custom property set inline per card, same pattern
+   as the panel-add/panel-subtract/panel-transfer neon glows already
+   used elsewhere in the app.
+   =========================================================== */
+
+.sav-title { color: var(--tan); }
+
+.sav-goals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.sav-empty-hint {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--silver-dim);
+  font-size: 0.88rem;
+  border: 1.5px dashed rgba(232,225,211,0.16);
+  border-radius: 14px;
+}
+
+.sav-goal-card {
+  background: linear-gradient(155deg, rgba(255,255,255,0.045), rgba(255,255,255,0.012));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--goal-glow), 0.25);
+  border-radius: 16px;
+  padding: 18px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow:
+    0 0 6px rgba(var(--goal-glow), 0.28),
+    0 0 16px rgba(var(--goal-glow), 0.14),
+    0 6px 22px rgba(0,0,0,0.28);
+  transition: transform 0.2s ease, box-shadow 0.3s ease, border-color 0.2s ease;
+}
+.sav-goal-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(var(--goal-glow), 0.5);
+  box-shadow:
+    0 0 9px rgba(var(--goal-glow), 0.4),
+    0 0 24px rgba(var(--goal-glow), 0.22),
+    0 10px 28px rgba(0,0,0,0.3);
+}
+
+.sav-goal-illust-wrap { width: 100%; max-width: 130px; margin-bottom: 4px; }
+.sav-illust { width: 100%; height: auto; display: block; filter: drop-shadow(0 0 10px rgba(var(--goal-glow), 0.3)); }
+
+.sav-goal-name {
+  font-family: 'Fraunces', serif;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--tan);
+  text-align: center;
+}
+.sav-goal-amounts {
+  font-size: 0.76rem;
+  color: var(--silver-dim);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.sav-goal-of { opacity: 0.6; margin: 0 2px; }
+
+.sav-goal-bar-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+  margin-top: 4px;
+}
+.sav-goal-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  box-shadow: 0 0 8px rgba(var(--goal-glow), 0.5);
+  transition: width 0.4s cubic-bezier(.2,.8,.3,1);
+}
+.sav-goal-pct { font-size: 0.78rem; font-weight: 700; margin-top: 1px; }
+
+.sav-add-goal-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1.5px dashed rgba(232,225,211,0.22);
+  background: none;
+  color: var(--silver-dim);
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.sav-add-goal-btn:hover {
+  border-color: var(--vintage-blue-light);
+  color: var(--tan);
+  background: rgba(110,143,163,0.06);
+}
+.sav-add-plus { font-size: 1.3rem; line-height: 1; font-weight: 300; }
+
+/* ---------- THEME PICKER (new goal modal) ---------- */
+.sav-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.sav-theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--goal-glow), 0.28);
+  background: rgba(255,255,255,0.02);
+  cursor: pointer;
+  font-family: 'Public Sans', sans-serif;
+  font-size: 0.74rem;
+  font-weight: 700;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.15s ease;
+}
+.sav-theme-option:hover {
+  transform: translateY(-3px);
+  border-color: rgba(var(--goal-glow), 0.55);
+  box-shadow: 0 0 14px rgba(var(--goal-glow), 0.3);
+}
+.sav-theme-illust { width: 100%; max-width: 76px; }
+
+/* ---------- GOAL DETAIL MODAL ---------- */
+.sav-detail-illust { width: 100%; max-width: 170px; margin: 0 auto 12px; }
+.sav-linked-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.sav-linked-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--panel-border);
+  font-size: 0.82rem;
+  color: var(--tan);
+}
+.sav-unlink-btn {
+  background: none;
+  border: 1px solid var(--error);
+  color: var(--error);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.sav-unlink-btn:hover { background: rgba(224,139,125,0.12); }
+
+.ledger-tool-icon.icon-savings {
+  background: linear-gradient(155deg, rgba(216,188,122,0.24), rgba(216,188,122,0.05));
+  border-color: rgba(216,188,122,0.32);
+}
+.ledger-tool-icon.icon-savings svg { stroke: #E7C766; }
+.ledger-tool-item:hover .ledger-tool-icon.icon-savings {
+  background: linear-gradient(155deg, rgba(216,188,122,0.36), rgba(216,188,122,0.08));
+  transform: scale(1.08);
+}
+
+@media (max-width: 600px) {
+  .sav-goals-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .sav-theme-grid { grid-template-columns: 1fr; }
+}
