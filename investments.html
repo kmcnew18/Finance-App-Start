@@ -216,9 +216,18 @@
           const fallbackLogoUrl = sec.ticker_symbol
             ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(sec.ticker_symbol)}?format=png`
             : null;
-          combinedBySecurityId[key] = { name: sec.name || 'Unknown security', ticker: sec.ticker_symbol || '—', logoUrl: sec.logo_url || fallbackLogoUrl, value: 0 };
+          combinedBySecurityId[key] = { name: sec.name || 'Unknown security', ticker: sec.ticker_symbol || '—', logoUrl: sec.logo_url || fallbackLogoUrl, value: 0, costBasis: 0, hasCostBasis: false };
         }
         combinedBySecurityId[key].value += Number(h.institution_value) || 0;
+        // cost_basis can be null for a position if the brokerage/Plaid
+        // doesn't report it (common for some account types) — tracked
+        // separately from the numeric total so "all time" can tell the
+        // difference between "this position has zero gain" and "this
+        // position's cost basis just isn't available."
+        if (h.cost_basis != null) {
+          combinedBySecurityId[key].costBasis += Number(h.cost_basis) || 0;
+          combinedBySecurityId[key].hasCostBasis = true;
+        }
       });
 
       currentHoldings = Object.values(combinedBySecurityId)
@@ -326,6 +335,32 @@
       const pill = document.getElementById('inv-return-pill');
       const currentTotal = round2(currentHoldings.reduce((s, h) => s + h.value, 0));
 
+      // "All time" uses Plaid's own cost basis per position — what was
+      // actually paid for each holding, as reported by the brokerage —
+      // rather than snapshot history. Snapshots only exist from
+      // whenever this feature started recording forward, so they can
+      // never reflect a position opened before that; cost basis
+      // reflects the real purchase, however long ago that was.
+      if (currentPeriod === 'all') {
+        const holdingsWithCostBasis = currentHoldings.filter(h => h.hasCostBasis);
+        if (!holdingsWithCostBasis.length) {
+          pillText.textContent = 'Cost basis not available from your brokerage';
+          pill.className = 'inv-return-pill';
+          return;
+        }
+        const totalValue = round2(holdingsWithCostBasis.reduce((s, h) => s + h.value, 0));
+        const totalCostBasis = round2(holdingsWithCostBasis.reduce((s, h) => s + h.costBasis, 0));
+        const change = round2(totalValue - totalCostBasis);
+        const changePct = totalCostBasis > 0 ? round2((change / totalCostBasis) * 100) : 0;
+        const sign = change >= 0 ? '+' : '';
+        const coverageNote = holdingsWithCostBasis.length < currentHoldings.length
+          ? ` (${currentHoldings.length - holdingsWithCostBasis.length} position${currentHoldings.length - holdingsWithCostBasis.length === 1 ? '' : 's'} missing cost basis, not included)`
+          : '';
+        pillText.textContent = `${sign}${money(change)} (${sign}${changePct}%) since opening${coverageNote}`;
+        pill.className = 'inv-return-pill ' + (change >= 0 ? 'inv-return-positive' : 'inv-return-negative');
+        return;
+      }
+
       if (!snapshots.length) {
         pillText.textContent = 'Tracking starts today';
         pill.className = 'inv-return-pill';
@@ -333,7 +368,7 @@
       }
 
       const now = new Date();
-      const daysBack = { '1w': 7, '1m': 30, '3m': 90, '1y': 365, 'all': 99999 }[currentPeriod];
+      const daysBack = { '1w': 7, '1m': 30, '3m': 90, '1y': 365 }[currentPeriod];
       const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - daysBack);
       const inWindow = snapshots.filter(s => new Date(s.snapshot_date + 'T00:00:00') >= cutoff);
       const baseline = inWindow.length ? inWindow[0] : snapshots[0];
