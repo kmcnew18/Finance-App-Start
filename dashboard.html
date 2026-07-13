@@ -1163,9 +1163,13 @@
           <div class="txn-review-actions">
             <button type="button" class="txn-approve-btn" data-id="${r.id}">Looks good</button>
             <button type="button" class="txn-change-btn" data-id="${r.id}">Change</button>
-            ${!r.is_transfer ? (envelopesByCategoryId[r.category_id] || []).filter(env => env.amount > 0).map(env => `
+            ${!r.is_transfer ? (
+              (envelopesByCategoryId[r.category_id] && envelopesByCategoryId[r.category_id].length
+                ? envelopesByCategoryId[r.category_id]
+                : (envelopesByCategoryName[(r.category_name || '').toLowerCase()] || [])
+              ).filter(env => env.amount > 0).map(env => `
               <button type="button" class="txn-envelope-charge-btn" data-id="${r.id}" data-envelope-id="${env.id}" data-envelope-name="${(r.category_name || '').replace(/"/g,'&quot;')}">Charge to ${(r.category_name || '').replace(/</g,'&lt;')} set-aside${env.accountName ? ` (${env.accountName.replace(/</g,'&lt;')})` : ''}</button>
-            `).join('') : ''}
+            `).join('')) : ''}
             <button type="button" class="txn-skip-btn" data-id="${r.id}">Skip</button>
           </div>
         </div>`;
@@ -1754,6 +1758,7 @@
 
     let linkedLiabilities = {}; // category key/id -> [{ name, amount }] for display
     let envelopesByCategoryId = {}; // category_id -> [{ id, amount, accountId, accountName }] for the adjust-set-aside affordance, and now also the review card's "Charge to set-aside" option
+    let envelopesByCategoryName = {}; // lowercase category name -> same entries, fallback for matching reviews when category_id doesn't line up
 
     let orderedCategories = []; // flat, sort_order-sorted list of every real category — used by the move/shuffle controls
     let lastLoadedLinkedAccounts = []; // used only to check how recently Plaid accounts were last synced, for the background-sync throttle
@@ -1766,6 +1771,7 @@
       customCategoryCards = [];
       linkedLiabilities = {};
       envelopesByCategoryId = {};
+      envelopesByCategoryName = {};
       orderedCategories = [];
 
       const { data: cats } = await supabaseClient.from('budget_categories').select('*').eq('user_id', currentUserId).order('sort_order', { ascending: true });
@@ -1805,13 +1811,31 @@
       // contributes, so there's never ambiguity about which one a
       // click would be adjusting).
       envelopesByCategoryId = {};
+      // Same data, keyed by lowercase category name instead of id —
+      // a fallback for matching a detected review to an envelope. The
+      // review's category_id and the envelope's category_id *should*
+      // always agree when they're the same category, but if a
+      // category was ever deleted and recreated (or any other path
+      // left two rows with the same name but different ids), an
+      // id-only match silently fails even though it's obviously the
+      // same category to a person looking at it. Name matching is the
+      // more forgiving check, and it's what actually determines
+      // whether "Charge to set-aside" shows up on a review.
+      envelopesByCategoryName = {};
       envelopeSplits.forEach(e => {
         const acct = linkedAccts.find(a => a.id === e.linked_account_id);
-        if (!envelopesByCategoryId[e.category_id]) envelopesByCategoryId[e.category_id] = [];
-        envelopesByCategoryId[e.category_id].push({
+        const envEntry = {
           id: e.id, amount: Number(e.envelope_balance || 0), accountId: e.linked_account_id,
           accountName: acct ? (acct.nickname || acct.institution_name) : 'Account',
-        });
+        };
+        if (!envelopesByCategoryId[e.category_id]) envelopesByCategoryId[e.category_id] = [];
+        envelopesByCategoryId[e.category_id].push(envEntry);
+        const catRow = (cats || []).find(c => c.id === e.category_id);
+        if (catRow) {
+          const nameKey = catRow.name.toLowerCase();
+          if (!envelopesByCategoryName[nameKey]) envelopesByCategoryName[nameKey] = [];
+          envelopesByCategoryName[nameKey].push(envEntry);
+        }
         totalsByCategoryId[e.category_id] = round2((totalsByCategoryId[e.category_id] || 0) + Number(e.envelope_balance || 0));
       });
 
