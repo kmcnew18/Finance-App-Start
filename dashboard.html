@@ -1170,6 +1170,7 @@
               ).filter(env => env.amount > 0).map(env => `
               <button type="button" class="txn-envelope-charge-btn" data-id="${r.id}" data-envelope-id="${env.id}" data-envelope-name="${(r.category_name || '').replace(/"/g,'&quot;')}">Charge to ${(r.category_name || '').replace(/</g,'&lt;')} set-aside${env.accountName ? ` (${env.accountName.replace(/</g,'&lt;')})` : ''}</button>
             `).join('')) : ''}
+            ${(() => { console.log('[charge-to-set-aside debug] review', r.id, { category_id: r.category_id, category_name: r.category_name, is_transfer: r.is_transfer, matchById: envelopesByCategoryId[r.category_id], matchByName: envelopesByCategoryName[(r.category_name || '').toLowerCase()] }); return ''; })()}
             <button type="button" class="txn-skip-btn" data-id="${r.id}">Skip</button>
           </div>
         </div>`;
@@ -1838,6 +1839,9 @@
         }
         totalsByCategoryId[e.category_id] = round2((totalsByCategoryId[e.category_id] || 0) + Number(e.envelope_balance || 0));
       });
+      console.log('[charge-to-set-aside debug] envelopeSplits:', envelopeSplits);
+      console.log('[charge-to-set-aside debug] envelopesByCategoryId:', envelopesByCategoryId);
+      console.log('[charge-to-set-aside debug] envelopesByCategoryName:', envelopesByCategoryName);
 
       (splits || []).filter(s => s.split_type !== 'envelope').forEach(s => {
         const rawBal = balanceById[s.linked_account_id] || 0;
