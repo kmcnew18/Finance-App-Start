@@ -444,27 +444,35 @@
     // hashed the name into one of only 10 colors, which meant two
     // different categories could easily land on the same color by
     // chance with 19 categories sharing that small a palette.
+    // Colors are deliberately computed, not eyeballed — evenly spaced
+    // around the full hue wheel (360° / 20 categories), alternating
+    // between two lightness/saturation bands so that even adjacent
+    // hues on the wheel don't read as near-twins. The old palette had
+    // real clusters (three near-identical corals, three near-identical
+    // teals) that this specifically fixes — every color here is
+    // meaningfully separated from every other one, not just "probably
+    // fine."
     const CATEGORY_COLOR_MAP = {
-      'Housing': '#E0806A',
-      'Utilities': '#E0B65C',
-      'Groceries': '#7FB88F',
-      'Transportation': '#6FA3C9',
-      'Insurance': '#A788C9',
-      'Healthcare': '#D97FA0',
-      'Debt Payments': '#C9605F',
-      'Childcare / Family Support': '#E8A876',
-      'Dining Out / Takeout': '#E89478',
-      'Entertainment & Recreation': '#B08AD4',
-      'Shopping & Apparel': '#5FBFA8',
-      'Personal Care & Grooming': '#C97F9E',
-      'Travel & Vacations': '#7FC4E0',
-      'Education & School Supplies': '#D4A24C',
-      'Pets': '#B8916A',
-      'Gifts & Donations': '#C97FC4',
-      'Emergency Savings': '#6ECFAE',
-      'Retirement Investments': '#7F8FD4',
-      'General Investments': '#4FA3A0',
-      'Miscellaneous / Buffer': '#8FA0AD',
+      'Housing': '#C97C7C',
+      'Utilities': '#B57153',
+      'Groceries': '#C9AA7C',
+      'Transportation': '#B5AB53',
+      'Insurance': '#BAC97C',
+      'Healthcare': '#84B553',
+      'Debt Payments': '#8CC97C',
+      'Childcare / Family Support': '#53B55D',
+      'Dining Out / Takeout': '#7CC99B',
+      'Entertainment & Recreation': '#53B598',
+      'Shopping & Apparel': '#7CC9C9',
+      'Personal Care & Grooming': '#5398B5',
+      'Travel & Vacations': '#7C9BC9',
+      'Education & School Supplies': '#535DB5',
+      'Pets': '#8C7CC9',
+      'Gifts & Donations': '#8453B5',
+      'Emergency Savings': '#BA7CC9',
+      'Retirement Investments': '#B553AB',
+      'General Investments': '#C97CAA',
+      'Miscellaneous / Buffer': '#B55371',
     };
     // Fallback palette + hash, used only for anything that isn't one of
     // the 19 above — raw uncategorized Plaid text, mainly. Kept

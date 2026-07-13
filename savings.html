@@ -166,6 +166,45 @@
       renderGoals();
     }
 
+    // Shared celebration burst — used by every theme at 100%, but the
+    // shape (star, confetti rect, spark, petal) and color scheme vary
+    // per theme so each one still feels distinct rather than the same
+    // effect painted six different colors. cx/cy is the point the
+    // burst radiates from — different for each theme since that's
+    // wherever the "top" of that theme's illustration actually is.
+    function celebrationBurstSvg(shape, cx, cy, accent, accentBright) {
+      const particles = [
+        { dx: -34, dy: -18, delay: 0.0,  size: 1.0 },
+        { dx: 30,  dy: -26, delay: 0.12, size: 0.85 },
+        { dx: -20, dy: -40, delay: 0.24, size: 0.7 },
+        { dx: 36,  dy: 4,   delay: 0.36, size: 0.9 },
+        { dx: -38, dy: 10,  delay: 0.08, size: 0.75 },
+        { dx: 10,  dy: -46, delay: 0.3,  size: 0.65 },
+      ];
+      const shapeSvg = (p, i) => {
+        const color = i % 2 === 0 ? accentBright : accent;
+        if (shape === 'star') {
+          return `<path d="M0 -6 L1.8 -1.8 L6 0 L1.8 1.8 L0 6 L-1.8 1.8 L-6 0 L-1.8 -1.8 Z" fill="${color}"/>`;
+        }
+        if (shape === 'confetti') {
+          return `<rect x="-3" y="-4" width="6" height="8" rx="1" fill="${color}"/>`;
+        }
+        if (shape === 'petal') {
+          return `<ellipse cx="0" cy="0" rx="5" ry="3" fill="${color}"/>`;
+        }
+        // spark
+        return `<circle cx="0" cy="0" r="3" fill="${color}"/>`;
+      };
+      return `<g class="sav-celebrate">
+        ${particles.map((p, i) => `
+          <g class="sav-celebrate-particle" style="transform-origin:${cx}px ${cy}px; animation-delay:${p.delay}s;"
+             transform="translate(${cx} ${cy})">
+            <g transform="translate(${p.dx} ${p.dy}) scale(${p.size})">${shapeSvg(p, i)}</g>
+          </g>
+        `).join('')}
+      </g>`;
+    }
+
     function goalIllustrationSvg(theme, pct, accent, accentBright) {
       const clampedPct = Math.max(0, Math.min(100, pct));
       const fillY = 176 - (176 * clampedPct / 100);
@@ -201,7 +240,7 @@
                 <path d="M0 0 C -18 -20, -6 -38, 0 -44 C 6 -38, 18 -20, 0 0 Z" fill="url(#potGrad-${theme})"/>
               </g>
             </g>
-            ${clampedPct >= 100 ? `<circle cx="80" cy="${stemTopY - 4}" r="6" fill="${accentBright}"><animate attributeName="r" values="6;8;6" dur="1.8s" repeatCount="indefinite"/></circle>` : ''}
+            ${clampedPct >= 100 ? celebrationBurstSvg('petal', 80, stemTopY - 6, accent, accentBright) : ''}
           </svg>`;
       }
 
@@ -224,6 +263,7 @@
                 <path d="M0 -22 L-12 -14 L0 -9 Z" fill="${accent}"/>
               </g>
             </g>
+            ${clampedPct >= 100 ? celebrationBurstSvg('star', 80, 20, accent, accentBright) : ''}
           </svg>`;
       }
 
@@ -248,6 +288,7 @@
               <line x1="80" y1="102" x2="80" y2="120" stroke="${accent}" stroke-width="1.5"/>
               <rect x="68" y="120" width="24" height="16" rx="2" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
             </g>
+            ${clampedPct >= 100 ? celebrationBurstSvg('confetti', 80, riseY, accent, accentBright) : ''}
           </svg>`;
       }
 
@@ -273,6 +314,7 @@
                 <path d="M74 76 L80 92 L86 76 Z" fill="#fff" opacity="0.7"/>
               </g>
             </g>
+            ${clampedPct >= 100 ? celebrationBurstSvg('spark', 80, riseY - 30, accent, accentBright) : ''}
           </svg>`;
       }
 
@@ -302,6 +344,7 @@
               <path d="M80 55 L${80 + beamLen} ${40 - beamLen * 0.28} L${80 + beamLen} ${70 + beamLen * 0.28} Z" fill="${accentBright}" opacity="${beamOpacity}"/>
             </g>
             <circle cx="80" cy="55" r="5" fill="${accentBright}"/>
+            ${clampedPct >= 100 ? celebrationBurstSvg('star', 80, 30, accent, accentBright) : ''}
           </svg>`;
       }
 
@@ -322,6 +365,7 @@
             <line x1="56" y1="60" x2="104" y2="60" stroke="${accentBright}" stroke-width="1.5" opacity="0.7"/>
             <path d="M80 100 Q76 110 82 116 Q76 122 82 128 Q76 134 82 140" stroke="${accent}" stroke-width="2" fill="none" stroke-linecap="round"/>
           </g>
+          ${clampedPct >= 100 ? celebrationBurstSvg('confetti', 80, riseY, accent, accentBright) : ''}
         </svg>`;
     }
 
