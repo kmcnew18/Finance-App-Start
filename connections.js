@@ -789,6 +789,11 @@ async function completeAccountExchange(publicToken, institutionName, selectedPla
     });
     if (!exRes.ok) throw new Error('Could not finish linking this account (' + exRes.status + ')');
     const result = await exRes.json().catch(() => ({}));
+
+    if (!result.accountsAdded) {
+      alert(`Connected to ${institutionName}, but no accounts were added — this shouldn't happen. Try "Sync all accounts" from Settings, or reach out if it keeps happening.`);
+    }
+
     closeConnectModal();
 
     if (result.historicalImport && result.historicalImport.count > 0) {

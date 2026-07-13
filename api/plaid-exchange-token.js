@@ -89,7 +89,22 @@ module.exports = async (req, res) => {
     // before this existed.
     if (Array.isArray(selectedPlaidAccountIds) && selectedPlaidAccountIds.length) {
       const selectedSet = new Set(selectedPlaidAccountIds);
-      plaidAccounts = plaidAccounts.filter(a => selectedSet.has(a.account_id));
+      const filtered = plaidAccounts.filter(a => selectedSet.has(a.account_id));
+      // A filter that matches nothing almost certainly means the IDs
+      // from Link's metadata didn't line up with account_id here, not
+      // that the person genuinely wanted zero accounts linked (the
+      // frontend already blocks confirming with nothing checked). Falling
+      // back to every account is the safe failure mode — losing the
+      // selection is far better than the connection silently doing
+      // nothing and the person having no idea why.
+      if (filtered.length) {
+        plaidAccounts = filtered;
+      } else {
+        console.error('selectedPlaidAccountIds matched none of the returned accounts — falling back to all accounts.', {
+          selectedPlaidAccountIds,
+          returnedAccountIds: plaidAccounts.map(a => a.account_id),
+        });
+      }
     }
 
     const rows = plaidAccounts.map(a => ({
