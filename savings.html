@@ -105,9 +105,12 @@
     function money(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
     const THEMES = {
-      vessel: { label: 'Vessel', accent: '#D8BC7A', accentBright: '#E7C766', glowRgb: '224,192,110' },
-      plant:  { label: 'Plant',  accent: '#6EC496', accentBright: '#7FE0BB', glowRgb: '110,196,150' },
-      ship:   { label: 'Ship in a Bottle', accent: '#6E8FA3', accentBright: '#9FC1D6', glowRgb: '110,143,163' },
+      plant:      { label: 'Plant',            accent: '#6EC496', accentBright: '#7FE0BB', glowRgb: '110,196,150' },
+      ship:       { label: 'Ship in a Bottle',  accent: '#6E8FA3', accentBright: '#9FC1D6', glowRgb: '110,143,163' },
+      balloon:    { label: 'Hot Air Balloon',   accent: '#E0806A', accentBright: '#F0A088', glowRgb: '224,128,106' },
+      rocket:     { label: 'Rocket',            accent: '#D8BC7A', accentBright: '#E7C766', glowRgb: '224,192,110' },
+      lighthouse: { label: 'Lighthouse',        accent: '#C97B4A', accentBright: '#E8A876', glowRgb: '201,123,74' },
+      kite:       { label: 'Kite',              accent: '#7FC4D9', accentBright: '#A6E0EF', glowRgb: '127,196,217' },
     };
 
     async function init() {
@@ -148,7 +151,14 @@
 
       goals = (goalRows || []).map(g => {
         const links = (goalAccounts || []).filter(ga => ga.goal_id === g.id);
-        const connectedTotal = links.reduce((s, l) => s + (balanceById[l.linked_account_id] || 0), 0);
+        const connectedTotal = links.reduce((s, l) => {
+          const bal = balanceById[l.linked_account_id] || 0;
+          let contribution;
+          if (l.allocated_percent != null) contribution = bal * Number(l.allocated_percent) / 100;
+          else if (l.allocated_amount != null) contribution = Math.min(bal, Number(l.allocated_amount));
+          else contribution = bal; // nothing set — the original "whole account" behavior
+          return s + contribution;
+        }, 0);
         const current = links.length ? connectedTotal : Number(g.manual_amount) || 0;
         return { ...g, links, current: round2(current) };
       });
@@ -176,14 +186,20 @@
             <path d="M55 150 L105 150 L98 172 L62 172 Z" fill="#2C1F14" stroke="${accent}" stroke-width="1.5"/>
             <rect x="52" y="144" width="56" height="10" rx="3" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
             <line x1="80" y1="150" x2="80" y2="${stemTopY}" stroke="${accent}" stroke-width="3.5" stroke-linecap="round"/>
-            <g transform="translate(80 ${stemTopY + stemHeight * 0.35}) scale(${leafScale})" opacity="${clampedPct > 5 ? 1 : 0}">
-              <path d="M0 0 C -22 -10, -30 -34, -8 -46 C 4 -28, 8 -12, 0 0 Z" fill="url(#potGrad-${theme})"/>
+            <g class="sav-anim-sway" style="transform-origin:80px ${stemTopY + stemHeight * 0.35}px;">
+              <g transform="translate(80 ${stemTopY + stemHeight * 0.35}) scale(${leafScale})" opacity="${clampedPct > 5 ? 1 : 0}">
+                <path d="M0 0 C -22 -10, -30 -34, -8 -46 C 4 -28, 8 -12, 0 0 Z" fill="url(#potGrad-${theme})"/>
+              </g>
             </g>
-            <g transform="translate(80 ${stemTopY + stemHeight * 0.62}) scale(${leafScale * 0.85})" opacity="${clampedPct > 20 ? 1 : 0}">
-              <path d="M0 0 C 20 -8, 28 -30, 6 -40 C -6 -24, -8 -10, 0 0 Z" fill="url(#potGrad-${theme})"/>
+            <g class="sav-anim-sway" style="transform-origin:80px ${stemTopY + stemHeight * 0.62}px; animation-delay:-0.6s;">
+              <g transform="translate(80 ${stemTopY + stemHeight * 0.62}) scale(${leafScale * 0.85})" opacity="${clampedPct > 20 ? 1 : 0}">
+                <path d="M0 0 C 20 -8, 28 -30, 6 -40 C -6 -24, -8 -10, 0 0 Z" fill="url(#potGrad-${theme})"/>
+              </g>
             </g>
-            <g transform="translate(80 ${stemTopY}) scale(${leafScale * 1.05})" opacity="${clampedPct > 60 ? 1 : 0}">
-              <path d="M0 0 C -18 -20, -6 -38, 0 -44 C 6 -38, 18 -20, 0 0 Z" fill="url(#potGrad-${theme})"/>
+            <g class="sav-anim-sway" style="transform-origin:80px ${stemTopY}px; animation-delay:-1.1s;">
+              <g transform="translate(80 ${stemTopY}) scale(${leafScale * 1.05})" opacity="${clampedPct > 60 ? 1 : 0}">
+                <path d="M0 0 C -18 -20, -6 -38, 0 -44 C 6 -38, 18 -20, 0 0 Z" fill="url(#potGrad-${theme})"/>
+              </g>
             </g>
             ${clampedPct >= 100 ? `<circle cx="80" cy="${stemTopY - 4}" r="6" fill="${accentBright}"><animate attributeName="r" values="6;8;6" dur="1.8s" repeatCount="indefinite"/></circle>` : ''}
           </svg>`;
@@ -201,7 +217,7 @@
             <g clip-path="url(#bottleClip-${theme})">
               <rect x="10" y="${fillY}" width="140" height="180" fill="${accent}" opacity="0.5"/>
               <path d="M10 ${fillY} q 20 -5 40 0 t 40 0 t 40 0 t 20 0 v 6 h -140 z" fill="${accentBright}" opacity="0.7"/>
-              <g transform="translate(80 ${fillY - 4})" opacity="${clampedPct > 3 ? 1 : 0}">
+              <g class="sav-anim-bob" style="transform-origin:80px ${fillY}px;" transform="translate(80 ${fillY - 4})" opacity="${clampedPct > 3 ? 1 : 0}">
                 <path d="M-20 0 L20 0 L14 12 L-14 12 Z" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
                 <line x1="0" y1="0" x2="0" y2="-24" stroke="${accent}" stroke-width="2"/>
                 <path d="M0 -24 L16 -16 L0 -10 Z" fill="${accentBright}"/>
@@ -211,23 +227,101 @@
           </svg>`;
       }
 
+      if (theme === 'balloon') {
+        // Rises up the frame as pct increases — 100% sits near the top,
+        // 0% sits low with just the basket visible above the ground line.
+        const riseY = 148 - (clampedPct / 100) * 92;
+        return `
+          <svg viewBox="0 0 160 180" class="sav-illust">
+            <defs>
+              <radialGradient id="balloonGrad-${theme}" cx="35%" cy="30%" r="75%">
+                <stop offset="0%" stop-color="${accentBright}"/>
+                <stop offset="100%" stop-color="${accent}"/>
+              </radialGradient>
+            </defs>
+            <ellipse cx="80" cy="172" rx="40" ry="6" fill="rgba(0,0,0,0.22)"/>
+            <g class="sav-anim-float" style="transform-origin:80px ${riseY}px;" transform="translate(0 ${riseY - 60})">
+              <ellipse cx="80" cy="60" rx="34" ry="42" fill="url(#balloonGrad-${theme})"/>
+              <path d="M60 96 Q80 106 100 96" stroke="${accent}" stroke-width="2" fill="none" opacity="0.6"/>
+              <line x1="64" y1="98" x2="70" y2="120" stroke="${accent}" stroke-width="1.5"/>
+              <line x1="96" y1="98" x2="90" y2="120" stroke="${accent}" stroke-width="1.5"/>
+              <line x1="80" y1="102" x2="80" y2="120" stroke="${accent}" stroke-width="1.5"/>
+              <rect x="68" y="120" width="24" height="16" rx="2" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
+            </g>
+          </svg>`;
+      }
+
+      if (theme === 'rocket') {
+        const riseY = 150 - (clampedPct / 100) * 100;
+        return `
+          <svg viewBox="0 0 160 180" class="sav-illust">
+            <defs>
+              <linearGradient id="rocketGrad-${theme}" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="${accentBright}"/>
+                <stop offset="100%" stop-color="${accent}"/>
+              </linearGradient>
+            </defs>
+            <line x1="80" y1="8" x2="80" y2="172" stroke="rgba(255,255,255,0.08)" stroke-width="2" stroke-dasharray="3 6"/>
+            <ellipse cx="80" cy="172" rx="30" ry="6" fill="rgba(0,0,0,0.22)"/>
+            <g class="sav-anim-bob" style="transform-origin:80px ${riseY}px;" transform="translate(0 ${riseY - 40})">
+              <path d="M80 6 C96 26 98 56 96 76 L64 76 C62 56 64 26 80 6 Z" fill="url(#rocketGrad-${theme})"/>
+              <circle cx="80" cy="42" r="9" fill="#171D24" stroke="${accentBright}" stroke-width="2"/>
+              <path d="M64 60 L46 78 L64 74 Z" fill="${accent}"/>
+              <path d="M96 60 L114 78 L96 74 Z" fill="${accent}"/>
+              <g class="sav-anim-flicker">
+                <path d="M70 76 L80 100 L90 76 Z" fill="${accentBright}"/>
+                <path d="M74 76 L80 92 L86 76 Z" fill="#fff" opacity="0.7"/>
+              </g>
+            </g>
+          </svg>`;
+      }
+
+      if (theme === 'lighthouse') {
+        // Tower height is fixed — what grows with pct is the beam's
+        // reach and brightness, plus a rotating sweep once there's
+        // meaningfully something to shine.
+        const beamLen = 20 + (clampedPct / 100) * 90;
+        const beamOpacity = 0.15 + (clampedPct / 100) * 0.55;
+        return `
+          <svg viewBox="0 0 160 180" class="sav-illust">
+            <defs>
+              <linearGradient id="towerGrad-${theme}" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="${accentBright}"/>
+                <stop offset="100%" stop-color="${accent}"/>
+              </linearGradient>
+            </defs>
+            <ellipse cx="80" cy="172" rx="44" ry="6" fill="rgba(0,0,0,0.22)"/>
+            <path d="M64 168 L70 60 L90 60 L96 168 Z" fill="url(#towerGrad-${theme})" opacity="0.85"/>
+            <rect x="66" y="70" width="8" height="10" fill="#171D24" opacity="0.5"/>
+            <rect x="86" y="90" width="8" height="10" fill="#171D24" opacity="0.5"/>
+            <rect x="66" y="110" width="8" height="10" fill="#171D24" opacity="0.5"/>
+            <rect x="86" y="130" width="8" height="10" fill="#171D24" opacity="0.5"/>
+            <rect x="58" y="48" width="44" height="14" rx="2" fill="${accent}" stroke="${accentBright}" stroke-width="1.5"/>
+            <path d="M64 48 L80 30 L96 48 Z" fill="${accentBright}"/>
+            <g class="sav-anim-beam" style="transform-origin:80px 55px;" opacity="${clampedPct > 2 ? 1 : 0}">
+              <path d="M80 55 L${80 + beamLen} ${40 - beamLen * 0.28} L${80 + beamLen} ${70 + beamLen * 0.28} Z" fill="${accentBright}" opacity="${beamOpacity}"/>
+            </g>
+            <circle cx="80" cy="55" r="5" fill="${accentBright}"/>
+          </svg>`;
+      }
+
+      // kite
+      const riseY = 150 - (clampedPct / 100) * 110;
       return `
         <svg viewBox="0 0 160 180" class="sav-illust">
           <defs>
-            <clipPath id="vesselClip-${theme}"><path d="M50 10 h60 v20 c22 14 34 34 34 62 v50 a26 26 0 0 1 -26 26 h-76 a26 26 0 0 1 -26 -26 v-50 c0 -28 12 -48 34 -62 z"/></clipPath>
-            <linearGradient id="liquidGrad-${theme}" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="kiteGrad-${theme}" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stop-color="${accentBright}"/>
               <stop offset="100%" stop-color="${accent}"/>
             </linearGradient>
           </defs>
-          <path d="M50 10 h60 v20 c22 14 34 34 34 62 v50 a26 26 0 0 1 -26 26 h-76 a26 26 0 0 1 -26 -26 v-50 c0 -28 12 -48 34 -62 z"
-            fill="rgba(255,255,255,0.03)" stroke="${accent}" stroke-width="2" opacity="0.9"/>
-          <rect x="46" y="2" width="68" height="14" rx="4" fill="${accent}" opacity="0.8"/>
-          <g clip-path="url(#vesselClip-${theme})">
-            <rect x="10" y="${fillY}" width="140" height="180" fill="url(#liquidGrad-${theme})" opacity="0.85"/>
-            <path d="M10 ${fillY} q 18 -6 36 0 t 36 0 t 36 0 t 22 0 v 8 h -130 z" fill="${accentBright}" opacity="0.5"/>
+          <path d="M80 176 Q68 ${riseY + 70} 80 ${riseY + 14}" stroke="${accent}" stroke-width="1.5" fill="none" opacity="0.5"/>
+          <g class="sav-anim-sway" style="transform-origin:80px ${riseY}px;" transform="translate(0 ${riseY - 60})">
+            <path d="M80 20 L104 60 L80 100 L56 60 Z" fill="url(#kiteGrad-${theme})"/>
+            <line x1="80" y1="20" x2="80" y2="100" stroke="${accentBright}" stroke-width="1.5" opacity="0.7"/>
+            <line x1="56" y1="60" x2="104" y2="60" stroke="${accentBright}" stroke-width="1.5" opacity="0.7"/>
+            <path d="M80 100 Q76 110 82 116 Q76 122 82 128 Q76 134 82 140" stroke="${accent}" stroke-width="2" fill="none" stroke-linecap="round"/>
           </g>
-          <ellipse cx="80" cy="176" rx="30" ry="4" fill="rgba(0,0,0,0.2)"/>
         </svg>`;
     }
 
@@ -238,7 +332,7 @@
         return;
       }
       grid.innerHTML = goals.map(g => {
-        const theme = THEMES[g.theme] || THEMES.vessel;
+        const theme = THEMES[g.theme] || THEMES.plant;
         const target = Number(g.target_amount) || 0;
         const pct = target > 0 ? Math.min(100, round2((g.current / target) * 100)) : 0;
         return `
@@ -256,6 +350,20 @@
       });
     }
 
+    function linkContribution(l, acct) {
+      const bal = acct ? Number(acct.balance) || 0 : 0;
+      if (l.allocated_percent != null) return round2(bal * Number(l.allocated_percent) / 100);
+      if (l.allocated_amount != null) return round2(Math.min(bal, Number(l.allocated_amount)));
+      return round2(bal);
+    }
+
+    function linkAllocationLabel(l, acct) {
+      const contribution = linkContribution(l, acct);
+      if (l.allocated_percent != null) return `${l.allocated_percent}% (${money(contribution)})`;
+      if (l.allocated_amount != null) return `${money(contribution)} fixed`;
+      return `${money(contribution)} · whole account`;
+    }
+
     function openGoalDetail(goalId) {
       const g = goals.find(x => x.id === goalId);
       if (!g) return;
@@ -267,6 +375,23 @@
 
       const unlinkedAccounts = linkedAccounts.filter(a => !g.links.some(l => l.linked_account_id === a.id));
 
+      const linkPickerHtml = (options) => `
+        <div class="mfa-field" style="margin-top:12px;">
+          <label>Link another account</label>
+          <select id="sav-link-account-select">
+            <option value="">Choose an account…</option>
+            ${options.map(a => `<option value="${a.id}">${(a.nickname || a.institution_name).replace(/</g,'&lt;')} — ${money(a.balance)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="sav-alloc-mode-row">
+          <label class="sav-alloc-mode-option"><input type="radio" name="sav-alloc-mode" value="whole" checked /> Whole account</label>
+          <label class="sav-alloc-mode-option"><input type="radio" name="sav-alloc-mode" value="percent" /> Percent</label>
+          <label class="sav-alloc-mode-option"><input type="radio" name="sav-alloc-mode" value="amount" /> Fixed $</label>
+        </div>
+        <input type="number" id="sav-alloc-value-input" step="0.01" placeholder="e.g. 20" style="display:none; margin-top:8px;" />
+        <button type="button" class="mfa-verify-btn" id="sav-link-account-btn" style="margin-top:10px;">Link account</button>
+      `;
+
       body.innerHTML = `
         <div class="sav-detail-illust">${goalIllustrationSvg(g.theme, pct, THEMES[g.theme].accent, THEMES[g.theme].accentBright)}</div>
         <p class="mfa-modal-sub" style="text-align:center; margin-bottom:4px;">${money(g.current)} of ${money(target)} · ${pct}%</p>
@@ -275,19 +400,16 @@
           <div class="sav-linked-list">
             ${g.links.map(l => {
               const acct = linkedAccounts.find(a => a.id === l.linked_account_id);
-              return `<div class="sav-linked-row"><span>${acct ? (acct.nickname || acct.institution_name) : 'Account'}</span><button type="button" class="sav-unlink-btn" data-goal-id="${g.id}" data-link-id="${l.id}">Unlink</button></div>`;
+              return `<div class="sav-linked-row">
+                <span class="sav-linked-name">${acct ? (acct.nickname || acct.institution_name) : 'Account'}</span>
+                <span class="sav-linked-alloc">${linkAllocationLabel(l, acct)}</span>
+                <button type="button" class="sav-edit-alloc-btn" data-link-id="${l.id}" data-account-id="${l.linked_account_id}" title="Edit allocation">Edit</button>
+                <button type="button" class="sav-unlink-btn" data-link-id="${l.id}">Unlink</button>
+              </div>`;
             }).join('')}
           </div>
-          ${unlinkedAccounts.length ? `
-            <div class="mfa-field" style="margin-top:12px;">
-              <label>Link another account</label>
-              <select id="sav-link-account-select">
-                <option value="">Choose an account…</option>
-                ${unlinkedAccounts.map(a => `<option value="${a.id}">${(a.nickname || a.institution_name).replace(/</g,'&lt;')}</option>`).join('')}
-              </select>
-            </div>
-            <button type="button" class="mfa-verify-btn" id="sav-link-account-btn" style="margin-top:10px;">Link account</button>
-          ` : ''}
+          <div id="sav-edit-alloc-wrap"></div>
+          ${unlinkedAccounts.length ? linkPickerHtml(unlinkedAccounts) : ''}
         ` : `
           <div class="mfa-field" style="margin-top:14px;">
             <label>Set aside manually</label>
@@ -295,13 +417,7 @@
           </div>
           <button type="button" class="mfa-verify-btn" id="sav-manual-save-btn" style="margin-top:10px;">Save amount</button>
           <p class="mfa-modal-sub" style="margin-top:14px;">Or link a real account</p>
-          <div class="mfa-field">
-            <select id="sav-link-account-select">
-              <option value="">Choose an account…</option>
-              ${linkedAccounts.map(a => `<option value="${a.id}">${(a.nickname || a.institution_name).replace(/</g,'&lt;')}</option>`).join('')}
-            </select>
-          </div>
-          <button type="button" class="mfa-verify-btn" id="sav-link-account-btn" style="margin-top:10px;">Link account</button>
+          ${linkPickerHtml(linkedAccounts)}
         `}
         <div class="mfa-field" style="margin-top:16px;">
           <label>Target amount</label>
@@ -319,13 +435,84 @@
         openGoalDetail(g.id);
       });
 
+      // Toggling the mode radios shows/hides the value input and swaps
+      // its placeholder, rather than three separate always-visible
+      // inputs competing for attention.
+      document.querySelectorAll('input[name="sav-alloc-mode"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+          const valueInput = document.getElementById('sav-alloc-value-input');
+          const mode = document.querySelector('input[name="sav-alloc-mode"]:checked').value;
+          if (mode === 'whole') { valueInput.style.display = 'none'; return; }
+          valueInput.style.display = 'block';
+          valueInput.placeholder = mode === 'percent' ? 'e.g. 20 (%)' : 'e.g. 200.00 ($)';
+          valueInput.focus();
+        });
+      });
+
       const linkBtn = document.getElementById('sav-link-account-btn');
       if (linkBtn) linkBtn.addEventListener('click', async () => {
         const accountId = document.getElementById('sav-link-account-select').value;
         if (!accountId) { alert('Choose an account first.'); return; }
-        await supabaseClient.from('savings_goal_accounts').insert({ user_id: currentUserId, goal_id: g.id, linked_account_id: accountId });
+        const mode = document.querySelector('input[name="sav-alloc-mode"]:checked').value;
+        const rawValue = parseFloat(document.getElementById('sav-alloc-value-input').value) || 0;
+
+        const row = { user_id: currentUserId, goal_id: g.id, linked_account_id: accountId };
+        if (mode === 'percent') {
+          if (rawValue <= 0 || rawValue > 100) { alert('Percent needs to be between 0 and 100.'); return; }
+          row.allocated_percent = round2(rawValue);
+        } else if (mode === 'amount') {
+          if (rawValue <= 0) { alert('Enter an amount greater than $0.'); return; }
+          row.allocated_amount = round2(rawValue);
+        }
+        await supabaseClient.from('savings_goal_accounts').insert(row);
         await loadGoals();
         openGoalDetail(g.id);
+      });
+
+      // Edit an existing link's allocation inline, right below the row
+      // it belongs to — same "no separate menu" reasoning used
+      // elsewhere in the app, rather than a whole new modal for a
+      // one-field change.
+      document.querySelectorAll('.sav-edit-alloc-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const link = g.links.find(l => l.id === btn.dataset.linkId);
+          if (!link) return;
+          const currentMode = link.allocated_percent != null ? 'percent' : (link.allocated_amount != null ? 'amount' : 'whole');
+          const currentValue = link.allocated_percent != null ? link.allocated_percent : (link.allocated_amount != null ? link.allocated_amount : '');
+          const wrap = document.getElementById('sav-edit-alloc-wrap');
+          wrap.innerHTML = `
+            <div class="sav-alloc-mode-row" style="margin-top:8px;">
+              <label class="sav-alloc-mode-option"><input type="radio" name="sav-edit-mode" value="whole" ${currentMode === 'whole' ? 'checked' : ''} /> Whole account</label>
+              <label class="sav-alloc-mode-option"><input type="radio" name="sav-edit-mode" value="percent" ${currentMode === 'percent' ? 'checked' : ''} /> Percent</label>
+              <label class="sav-alloc-mode-option"><input type="radio" name="sav-edit-mode" value="amount" ${currentMode === 'amount' ? 'checked' : ''} /> Fixed $</label>
+            </div>
+            <input type="number" id="sav-edit-alloc-value" step="0.01" value="${currentMode === 'whole' ? '' : currentValue}" style="margin-top:8px; ${currentMode === 'whole' ? 'display:none;' : ''}" />
+            <button type="button" class="mfa-verify-btn" id="sav-edit-alloc-save-btn" style="margin-top:8px;">Save allocation</button>
+          `;
+          document.querySelectorAll('input[name="sav-edit-mode"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+              const valueInput = document.getElementById('sav-edit-alloc-value');
+              const mode = document.querySelector('input[name="sav-edit-mode"]:checked').value;
+              valueInput.style.display = mode === 'whole' ? 'none' : 'block';
+              valueInput.placeholder = mode === 'percent' ? 'e.g. 20 (%)' : 'e.g. 200.00 ($)';
+            });
+          });
+          document.getElementById('sav-edit-alloc-save-btn').addEventListener('click', async () => {
+            const mode = document.querySelector('input[name="sav-edit-mode"]:checked').value;
+            const rawValue = parseFloat(document.getElementById('sav-edit-alloc-value').value) || 0;
+            const updates = { allocated_percent: null, allocated_amount: null };
+            if (mode === 'percent') {
+              if (rawValue <= 0 || rawValue > 100) { alert('Percent needs to be between 0 and 100.'); return; }
+              updates.allocated_percent = round2(rawValue);
+            } else if (mode === 'amount') {
+              if (rawValue <= 0) { alert('Enter an amount greater than $0.'); return; }
+              updates.allocated_amount = round2(rawValue);
+            }
+            await supabaseClient.from('savings_goal_accounts').update(updates).eq('id', link.id);
+            await loadGoals();
+            openGoalDetail(g.id);
+          });
+        });
       });
 
       document.querySelectorAll('.sav-unlink-btn').forEach(btn => {

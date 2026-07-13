@@ -749,13 +749,14 @@ async function checkForOAuthReturn() {
     onSuccess: async (public_token, metadata) => {
       clearPlaidLinkState();
       if (flow === 'new_connection') {
-        await finishNewConnection(public_token, metadata?.institution?.name || 'Bank');
+        await finishNewConnection(public_token, metadata?.institution?.name || 'Bank', metadata);
       } else if (flow === 'reconnect') {
         await finishReconnect(itemId);
+        await loadAccounts();
       } else if (flow === 'add_new_accounts') {
         await finishAddNewAccounts(itemId);
+        await loadAccounts();
       }
-      await loadAccounts();
     },
     onExit: (err) => {
       clearPlaidLinkState();
@@ -767,12 +768,24 @@ async function checkForOAuthReturn() {
 
 // ---------- shared success handlers (used by both the normal open
 // and the OAuth-resume path above) ----------
-async function finishNewConnection(publicToken, institutionName) {
+async function finishNewConnection(publicToken, institutionName, metadata) {
+  const accounts = metadata?.accounts || [];
+  // Only worth showing a picker when there's an actual choice to make —
+  // one account (or Plaid not returning the list for this institution)
+  // just proceeds the way it always did.
+  if (accounts.length > 1) {
+    openAccountSelectPicker(publicToken, institutionName, accounts);
+    return;
+  }
+  await completeAccountExchange(publicToken, institutionName, accounts.map(a => a.id));
+}
+
+async function completeAccountExchange(publicToken, institutionName, selectedPlaidAccountIds) {
   try {
     const exRes = await fetch('/api/plaid-exchange-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: currentUserId, publicToken, institutionName })
+      body: JSON.stringify({ userId: currentUserId, publicToken, institutionName, selectedPlaidAccountIds })
     });
     if (!exRes.ok) throw new Error('Could not finish linking this account (' + exRes.status + ')');
     const result = await exRes.json().catch(() => ({}));
@@ -781,10 +794,55 @@ async function finishNewConnection(publicToken, institutionName) {
     if (result.historicalImport && result.historicalImport.count > 0) {
       showHistoricalImportConsent(result.linkedAccountIds || [], result.historicalImport, institutionName);
     }
+    await loadAccounts();
   } catch (err) {
     console.error(err);
     alert(err.message || 'Something went wrong finishing this connection.');
   }
+}
+
+// Plaid Link's own metadata.accounts (returned right in onSuccess, no
+// extra API call needed) already has everything needed to show this —
+// id, name, mask, type. Checked by default since most people linking
+// an account want everything from it; unchecking is the exception,
+// not the norm.
+function openAccountSelectPicker(publicToken, institutionName, accounts) {
+  document.getElementById('account-select-heading').textContent = `Accounts at ${institutionName}`;
+  const list = document.getElementById('account-select-list');
+  list.innerHTML = accounts.map(a => `
+    <label class="account-select-row">
+      <span class="log-check">
+        <input type="checkbox" class="account-select-checkbox" data-account-id="${a.id}" checked />
+        <span class="check-box"></span>
+      </span>
+      <span class="account-select-text">
+        <span class="account-select-name">${(a.name || 'Account').replace(/</g,'&lt;')}</span>
+        <span class="account-select-meta">${(a.subtype || a.type || '').replace(/</g,'&lt;')}${a.mask ? ' · ····' + a.mask : ''}</span>
+      </span>
+    </label>
+  `).join('');
+
+  const confirmBtn = document.getElementById('account-select-confirm-btn');
+  const errorEl = document.getElementById('account-select-error');
+  errorEl.style.display = 'none';
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = 'Add selected accounts';
+
+  // Cloning strips any listener from a previous open of this picker —
+  // simpler than tracking and removing a named handler each time.
+  const freshBtn = confirmBtn.cloneNode(true);
+  confirmBtn.parentNode.replaceChild(freshBtn, confirmBtn);
+  freshBtn.addEventListener('click', async () => {
+    const selectedIds = Array.from(document.querySelectorAll('.account-select-checkbox:checked')).map(cb => cb.dataset.accountId);
+    if (!selectedIds.length) { errorEl.textContent = 'Select at least one account.'; errorEl.style.display = 'block'; return; }
+    errorEl.style.display = 'none';
+    freshBtn.disabled = true;
+    freshBtn.textContent = 'Adding…';
+    document.getElementById('account-select-overlay').classList.remove('open');
+    await completeAccountExchange(publicToken, institutionName, selectedIds);
+  });
+
+  document.getElementById('account-select-overlay').classList.add('open');
 }
 
 // Right after a new connection, we pull in a bounded window of past
@@ -894,8 +952,7 @@ async function startPlaidLink() {
       onSuccess: async (public_token, metadata) => {
         clearPlaidLinkState();
         btn.innerHTML = 'Finishing up…';
-        await finishNewConnection(public_token, metadata?.institution?.name || 'Bank');
-        await loadAccounts();
+        await finishNewConnection(public_token, metadata?.institution?.name || 'Bank', metadata);
         btn.disabled = false;
         btn.innerHTML = originalText;
       },
@@ -1235,6 +1292,22 @@ const PREMIUM_TOOLS = [
     href: 'spending.html',
     iconClass: 'icon-spending',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>'
+  },
+  {
+    id: 'investments',
+    label: 'Investments',
+    desc: 'Your portfolio, broken down by holding.',
+    href: 'investments.html',
+    iconClass: 'icon-investments',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8 13 13.7l-3-3L4.3 16.4"></path></svg>'
+  },
+  {
+    id: 'savings',
+    label: 'Visual Savings',
+    desc: 'Watch your goals grow.',
+    href: 'savings.html',
+    iconClass: 'icon-savings',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"></path><path d="M8 8h8l2 12H6z"></path><path d="M9 13h6"></path></svg>'
   }
 ];
 

@@ -288,6 +288,23 @@
     </div>
   </div>
 
+  <!-- ================= WHICH ACCOUNTS TO ADD ================= -->
+  <div class="mfa-overlay" id="account-select-overlay">
+    <div class="mfa-modal" style="max-width: 440px;">
+      <div class="mfa-modal-head">
+        <h2 id="account-select-heading">Which accounts?</h2>
+      </div>
+      <div class="mfa-modal-body">
+        <p class="mfa-modal-sub" style="margin-bottom:12px;">Choose which accounts to bring into Arko — you can always add the rest later from Connections.</p>
+        <div class="account-select-list" id="account-select-list"></div>
+        <p class="mfa-modal-sub" id="account-select-error" style="color:var(--error); display:none; margin-top:8px;"></p>
+      </div>
+      <div class="mfa-modal-actions">
+        <button type="button" class="mfa-verify-btn" id="account-select-confirm-btn" style="width:100%;">Add selected accounts</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>

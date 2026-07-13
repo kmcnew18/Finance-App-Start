@@ -5,7 +5,8 @@
    used elsewhere in the app.
    =========================================================== */
 
-.sav-title { color: var(--tan); }
+.sav-title { color: var(--tan); text-shadow: 0 0 24px rgba(110,196,184,0.35); }
+.sav-title::after { background: linear-gradient(90deg, #6EC4B8, transparent) !important; }
 
 .sav-goals-grid {
   display: grid;
@@ -54,6 +55,40 @@
 
 .sav-goal-illust-wrap { width: 100%; max-width: 130px; margin-bottom: 4px; }
 .sav-illust { width: 100%; height: auto; display: block; filter: drop-shadow(0 0 10px rgba(var(--goal-glow), 0.3)); }
+
+/* ---------- ILLUSTRATION ANIMATIONS ---------- */
+.sav-anim-sway { animation: savSway 3.2s ease-in-out infinite; }
+@keyframes savSway {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+.sav-anim-bob { animation: savBob 2.6s ease-in-out infinite; }
+@keyframes savBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.sav-anim-float { animation: savFloat 3.6s ease-in-out infinite; }
+@keyframes savFloat {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-7px) rotate(1.5deg); }
+}
+.sav-anim-flicker { animation: savFlicker 0.5s ease-in-out infinite alternate; transform-origin: 80px 76px; }
+@keyframes savFlicker {
+  0% { transform: scaleY(0.85); opacity: 0.85; }
+  100% { transform: scaleY(1.1); opacity: 1; }
+}
+.sav-anim-beam { animation: savBeam 4s ease-in-out infinite; }
+@keyframes savBeam {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sav-anim-sway, .sav-anim-bob, .sav-anim-float, .sav-anim-flicker, .sav-anim-beam {
+    animation: none;
+  }
+}
+
 
 .sav-goal-name {
   font-family: 'Fraunces', serif;
@@ -141,7 +176,7 @@
 .sav-detail-illust { width: 100%; max-width: 170px; margin: 0 auto 12px; }
 .sav-linked-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .sav-linked-row {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 8px;
   padding: 9px 12px;
   border-radius: 8px;
   background: rgba(255,255,255,0.03);
@@ -149,7 +184,31 @@
   font-size: 0.82rem;
   color: var(--tan);
 }
+.sav-linked-name { flex-shrink: 0; font-weight: 600; }
+.sav-linked-alloc { flex: 1; min-width: 0; color: var(--silver-dim); font-size: 0.76rem; font-family: 'IBM Plex Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sav-edit-alloc-btn {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid rgba(110,143,163,0.35);
+  color: var(--vintage-blue-light);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.sav-edit-alloc-btn:hover { background: rgba(110,143,163,0.12); }
+.sav-alloc-mode-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.sav-alloc-mode-option {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.78rem;
+  color: var(--silver-dim);
+  cursor: pointer;
+}
+.sav-alloc-mode-option input { accent-color: var(--vintage-blue-light); cursor: pointer; }
 .sav-unlink-btn {
+  flex-shrink: 0;
   background: none;
   border: 1px solid var(--error);
   color: var(--error);
@@ -163,12 +222,12 @@
 .sav-unlink-btn:hover { background: rgba(224,139,125,0.12); }
 
 .ledger-tool-icon.icon-savings {
-  background: linear-gradient(155deg, rgba(216,188,122,0.24), rgba(216,188,122,0.05));
-  border-color: rgba(216,188,122,0.32);
+  background: linear-gradient(155deg, rgba(110,196,184,0.24), rgba(110,196,184,0.05));
+  border-color: rgba(110,196,184,0.32);
 }
-.ledger-tool-icon.icon-savings svg { stroke: #E7C766; }
+.ledger-tool-icon.icon-savings svg { stroke: #6EC4B8; }
 .ledger-tool-item:hover .ledger-tool-icon.icon-savings {
-  background: linear-gradient(155deg, rgba(216,188,122,0.36), rgba(216,188,122,0.08));
+  background: linear-gradient(155deg, rgba(110,196,184,0.36), rgba(110,196,184,0.08));
   transform: scale(1.08);
 }
 

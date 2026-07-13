@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { userId, publicToken, institutionName } = req.body || {};
+    const { userId, publicToken, institutionName, selectedPlaidAccountIds } = req.body || {};
     if (!userId || !publicToken) {
       res.status(400).json({ error: 'Missing userId or publicToken' });
       return;
@@ -78,7 +78,19 @@ module.exports = async (req, res) => {
 
     // Pull balances immediately so the new accounts show up right away.
     const balancesRes = await plaidClient.accountsBalanceGet({ access_token: accessToken });
-    const plaidAccounts = balancesRes.data.accounts || [];
+    let plaidAccounts = balancesRes.data.accounts || [];
+
+    // If the person checked specific accounts in Arko's own picker
+    // (rather than accepting everything the institution returned),
+    // only those get linked. selectedPlaidAccountIds being omitted or
+    // empty means "no selection was made" (older callers, or an
+    // institution where Link itself already narrowed it down) — in
+    // that case every returned account still gets linked, same as
+    // before this existed.
+    if (Array.isArray(selectedPlaidAccountIds) && selectedPlaidAccountIds.length) {
+      const selectedSet = new Set(selectedPlaidAccountIds);
+      plaidAccounts = plaidAccounts.filter(a => selectedSet.has(a.account_id));
+    }
 
     const rows = plaidAccounts.map(a => ({
       user_id: userId,

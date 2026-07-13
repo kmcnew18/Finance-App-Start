@@ -1941,15 +1941,16 @@ input[type="number"]::-webkit-outer-spin-button {
   transform: scale(1.08);
 }
 
-/* Visual Savings gets a warm brass/gold, distinct from Budget
-   Planner's own ledger-gold by leaning a touch warmer and softer. */
+/* Visual Savings gets bright teal — reserved for this exact purpose
+   from the very first custom-category color palette, same as violet
+   was reserved for Investments. */
 .ledger-tool-icon.icon-savings {
-  background: linear-gradient(155deg, rgba(216,188,122,0.24), rgba(216,188,122,0.05));
-  border-color: rgba(216,188,122,0.32);
+  background: linear-gradient(155deg, rgba(110,196,184,0.24), rgba(110,196,184,0.05));
+  border-color: rgba(110,196,184,0.32);
 }
-.ledger-tool-icon.icon-savings svg { stroke: #E7C766; }
+.ledger-tool-icon.icon-savings svg { stroke: #6EC4B8; }
 .ledger-tool-item:hover .ledger-tool-icon.icon-savings {
-  background: linear-gradient(155deg, rgba(216,188,122,0.36), rgba(216,188,122,0.08));
+  background: linear-gradient(155deg, rgba(110,196,184,0.36), rgba(110,196,184,0.08));
   transform: scale(1.08);
 }
 
