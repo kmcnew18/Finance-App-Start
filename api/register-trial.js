@@ -37,13 +37,27 @@ export default async function handler(req, res) {
 
   const trialStart = new Date();
   const trialEnd = new Date(trialStart);
-  trialEnd.setMonth(trialEnd.getMonth() + 3);
+  // 14 days — long enough to actually connect an account, see a
+  // couple of sync cycles, and get real value out of the automated
+  // side of the app; short enough that deleting the account and
+  // signing up again isn't worth the trouble compared to just paying
+  // for Tier 2. The old 3-month trial was long enough that people
+  // could reasonably use it, get satisfied, and cycle to a new
+  // account when it ran out — this is deliberately not that.
+  trialEnd.setDate(trialEnd.getDate() + 14);
 
+  // A flagged device (fingerprint/IP already used a trial) gets
+  // dropped straight to Tier 1 — free forever, no temporary Tier 3
+  // access at all, rather than an already-expired trial that still
+  // implies a trial happened. Tier 1 always being genuinely usable
+  // (manual budgeting, no Plaid) is what makes this a fair floor
+  // rather than a dead end.
   const { error } = await supabaseAdmin.from('user_billing').insert({
     user_id: userId,
     trial_start: trialStart.toISOString(),
-    // Flagged devices get a trial that's already expired -> forced straight to paywall
     trial_end: alreadyUsedTrial ? trialStart.toISOString() : trialEnd.toISOString(),
+    tier: alreadyUsedTrial ? 1 : 3,
+    billing_period: alreadyUsedTrial ? 'free' : 'trial',
     signup_fingerprint: fingerprint || null,
     signup_ip: ip
   });

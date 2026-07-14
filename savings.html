@@ -98,6 +98,15 @@
     let currentUserId = null;
     let currentUserEmail = null;
     let isPaidUser = false;
+    let userTier = 1;
+
+    function computeEffectiveTier(billing) {
+      if (!billing) return 1;
+      const trialActive = billing.billing_period === 'trial' && new Date(billing.trial_end) > new Date();
+      if (trialActive) return 3;
+      if (billing.billing_period === 'trial') return 1;
+      return billing.tier || 1;
+    }
     let goals = [];
     let linkedAccounts = [];
 
@@ -147,12 +156,9 @@
       document.getElementById('user-email').textContent = session.user.email;
 
       const { data: billing } = await supabaseClient.from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
-      if (billing) {
-        isPaidUser = !!billing.is_paid;
-        const trialExpired = new Date(billing.trial_end) < new Date();
-        if (trialExpired && !billing.is_paid) { window.location.href = 'paywall.html'; return; }
-        if (!isPaidUser) { window.location.href = 'dashboard.html'; return; }
-      }
+      userTier = computeEffectiveTier(billing);
+      isPaidUser = userTier >= 2;
+      if (userTier < 3) { window.location.href = 'paywall.html?need=3'; return; }
 
       setupLedgerMenu();
       document.getElementById('logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.href = 'login.html'; });
@@ -686,14 +692,14 @@
       document.getElementById('new-goal-overlay').addEventListener('click', (e) => { if (e.target.id === 'new-goal-overlay') document.getElementById('new-goal-overlay').classList.remove('open'); });
     }
 
-    const TRIAL_COVERED_TOOL_IDS = ['dashboard', 'connections'];
+
     const PREMIUM_TOOLS = [
-      { id: 'dashboard', label: 'Dashboard', desc: 'Your accounts, at a glance.', href: 'dashboard.html', iconClass: 'icon-dashboard', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>' },
-      { id: 'connections', label: 'Connections', desc: 'Every account, one net worth.', href: 'connections.html', iconClass: 'icon-connections', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>' },
-      { id: 'budget', label: 'Budget Planner', desc: 'Plan, track, and archive monthly budgets.', href: 'budget.html', iconClass: 'icon-ledger', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><line x1="8.5" y1="7" x2="15.5" y2="7"></line><line x1="8.5" y1="11" x2="15.5" y2="11"></line></svg>' },
-      { id: 'spending', label: 'Spendings', desc: 'Monthly breakdown and subscriptions.', href: 'spending.html', iconClass: 'icon-spending', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>' },
-      { id: 'investments', label: 'Investments', desc: 'Your portfolio, broken down by holding.', href: 'investments.html', iconClass: 'icon-investments', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8 13 13.7l-3-3L4.3 16.4"></path></svg>' },
-      { id: 'savings', label: 'Visual Savings', desc: 'Watch your goals grow.', href: 'savings.html', iconClass: 'icon-savings', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"></path><path d="M8 8h8l2 12H6z"></path><path d="M9 13h6"></path></svg>' },
+      { id: 'dashboard', requiredTier: 1, label: 'Dashboard', desc: 'Your accounts, at a glance.', href: 'dashboard.html', iconClass: 'icon-dashboard', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>' },
+      { id: 'connections', requiredTier: 2, label: 'Connections', desc: 'Every account, one net worth.', href: 'connections.html', iconClass: 'icon-connections', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><line x1="8.6" y1="10.6" x2="15.4" y2="7.4"></line><line x1="8.6" y1="13.4" x2="15.4" y2="16.6"></line></svg>' },
+      { id: 'budget', requiredTier: 1, label: 'Budget Planner', desc: 'Plan, track, and archive monthly budgets.', href: 'budget.html', iconClass: 'icon-ledger', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><line x1="8.5" y1="7" x2="15.5" y2="7"></line><line x1="8.5" y1="11" x2="15.5" y2="11"></line></svg>' },
+      { id: 'spending', requiredTier: 3, label: 'Spendings', desc: 'Monthly breakdown and subscriptions.', href: 'spending.html', iconClass: 'icon-spending', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>' },
+      { id: 'investments', requiredTier: 3, label: 'Investments', desc: 'Your portfolio, broken down by holding.', href: 'investments.html', iconClass: 'icon-investments', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8 13 13.7l-3-3L4.3 16.4"></path></svg>' },
+      { id: 'savings', requiredTier: 3, label: 'Visual Savings', desc: 'Watch your goals grow.', href: 'savings.html', iconClass: 'icon-savings', icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"></path><path d="M8 8h8l2 12H6z"></path><path d="M9 13h6"></path></svg>' },
     ];
 
     function currentFileName() {
@@ -705,13 +711,13 @@
     function renderLedgerMenu() {
       const inner = document.getElementById('ledger-dropdown-inner');
       const lockBadge = document.getElementById('ledger-lock-badge');
-      lockBadge.style.display = isPaidUser ? 'none' : 'flex';
-      document.getElementById('ledger-menu-btn').classList.toggle('unlocked', isPaidUser);
+      lockBadge.style.display = userTier >= 3 ? 'none' : 'flex';
+      document.getElementById('ledger-menu-btn').classList.toggle('unlocked', userTier >= 3);
       const here = currentFileName();
 
       const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
         const isCurrent = tool.href.replace(/\.html?$/i, '') === here;
-        const isLocked = !isPaidUser && !TRIAL_COVERED_TOOL_IDS.includes(tool.id);
+        const isLocked = userTier < tool.requiredTier;
         const classes = ['ledger-tool-item'];
         if (isCurrent) classes.push('current');
         if (isLocked) classes.push('locked-preview');

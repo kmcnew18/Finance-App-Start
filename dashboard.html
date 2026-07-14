@@ -422,6 +422,23 @@
     let currentUserEmail = null;
     let isPaidUser = false;
     let trialExpired = false;
+    let userTier = 1;
+
+    // The single source of truth for what tier someone actually has
+    // right now, computed fresh from billing data rather than trusted
+    // from a stored column — nothing actively flips billing_period
+    // from 'trial' back to 'free' the instant a trial expires, so
+    // this is what actually catches that transition. An active trial
+    // temporarily reads as Tier 3 regardless of what's stored; once
+    // it expires, falls back to whatever tier was actually purchased
+    // (or Tier 1 if nothing was).
+    function computeEffectiveTier(billing) {
+      if (!billing) return 1;
+      const trialActive = billing.billing_period === 'trial' && new Date(billing.trial_end) > new Date();
+      if (trialActive) return 3;
+      if (billing.billing_period === 'trial') return 1; // trial expired, never upgraded
+      return billing.tier || 1;
+    }
     let totals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
 
     const dashMain = document.getElementById('dash-main');
@@ -913,14 +930,16 @@
       const { data: billing } = await supabaseClient
         .from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
 
-      if (billing) {
-        isPaidUser = !!billing.is_paid;
-        trialExpired = new Date(billing.trial_end) < new Date();
-        if (trialExpired && !billing.is_paid) {
-          window.location.href = 'paywall.html';
-          return;
-        }
-      }
+      // Dashboard itself never redirects to the paywall — Tier 1 is
+      // free forever and Dashboard's own content (manual entries,
+      // category cards) is part of it. userTier just determines which
+      // *other* pages and features (via the Premium Tools menu) are
+      // unlocked from here, computed fresh every load rather than
+      // trusted blindly from the stored column, since a trial's
+      // expiry isn't something anything actively flips the moment it
+      // passes — this is what actually catches that.
+      userTier = computeEffectiveTier(billing);
+      isPaidUser = userTier >= 2; // kept for any leftover binary checks elsewhere on this page
       setupLedgerMenu();
       setupMfaOverlay();
       setupMfaBanner();
@@ -2742,11 +2761,10 @@
     // access. Connections joined Dashboard/Log here — seeing real,
     // synced accounts is a big part of what makes trying the trial
     // worthwhile. Budget Planner and Spendings stay paid-only.
-    const TRIAL_COVERED_TOOL_IDS = ['dashboard', 'connections'];
-
     const PREMIUM_TOOLS = [
       {
         id: 'dashboard',
+        requiredTier: 1,
         label: 'Dashboard',
         desc: 'Your accounts, at a glance.',
         href: 'dashboard.html',
@@ -2755,6 +2773,7 @@
       },
       {
         id: 'connections',
+        requiredTier: 2,
         label: 'Connections',
         desc: 'Every account, one net worth.',
         href: 'connections.html',
@@ -2763,6 +2782,7 @@
       },
       {
         id: 'budget',
+        requiredTier: 1,
         label: 'Budget Planner',
         desc: 'Plan, track, and archive monthly budgets.',
         href: 'budget.html',
@@ -2771,6 +2791,7 @@
       },
       {
         id: 'spending',
+        requiredTier: 3,
         label: 'Spendings',
         desc: 'Monthly breakdown and subscriptions.',
         href: 'spending.html',
@@ -2779,6 +2800,7 @@
       },
       {
         id: 'investments',
+        requiredTier: 3,
         label: 'Investments',
         desc: 'Your portfolio, broken down by holding.',
         href: 'investments.html',
@@ -2787,6 +2809,7 @@
       },
       {
         id: 'savings',
+        requiredTier: 3,
         label: 'Visual Savings',
         desc: 'Watch your goals grow.',
         href: 'savings.html',
@@ -2804,14 +2827,14 @@
     function renderLedgerMenu() {
       const inner = document.getElementById('ledger-dropdown-inner');
       const lockBadge = document.getElementById('ledger-lock-badge');
-      lockBadge.style.display = isPaidUser ? 'none' : 'flex';
-      document.getElementById('ledger-menu-btn').classList.toggle('unlocked', isPaidUser);
+      lockBadge.style.display = userTier >= 3 ? 'none' : 'flex';
+      document.getElementById('ledger-menu-btn').classList.toggle('unlocked', userTier >= 3);
 
       const here = currentFileName();
 
       const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
         const isCurrent = tool.href.replace(/\.html?$/i, '') === here;
-        const isLocked = !isPaidUser && !TRIAL_COVERED_TOOL_IDS.includes(tool.id);
+        const isLocked = userTier < tool.requiredTier;
         const classes = ['ledger-tool-item'];
         if (isCurrent) classes.push('current');
         if (isLocked) classes.push('locked-preview');
@@ -2827,13 +2850,17 @@
           </button>`;
       }).join('');
 
+      const subText = userTier >= 3
+        ? 'Your unlocked workspace for deeper financial planning.'
+        : userTier === 2
+          ? 'Spendings, Investments, and Visual Savings are part of Tier 3.'
+          : 'Connections and beyond need Tier 2 or higher — see what fits on the pricing page.';
+
       inner.innerHTML = `
         <div class="ledger-heading">Premium Tools</div>
-        <p class="ledger-sub">${isPaidUser
-          ? 'Your unlocked workspace for deeper financial planning.'
-          : 'Budget Planner and Spendings — with custom categories, monthly breakdowns, and an archive of past periods — are part of full access.'}</p>
+        <p class="ledger-sub">${subText}</p>
         <div class="ledger-tool-list">${itemsHtml}</div>
-        ${isPaidUser ? '' : '<button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">Unlock full access — $10</button>'}
+        ${userTier >= 3 ? '' : `<button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">See plans</button>`}
         <div class="ledger-feedback-section">
           <button type="button" class="ledger-feedback-btn" id="send-feedback-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
@@ -2846,8 +2873,9 @@
       inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (btn.disabled) return;
-          const isLocked = !isPaidUser && !TRIAL_COVERED_TOOL_IDS.includes(btn.dataset.toolId);
-          if (isLocked) { await startCheckoutSilent(); return; }
+          const tool = PREMIUM_TOOLS.find(t => t.id === btn.dataset.toolId);
+          const isLocked = tool && userTier < tool.requiredTier;
+          if (isLocked) { window.location.href = `paywall.html?need=${tool.requiredTier}`; return; }
           if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);
@@ -2859,9 +2887,9 @@
         });
       });
 
-      if (!isPaidUser) {
+      if (userTier < 3) {
         const unlockBtn = document.getElementById('ledger-unlock-cta');
-        if (unlockBtn) unlockBtn.addEventListener('click', () => startCheckout(unlockBtn));
+        if (unlockBtn) unlockBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
       }
 
       document.getElementById('send-feedback-btn').addEventListener('click', () => {
@@ -2869,52 +2897,6 @@
         document.getElementById('feedback-overlay').classList.add('open');
         renderFeedbackForm();
       });
-    }
-
-    async function startCheckoutSilent() {
-      try {
-        const res = await fetch('/api/create-checkout-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUserId, email: currentUserEmail })
-        });
-        const data = await res.json();
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          await arkoAlert('Could not start checkout. Please try again.');
-        }
-      } catch (err) {
-        console.error(err);
-        await arkoAlert('Network error — please try again.');
-      }
-    }
-
-    async function startCheckout(btn) {
-      const originalText = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = 'Redirecting to checkout…';
-
-      try {
-        const res = await fetch('/api/create-checkout-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUserId, email: currentUserEmail })
-        });
-        const data = await res.json();
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          await arkoAlert('Could not start checkout. Please try again.');
-          btn.disabled = false;
-          btn.textContent = originalText;
-        }
-      } catch (err) {
-        console.error(err);
-        await arkoAlert('Network error — please try again.');
-        btn.disabled = false;
-        btn.textContent = originalText;
-      }
     }
 
     function closeLedgerMenu() {

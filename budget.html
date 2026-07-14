@@ -347,6 +347,7 @@
 
     const APP_TIMEZONE = 'America/Chicago';
     let currentUserId = null;
+    let userTier = 1;
     let currentUserEmail = null;
 
     const CATS = [
@@ -448,34 +449,22 @@
       if (!session) { window.location.href = 'login.html'; return false; }
       currentUserId = session.user.id;
       currentUserEmail = session.user.email;
-
-      const { data: billing } = await supabaseClient
-        .from('user_billing').select('is_paid').eq('user_id', currentUserId).maybeSingle();
-
-      if (!billing || !billing.is_paid) {
-        await redirectToCheckout(currentUserId, currentUserEmail);
-        return false;
-      }
+      // Budget Planner is Tier 1 — free forever, no billing gate here
+      // at all. Session existing is the only requirement. Still loads
+      // billing to know the tier for the Premium Tools menu, which
+      // this page can no longer just assume is fully unlocked the way
+      // it could when reaching this page proved payment.
+      const { data: billing } = await supabaseClient.from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
+      userTier = computeEffectiveTier(billing);
       return true;
     }
 
-    async function redirectToCheckout(userId, email) {
-      try {
-        const res = await fetch('/api/create-checkout-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, email })
-        });
-        const data = await res.json();
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          window.location.href = 'paywall.html';
-        }
-      } catch (err) {
-        console.error(err);
-        window.location.href = 'paywall.html';
-      }
+    function computeEffectiveTier(billing) {
+      if (!billing) return 1;
+      const trialActive = billing.billing_period === 'trial' && new Date(billing.trial_end) > new Date();
+      if (trialActive) return 3;
+      if (billing.billing_period === 'trial') return 1;
+      return billing.tier || 1;
     }
 
     async function fetchDefaultTemplate() {
@@ -1506,6 +1495,7 @@
     const PREMIUM_TOOLS = [
       {
         id: 'dashboard',
+        requiredTier: 1,
         label: 'Dashboard',
         desc: 'Your accounts, at a glance.',
         href: 'dashboard.html',
@@ -1514,6 +1504,7 @@
       },
       {
         id: 'connections',
+        requiredTier: 2,
         label: 'Connections',
         desc: 'Every account, one net worth.',
         href: 'connections.html',
@@ -1522,6 +1513,7 @@
       },
       {
         id: 'budget',
+        requiredTier: 1,
         label: 'Budget Planner',
         desc: 'Plan, track, and archive monthly budgets.',
         href: 'budget.html',
@@ -1530,6 +1522,7 @@
       },
       {
         id: 'spending',
+        requiredTier: 3,
         label: 'Spendings',
         desc: 'Monthly breakdown and subscriptions.',
         href: 'spending.html',
@@ -1538,6 +1531,7 @@
       },
       {
         id: 'investments',
+        requiredTier: 3,
         label: 'Investments',
         desc: 'Your portfolio, broken down by holding.',
         href: 'investments.html',
@@ -1546,6 +1540,7 @@
       },
       {
         id: 'savings',
+        requiredTier: 3,
         label: 'Visual Savings',
         desc: 'Watch your goals grow.',
         href: 'savings.html',
@@ -1557,13 +1552,17 @@
     function renderLedgerMenu() {
       const inner = document.getElementById('ledger-dropdown-inner');
       const lockBadge = document.getElementById('ledger-lock-badge');
-      lockBadge.style.display = 'none';
-      document.getElementById('ledger-menu-btn').classList.add('unlocked'); // reaching this page already proves paid access
+      lockBadge.style.display = userTier >= 3 ? 'none' : 'flex';
+      document.getElementById('ledger-menu-btn').classList.toggle('unlocked', userTier >= 3);
 
       const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
         const isCurrent = tool.href === 'budget.html';
+        const isLocked = userTier < tool.requiredTier;
+        const classes = ['ledger-tool-item'];
+        if (isCurrent) classes.push('current');
+        if (isLocked) classes.push('locked-preview');
         return `
-          <button type="button" class="ledger-tool-item ${isCurrent ? 'current' : ''}" data-href="${tool.href}"
+          <button type="button" class="${classes.join(' ')}" data-href="${tool.href}" data-tool-id="${tool.id}"
                   style="animation-delay:${i * 55}ms" ${isCurrent ? 'disabled' : ''}>
             <span class="ledger-tool-icon ${tool.iconClass}">${tool.icon}</span>
             <span class="ledger-tool-text">
@@ -1574,10 +1573,17 @@
           </button>`;
       }).join('');
 
+      const subText = userTier >= 3
+        ? 'Your unlocked workspace for deeper financial planning.'
+        : userTier === 2
+          ? 'Spendings, Investments, and Visual Savings are part of Tier 3.'
+          : 'Connections and beyond need Tier 2 or higher — see what fits on the pricing page.';
+
       inner.innerHTML = `
         <div class="ledger-heading">Premium Tools</div>
-        <p class="ledger-sub">Your unlocked workspace for deeper financial planning.</p>
+        <p class="ledger-sub">${subText}</p>
         <div class="ledger-tool-list">${itemsHtml}</div>
+        ${userTier >= 3 ? '' : `<button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">See plans</button>`}
         <div class="ledger-feedback-section">
           <button type="button" class="ledger-feedback-btn" id="send-feedback-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
@@ -1590,6 +1596,9 @@
       inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (btn.disabled) return;
+          const tool = PREMIUM_TOOLS.find(t => t.id === btn.dataset.toolId);
+          const isLocked = tool && userTier < tool.requiredTier;
+          if (isLocked) { window.location.href = `paywall.html?need=${tool.requiredTier}`; return; }
           if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);
@@ -1600,6 +1609,11 @@
           window.location.href = btn.dataset.href;
         });
       });
+
+      if (userTier < 3) {
+        const unlockBtn = document.getElementById('ledger-unlock-cta');
+        if (unlockBtn) unlockBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
+      }
 
       document.getElementById('send-feedback-btn').addEventListener('click', () => {
         closeLedgerMenu();

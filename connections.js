@@ -5,6 +5,15 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUserId = null;
 let currentUserEmail = null;
 let isPaidUser = false;
+let userTier = 1;
+
+function computeEffectiveTier(billing) {
+  if (!billing) return 1;
+  const trialActive = billing.billing_period === 'trial' && new Date(billing.trial_end) > new Date();
+  if (trialActive) return 3;
+  if (billing.billing_period === 'trial') return 1;
+  return billing.tier || 1;
+}
 let accounts = [];
 let categories = [];
 let accountSplits = []; // account_category_splits rows
@@ -94,16 +103,14 @@ async function init() {
   currentUserEmail = session.user.email;
 
   const { data: billing } = await supabaseClient
-    .from('user_billing').select('is_paid, trial_end').eq('user_id', currentUserId).maybeSingle();
-  // Connections is now covered by the free trial, same as Dashboard and
-  // Log — seeing real, synced accounts is a big part of what makes the
-  // trial worth trying in the first place. Once the trial actually
-  // expires (and the account still isn't paid), this sends to the
-  // trial-expiry paywall page, not straight to Stripe checkout.
-  const isPaidAccount = !!(billing && billing.is_paid);
-  const trialExpired = !billing || new Date(billing.trial_end) < new Date();
-  if (trialExpired && !isPaidAccount) { window.location.href = 'paywall.html'; return; }
-  isPaidUser = isPaidAccount;
+    .from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
+  // Connections needs Tier 2 or higher — Tier 1 is manual-only by
+  // design, no Plaid at all. An active trial temporarily reads as
+  // Tier 3 (computeEffectiveTier handles that), which is what lets
+  // someone try this during the trial without having paid yet.
+  userTier = computeEffectiveTier(billing);
+  isPaidUser = userTier >= 2;
+  if (userTier < 2) { window.location.href = 'paywall.html?need=2'; return; }
 
   setupLedgerMenu();
   setupSettingsGear();
@@ -174,26 +181,6 @@ async function refreshBalancesInBackground() {
   }
 }
 
-// Straight to Stripe — no stop at paywall.html, since that page is
-// specifically for "your trial ended," and this isn't that.
-async function redirectToCheckout(userId, email) {
-  try {
-    const res = await fetch('/api/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, email })
-    });
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      window.location.href = 'paywall.html'; // fallback if checkout couldn't start
-    }
-  } catch (err) {
-    console.error(err);
-    window.location.href = 'paywall.html'; // fallback
-  }
-}
 
 let connectionStatus = [];
 
@@ -806,7 +793,22 @@ async function finishNewConnection(publicToken, institutionName, metadata) {
   await completeAccountExchange(publicToken, institutionName, accounts.map(a => a.id));
 }
 
+// Tier 2 caps at 6 connected accounts, Tier 3 at 15 — checked before
+// the exchange happens, not after, so a rejected connection never
+// looks like it worked and then silently vanishes. Tier 1 has no
+// entry since Connections is gated to Tier 2+ before this is ever
+// reachable at all.
+const TIER_ACCOUNT_LIMITS = { 2: 6, 3: 15 };
+
 async function completeAccountExchange(publicToken, institutionName, selectedPlaidAccountIds) {
+  const limit = TIER_ACCOUNT_LIMITS[userTier] || TIER_ACCOUNT_LIMITS[2];
+  const addingCount = Array.isArray(selectedPlaidAccountIds) ? selectedPlaidAccountIds.length : 1;
+  if (accounts.length + addingCount > limit) {
+    const room = Math.max(0, limit - accounts.length);
+    await arkoAlert(`Your plan allows up to ${limit} connected accounts, and you're trying to add ${addingCount} with only ${room} slot${room === 1 ? '' : 's'} left. Remove an existing account first, or upgrade for more room.`);
+    return;
+  }
+
   try {
     const exRes = await fetch('/api/plaid-exchange-token', {
       method: 'POST',
@@ -936,6 +938,11 @@ async function finishReconnect(itemId) {
 }
 
 async function finishAddNewAccounts(itemId) {
+  const limit = TIER_ACCOUNT_LIMITS[userTier] || TIER_ACCOUNT_LIMITS[2];
+  if (accounts.length >= limit) {
+    await arkoAlert(`Your plan allows up to ${limit} connected accounts, and you're already at that limit. Remove an existing account first, or upgrade for more room.`);
+    return;
+  }
   try {
     const addRes = await fetch('/api/plaid-item-actions', {
       method: 'POST',
@@ -1289,11 +1296,12 @@ document.getElementById('logout-button').addEventListener('click', async () => {
 // Connections joined Dashboard/Log here — seeing real, synced accounts
 // is a big part of what makes trying the trial worthwhile. Budget
 // Planner and Spendings stay paid-only.
-const TRIAL_COVERED_TOOL_IDS = ['dashboard', 'connections'];
+
 
 const PREMIUM_TOOLS = [
   {
     id: 'dashboard',
+    requiredTier: 1,
     label: 'Dashboard',
     desc: 'Your accounts, at a glance.',
     href: 'dashboard.html',
@@ -1302,6 +1310,7 @@ const PREMIUM_TOOLS = [
   },
   {
     id: 'connections',
+    requiredTier: 2,
     label: 'Connections',
     desc: 'Every account, one net worth.',
     href: 'connections.html',
@@ -1310,6 +1319,7 @@ const PREMIUM_TOOLS = [
   },
   {
     id: 'budget',
+    requiredTier: 1,
     label: 'Budget Planner',
     desc: 'Plan, track, and archive monthly budgets.',
     href: 'budget.html',
@@ -1318,6 +1328,7 @@ const PREMIUM_TOOLS = [
   },
   {
     id: 'spending',
+    requiredTier: 3,
     label: 'Spendings',
     desc: 'Monthly breakdown and subscriptions.',
     href: 'spending.html',
@@ -1326,6 +1337,7 @@ const PREMIUM_TOOLS = [
   },
   {
     id: 'investments',
+    requiredTier: 3,
     label: 'Investments',
     desc: 'Your portfolio, broken down by holding.',
     href: 'investments.html',
@@ -1334,6 +1346,7 @@ const PREMIUM_TOOLS = [
   },
   {
     id: 'savings',
+    requiredTier: 3,
     label: 'Visual Savings',
     desc: 'Watch your goals grow.',
     href: 'savings.html',
@@ -1345,12 +1358,12 @@ const PREMIUM_TOOLS = [
 function renderLedgerMenu() {
   const inner = document.getElementById('ledger-dropdown-inner');
   const lockBadge = document.getElementById('ledger-lock-badge');
-  lockBadge.style.display = isPaidUser ? 'none' : 'flex';
-  document.getElementById('ledger-menu-btn').classList.toggle('unlocked', isPaidUser);
+  lockBadge.style.display = userTier >= 3 ? 'none' : 'flex';
+  document.getElementById('ledger-menu-btn').classList.toggle('unlocked', userTier >= 3);
 
   const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
     const isCurrent = tool.href === 'connections.html';
-    const isLocked = !isPaidUser && !TRIAL_COVERED_TOOL_IDS.includes(tool.id);
+    const isLocked = userTier < tool.requiredTier;
     const classes = ['ledger-tool-item'];
     if (isCurrent) classes.push('current');
     if (isLocked) classes.push('locked-preview');
@@ -1366,13 +1379,17 @@ function renderLedgerMenu() {
       </button>`;
   }).join('');
 
+  const subText = userTier >= 3
+    ? 'Your unlocked workspace for deeper financial planning.'
+    : userTier === 2
+      ? 'Spendings, Investments, and Visual Savings are part of Tier 3.'
+      : 'Connections and beyond need Tier 2 or higher — see what fits on the pricing page.';
+
   inner.innerHTML = `
     <div class="ledger-heading">Premium Tools</div>
-    <p class="ledger-sub">${isPaidUser
-      ? 'Your unlocked workspace for deeper financial planning.'
-      : 'Budget Planner and Spendings — with custom categories, monthly breakdowns, and an archive of past periods — are part of full access.'}</p>
+    <p class="ledger-sub">${subText}</p>
     <div class="ledger-tool-list">${itemsHtml}</div>
-    ${isPaidUser ? '' : '<button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">Unlock full access — $10</button>'}
+    ${userTier >= 3 ? '' : `<button type="button" class="ledger-lock-cta" id="ledger-unlock-cta">See plans</button>`}
     <div class="ledger-feedback-section">
       <button type="button" class="ledger-feedback-btn" id="send-feedback-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
@@ -1385,15 +1402,16 @@ function renderLedgerMenu() {
   inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (btn.disabled) return;
-      const isLocked = !isPaidUser && !TRIAL_COVERED_TOOL_IDS.includes(btn.dataset.toolId);
-      if (isLocked) { await redirectToCheckout(currentUserId, currentUserEmail); return; }
+      const tool = PREMIUM_TOOLS.find(t => t.id === btn.dataset.toolId);
+      const isLocked = tool && userTier < tool.requiredTier;
+      if (isLocked) { window.location.href = `paywall.html?need=${tool.requiredTier}`; return; }
       window.location.href = btn.dataset.href;
     });
   });
 
-  if (!isPaidUser) {
+  if (userTier < 3) {
     const unlockBtn = document.getElementById('ledger-unlock-cta');
-    if (unlockBtn) unlockBtn.addEventListener('click', () => redirectToCheckout(currentUserId, currentUserEmail));
+    if (unlockBtn) unlockBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
   }
 
   document.getElementById('send-feedback-btn').addEventListener('click', () => {
