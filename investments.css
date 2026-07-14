@@ -61,7 +61,7 @@
   width: 100%;
   max-width: 300px;
   aspect-ratio: 1;
-  margin: 34px auto 22px;
+  margin: 34px auto 40px;
 }
 .inv-ring-svg { width: 100%; height: 100%; overflow: visible; }
 .inv-ring-arc {
@@ -180,6 +180,7 @@
 
 /* ---------- RETURN PILL ---------- */
 .inv-return-pill {
+  margin-top: 6px;
   padding: 9px 20px;
   border-radius: 20px;
   border: 1px solid rgba(255,255,255,0.1);
@@ -240,7 +241,7 @@
 }
 
 @media (max-width: 600px) {
-  .inv-ring-wrap { max-width: 260px; margin: 26px auto 18px; }
+  .inv-ring-wrap { max-width: 260px; margin: 26px auto 32px; }
   .inv-ring-total { font-size: 1.5rem; }
   .inv-ring-card { padding: 24px 16px 20px; }
   .inv-badge-pct { font-size: 0.7rem; }

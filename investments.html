@@ -367,6 +367,7 @@
         return;
       }
 
+      const PERIOD_LABELS = { '1w': '1 week', '1m': '1 month', '3m': '3 months', '1y': '1 year' };
       const now = new Date();
       const daysBack = { '1w': 7, '1m': 30, '3m': 90, '1y': 365 }[currentPeriod];
       const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - daysBack);
@@ -384,7 +385,16 @@
       const change = round2(currentTotal - Number(baseline.total_value));
       const changePct = Number(baseline.total_value) > 0 ? round2((change / Number(baseline.total_value)) * 100) : 0;
       const sign = change >= 0 ? '+' : '';
-      pillText.textContent = `${sign}${money(change)} (${sign}${changePct}%) over ${daysOfData} day${daysOfData === 1 ? '' : 's'} tracked`;
+
+      // If there isn't yet enough recorded history to actually cover
+      // the selected period, say so explicitly rather than silently
+      // showing the same number for every period regardless of which
+      // one was picked — that's what made every period look identical
+      // with limited history.
+      const hasFullCoverage = daysOfData >= daysBack;
+      pillText.textContent = hasFullCoverage
+        ? `${sign}${money(change)} (${sign}${changePct}%) over the past ${PERIOD_LABELS[currentPeriod]}`
+        : `${sign}${money(change)} (${sign}${changePct}%) — only ${daysOfData} day${daysOfData === 1 ? '' : 's'} of history so far, ${PERIOD_LABELS[currentPeriod]} needs more tracking time`;
       pill.className = 'inv-return-pill ' + (change >= 0 ? 'inv-return-positive' : 'inv-return-negative');
     }
 
