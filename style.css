@@ -13,6 +13,14 @@
   --slate: #5B6268;
   --line: #C9CBCC;
   --grey: #313032;
+
+  /* Pricing-tier neon accents — distinct from the rest of the site's
+     palette on purpose. The marketing page is allowed a bit more
+     drama than the app itself; this is the one section built to
+     actually pop. */
+  --neon-tier1: #9FB4C4;
+  --neon-tier2: #4FC3E8;
+  --neon-tier3: #E8C766;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -286,6 +294,175 @@ h1, h2, h3, h4 {
   font-size: 0.92rem;
 }
 
+/* ==========================================================================
+   PRICING — the one section on this page deliberately built to look and
+   feel different from everything around it. Dark, neon-edged cards on a
+   near-black field, breaking from the paper/tan palette used everywhere
+   else here — pricing is the moment someone's actually deciding, and it
+   earns a bit more visual weight than a benefits grid.
+   ========================================================================== */
+.pricing {
+  background: #0B0F14;
+  padding: 84px 24px;
+  position: relative;
+  overflow: hidden;
+}
+.pricing::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 45% 40% at 15% 15%, rgba(79,195,232,0.08), transparent 60%),
+    radial-gradient(ellipse 45% 40% at 85% 85%, rgba(232,199,102,0.08), transparent 60%);
+  pointer-events: none;
+}
+.pricing-head {
+  max-width: 640px;
+  margin: 0 auto 56px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+.pricing-head h2 {
+  font-size: 2rem;
+  color: var(--tan);
+  margin-bottom: 12px;
+}
+.pricing-head p {
+  color: #8B99A3;
+  font-size: 1rem;
+}
+
+.pricing-grid {
+  max-width: 1040px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.price-card {
+  background: linear-gradient(165deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 30px 26px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s ease, box-shadow 0.3s ease, border-color 0.25s ease;
+}
+.price-card:hover { transform: translateY(-5px); }
+
+/* Each tier's neon identity — border, glow, and label color all key
+   off one variable per card, set inline via style="--tier-color:..." */
+.price-card {
+  --tier-color: var(--neon-tier1);
+  border-color: color-mix(in srgb, var(--tier-color) 35%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tier-color) 12%, transparent), 0 10px 30px rgba(0,0,0,0.4);
+}
+.price-card:hover {
+  border-color: color-mix(in srgb, var(--tier-color) 60%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--tier-color) 30%, transparent), 0 16px 36px rgba(0,0,0,0.45);
+}
+.price-card.featured {
+  border-width: 1.5px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tier-color) 22%, transparent), 0 0 30px color-mix(in srgb, var(--tier-color) 16%, transparent), 0 10px 30px rgba(0,0,0,0.4);
+}
+.price-card.featured:hover {
+  box-shadow: 0 0 32px color-mix(in srgb, var(--tier-color) 40%, transparent), 0 16px 36px rgba(0,0,0,0.45);
+}
+
+.price-badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 11px;
+  border-radius: 20px;
+  color: var(--tier-color);
+  background: color-mix(in srgb, var(--tier-color) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tier-color) 40%, transparent);
+  margin-bottom: 16px;
+}
+
+.price-card h3 {
+  font-size: 1.3rem;
+  color: var(--tan);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--tier-color) 45%, transparent);
+  margin-bottom: 6px;
+}
+.price-tagline {
+  font-size: 0.84rem;
+  color: #8B99A3;
+  margin-bottom: 22px;
+  min-height: 34px;
+}
+
+.price-amount {
+  font-family: 'Fraunces', serif;
+  font-size: 2.1rem;
+  font-weight: 600;
+  color: var(--tan);
+}
+.price-amount .price-period { font-size: 0.85rem; color: #8B99A3; font-family: 'Public Sans', sans-serif; }
+.price-lifetime-note { font-size: 0.72rem; color: var(--tier-color); margin: 4px 0 0; min-height: 15px; }
+
+.price-features {
+  list-style: none;
+  margin: 22px 0 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.price-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 0.85rem;
+  color: #C4CCD1;
+  line-height: 1.4;
+}
+.price-features li svg {
+  width: 15px; height: 15px;
+  stroke: var(--tier-color);
+  flex-shrink: 0;
+  margin-top: 2px;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--tier-color) 60%, transparent));
+}
+.price-features li.price-feature-everything { color: var(--tan); font-weight: 600; }
+
+.price-cta {
+  width: 100%;
+  padding: 13px;
+  border-radius: 9px;
+  border: 1.5px solid var(--tier-color);
+  background: transparent;
+  color: var(--tier-color);
+  font-weight: 700;
+  font-size: 0.88rem;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.2s ease;
+}
+.price-cta:hover {
+  background: var(--tier-color);
+  color: #0B0F14;
+  box-shadow: 0 0 20px color-mix(in srgb, var(--tier-color) 55%, transparent);
+}
+
+.pricing-footnote {
+  text-align: center;
+  margin-top: 36px;
+  font-size: 0.8rem;
+  color: #6B7880;
+  position: relative;
+  z-index: 1;
+}
+
 /* ---------- FOOTER ---------- */
 .footer {
   text-align: center;
@@ -298,7 +475,8 @@ h1, h2, h3, h4 {
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 720px) {
   .benefits,
-  .steps {
+  .steps,
+  .pricing-grid {
     grid-template-columns: 1fr;
   }
   .waitlist-form {
