@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Legal & Policies · Arko</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="signup.css" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <style>
+    .policy-shell {
+      max-width: 760px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+      padding: 0 24px 100px;
+    }
+    .policy-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 28px;
+      color: var(--silver);
+      font-size: 0.82rem;
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+    .policy-back:hover { color: var(--tan); }
+
+    .policy-header { max-width: 640px; margin-bottom: 44px; }
+    .policy-eyebrow {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--brown-hover);
+      margin-bottom: 10px;
+    }
+    .policy-header h1 {
+      font-size: clamp(2rem, 4vw, 2.6rem);
+      color: var(--tan);
+      line-height: 1.12;
+      margin-bottom: 12px;
+    }
+    .policy-header p {
+      font-size: 0.95rem;
+      color: #D8D2C4;
+      max-width: 520px;
+      line-height: 1.6;
+    }
+
+    .legal-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .legal-doc-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 22px 24px;
+      border: 1px solid #3a3430;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      text-decoration: none;
+      transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+    }
+    .legal-doc-card:hover {
+      border-color: var(--brown-hover);
+      background: rgba(107, 74, 56, 0.08);
+      transform: translateX(2px);
+    }
+    .legal-doc-text-title {
+      font-family: 'Fraunces', serif;
+      font-size: 1.1rem;
+      color: var(--tan);
+      margin-bottom: 4px;
+    }
+    .legal-doc-text-desc {
+      font-size: 0.85rem;
+      color: #9A9184;
+      line-height: 1.5;
+    }
+    .legal-doc-arrow {
+      flex-shrink: 0;
+      color: var(--brown-hover);
+    }
+    .legal-doc-arrow svg { width: 20px; height: 20px; }
+
+    .legal-footnote {
+      margin-top: 40px;
+      font-size: 0.82rem;
+      color: #9A9184;
+      border-top: 1px solid #3a3430;
+      padding-top: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="hero" style="padding-bottom: 0;">
+    <nav class="nav" style="margin-bottom: 40px;">
+      <a href="index.html" class="wordmark" style="text-decoration: none;"><span class="wordmark-brand">Arko</span> | Early Access</a>
+    </nav>
+
+    <div class="policy-shell">
+      <a href="dashboard.html" class="policy-back" id="legal-back-link">← Back to Dashboard</a>
+
+      <div class="policy-header">
+        <div class="policy-eyebrow">Legal</div>
+        <h1>Legal & Policies</h1>
+        <p>Everything governing how Arko works, what we do with your data, and what you're agreeing to by using it — all in one place.</p>
+      </div>
+
+      <div class="legal-list">
+        <a href="privacy-policy.html" class="legal-doc-card">
+          <div>
+            <div class="legal-doc-text-title">Privacy Policy</div>
+            <div class="legal-doc-text-desc">What we collect, why, and the control you have over your own data.</div>
+          </div>
+          <span class="legal-doc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span>
+        </a>
+
+        <a href="terms.html" class="legal-doc-card">
+          <div>
+            <div class="legal-doc-text-title">Terms of Service</div>
+            <div class="legal-doc-text-desc">The agreement governing your use of Arko, billing, and what the service is (and isn't).</div>
+          </div>
+          <span class="legal-doc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span>
+        </a>
+      </div>
+
+      <p class="legal-footnote">Arko is a personal finance application currently in Early Access. These documents are reviewed and updated as the product evolves.</p>
+    </div>
+  </header>
+
+</body>
+</html>
