@@ -1876,6 +1876,7 @@ function setupMfaOverlay() {
     document.getElementById('settings-dropdown').classList.remove('open');
     openManageSubscription();
   });
+  document.getElementById('legal-policies-btn').addEventListener('click', () => { window.location.href = 'legal.html'; });
   document.getElementById('manage-sub-close').addEventListener('click', () => {
     document.getElementById('manage-sub-overlay').classList.remove('open');
   });

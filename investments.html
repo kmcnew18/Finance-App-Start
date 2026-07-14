@@ -40,7 +40,19 @@
           </div>
         </div>
 
-        <button type="button" id="manage-sub-btn" class="btn-ghost">Manage subscription</button>
+        <div class="settings-wrap">
+          <button type="button" id="settings-gear" class="btn-icon" aria-label="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+          <div class="settings-dropdown" id="settings-dropdown">
+            <button type="button" id="manage-sub-btn" class="dropdown-item">Manage subscription</button>
+            <button type="button" id="legal-policies-btn" class="dropdown-item">Legal & Policies</button>
+          </div>
+        </div>
+
         <button type="button" id="logout-button" class="btn-logout">Log out</button>
       </div>
     </nav>
@@ -166,6 +178,26 @@
     function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
     function money(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
+    function setupSettingsGear() {
+      const gearBtn = document.getElementById('settings-gear');
+      const gearDropdown = document.getElementById('settings-dropdown');
+      gearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        gearDropdown.classList.toggle('open');
+        gearBtn.classList.toggle('spin');
+      });
+      document.addEventListener('click', () => {
+        gearDropdown.classList.remove('open');
+        gearBtn.classList.remove('spin');
+      });
+      gearDropdown.addEventListener('click', (e) => e.stopPropagation());
+      document.getElementById('manage-sub-btn').addEventListener('click', () => {
+        gearDropdown.classList.remove('open');
+        openManageSubscription();
+      });
+      document.getElementById('legal-policies-btn').addEventListener('click', () => { window.location.href = 'legal.html'; });
+    }
+
     // ================= MANAGE SUBSCRIPTION =================
     async function openManageSubscription() {
       const body = document.getElementById('manage-sub-body');
@@ -275,8 +307,8 @@
       if (userTier < 3) { window.location.href = 'paywall.html?need=3'; return; }
 
       setupLedgerMenu();
+      setupSettingsGear();
       document.getElementById('logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.href = 'login.html'; });
-      document.getElementById('manage-sub-btn').addEventListener('click', openManageSubscription);
       document.getElementById('manage-sub-close').addEventListener('click', () => {
         document.getElementById('manage-sub-overlay').classList.remove('open');
       });

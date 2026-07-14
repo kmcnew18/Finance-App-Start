@@ -268,9 +268,6 @@ h1, h2, h3, h4 {
   background: var(--grey);
 }
 
-.benefit:nth-child(2) { margin-top: 22px; }
-.benefit:nth-child(3) { margin-top: -14px; }
-
 .benefit h3 {
   font-size: 1.2rem;
   margin-bottom: 10px;
@@ -286,7 +283,7 @@ h1, h2, h3, h4 {
 .how {
   background: var(--tan);
   padding: 52px 24px;
-  border-top: 1px solid var(--line);
+  border-top: 2px dashed var(--brown);
   border-bottom: 1px solid var(--line);
 }
 
@@ -501,7 +498,7 @@ h1, h2, h3, h4 {
   padding: 32px 24px;
   color: var(--brown);
   font-size: 0.85rem;
-  background: var(--tan);
+  background: var(--paper-light);
 }
 
 /* ---------- RESPONSIVE ---------- */
@@ -510,10 +507,6 @@ h1, h2, h3, h4 {
   .steps,
   .pricing-grid {
     grid-template-columns: 1fr;
-  }
-  .benefit:nth-child(2),
-  .benefit:nth-child(3) {
-    margin-top: 0;
   }
   .hero-content {
     grid-template-columns: 1fr;

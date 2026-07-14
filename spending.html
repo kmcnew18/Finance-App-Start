@@ -49,12 +49,13 @@
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
             <button type="button" id="manage-sub-btn" class="dropdown-item">Manage subscription</button>
+            <button type="button" id="legal-policies-btn" class="dropdown-item">Legal & Policies</button>
             <div class="dropdown-divider"></div>
             <button type="button" id="refresh-transactions-btn" class="dropdown-item">Refresh transactions</button>
-            <button type="button" id="clear-transactions-btn" class="dropdown-item">Clear transaction history</button>
-            <div class="dropdown-divider"></div>
             <button type="button" id="refresh-subscriptions-btn" class="dropdown-item">Refresh subscriptions</button>
-            <button type="button" id="clear-subscriptions-btn" class="dropdown-item">Clear subscriptions</button>
+            <div class="dropdown-divider"></div>
+            <button type="button" id="clear-transactions-btn" class="dropdown-item danger">Clear transaction history</button>
+            <button type="button" id="clear-subscriptions-btn" class="dropdown-item danger">Clear subscriptions</button>
           </div>
         </div>
 
@@ -926,6 +927,7 @@
         document.getElementById('settings-dropdown').classList.remove('open');
         openManageSubscription();
       });
+      document.getElementById('legal-policies-btn').addEventListener('click', () => { window.location.href = 'legal.html'; });
       document.getElementById('manage-sub-close').addEventListener('click', () => {
         document.getElementById('manage-sub-overlay').classList.remove('open');
       });
