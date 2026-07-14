@@ -436,6 +436,7 @@
   letter-spacing: 0.06em;
   color: var(--silver-dim);
   border-bottom: 1px solid var(--ledger-line);
+  grid-template-columns: 1fr 108px 108px 74px 30px;
 }
 .ledger-col-heads span:nth-child(2),
 .ledger-col-heads span:nth-child(3) { text-align: right; }
@@ -447,6 +448,7 @@
   gap: 10px;
   align-items: center;
   padding: 10px 0 6px;
+  grid-template-columns: 1fr 108px 108px 74px 30px;
 }
 
 .ledger-row input[type="text"] {
@@ -863,4 +865,41 @@
 .budget-shell input:focus-visible {
   outline: 2px solid var(--brass-bright);
   outline-offset: 2px;
+
+@media (max-width: 600px) {
+  .budget-shell {
+    padding: 20px 12px 90px;
+    gap: 14px;
+  }
+  .category-panel {
+    padding: 16px 14px 14px;
+  }
+  .recurring-review-card {
+    padding: 14px 16px;
+  }
+  .period-bar {
+    padding: 14px;
+  }
+  .period-bar-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+  .cashflow-card, .charts-card {
+    padding: 16px 14px 8px;
+  }
+
+  /* The core fix: shrink the ledger row's fixed columns so they fit
+     within a phone viewport instead of hardcoding desktop widths that
+     overflow. Still tight, but usable — inputs keep working, currency
+     values still fit at this size. */
+  .ledger-col-heads,
+  .ledger-row {
+    grid-template-columns: 1fr 74px 74px 44px 22px;
+    gap: 6px;
+  }
+  .ledger-row input[type="number"] {
+    padding: 6px 5px;
+    font-size: 0.74rem;
+  }
+}
 }

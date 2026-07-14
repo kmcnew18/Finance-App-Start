@@ -39,6 +39,19 @@ module.exports = async (req, res) => {
       return;
     }
 
+    // Verify the caller is actually authenticated as this user
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) {
+      res.status(401).json({ error: 'Missing authorization token' });
+      return;
+    }
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !authData?.user || authData.user.id !== userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
     const { data: items, error } = await supabaseAdmin
       .from('plaid_items')
       .select('*')
@@ -122,3 +135,4 @@ module.exports = async (req, res) => {
     res.status(500).json({ error: 'Could not sync recurring transactions' });
   }
 };
+  

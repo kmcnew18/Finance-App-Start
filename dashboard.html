@@ -1948,26 +1948,31 @@
     // regular automatic sync (webhook-triggered) is untouched by any
     // of this — this is purely an additional manual trigger.
     async function refreshDetectedActivity() {
-      const btn = document.getElementById('refresh-detected-btn');
-      btn.disabled = true;
-      btn.classList.add('syncing');
+  const btn = document.getElementById('refresh-detected-btn');
+  btn.disabled = true;
+  btn.classList.add('syncing');
 
-      try {
-        const res = await fetch('/api/plaid-sync-recurring', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUserId, mode: 'deep-refresh' })
-        });
-        if (!res.ok) throw new Error('Sync failed (' + res.status + ')');
-        await loadPendingReviews();
-      } catch (err) {
-        console.error('Refresh detected activity failed:', err);
-        await arkoAlert('Could not refresh right now — try again in a bit.');
-      } finally {
-        btn.disabled = false;
-        btn.classList.remove('syncing');
-      }
-    }
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const res = await fetch('/api/plaid-sync-recurring', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ userId: currentUserId, mode: 'deep-refresh' })
+    });
+    if (!res.ok) throw new Error('Sync failed (' + res.status + ')');
+    await loadPendingReviews();
+  } catch (err) {
+    console.error('Refresh detected activity failed:', err);
+    await arkoAlert('Could not refresh right now — try again in a bit.');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('syncing');
+  }
+}
+    
 
     // ================= FIND MISSING LOG ENTRIES =================
     // Recovers from the period where "Charge to set-aside" decremented
