@@ -856,7 +856,7 @@ h1, h2, h3 {
 .txn-transfer-toggle:hover { color: var(--tan); }
 
 .txn-review-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.txn-approve-btn, .txn-change-btn, .txn-skip-btn, .txn-envelope-charge-btn {
+.txn-approve-btn, .txn-change-btn, .txn-skip-btn {
   padding: 7px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
@@ -890,18 +890,44 @@ h1, h2, h3 {
 }
 .txn-skip-btn:active { transform: translateY(0); }
 
-.txn-envelope-charge-btn {
-  background: linear-gradient(150deg, rgba(143,122,168,0.16), rgba(143,122,168,0.05));
+.txn-charge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 11px;
+  flex-wrap: wrap;
+}
+.txn-charge-select {
+  flex: 1;
+  min-width: 200px;
+  padding: 7px 28px 7px 10px;
+  border-radius: 7px;
   border: 1px solid rgba(143,122,168,0.35);
+  background-color: #171422;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A390BD' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px;
   color: var(--debtpayment-accent-hover, #A390BD);
+  font-size: 0.76rem;
+  font-family: 'Public Sans', sans-serif;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
 }
-.txn-envelope-charge-btn:hover {
-  background: linear-gradient(150deg, rgba(143,122,168,0.26), rgba(143,122,168,0.08));
-  border-color: rgba(143,122,168,0.55);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(143,122,168,0.22);
+.txn-charge-select:focus { outline: none; border-color: rgba(143,122,168,0.6); }
+.txn-charge-btn {
+  padding: 7px 14px;
+  border-radius: 7px;
+  border: 1px solid rgba(143,122,168,0.35);
+  background: rgba(143,122,168,0.1);
+  color: var(--debtpayment-accent-hover, #A390BD);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
-.txn-envelope-charge-btn:active { transform: translateY(0); }
+.txn-charge-btn:hover { background: rgba(143,122,168,0.2); border-color: rgba(143,122,168,0.55); }
 
 .card-total {
   background: linear-gradient(135deg, var(--vintage-blue), #223d54);

@@ -905,7 +905,6 @@
         totals = { savings: row.savings, investment: row.investment, expenses: row.expenses, checking: row.checking };
       }
 
-      console.log('[charge-to-set-aside debug] init() about to call loadConnectedTotals');
       await loadConnectedTotals();
       await loadPendingReviews();
 
@@ -1090,6 +1089,29 @@
       return `<optgroup label="Set-aside categories">${manualCats.map(c => `<option value="manual:${c.id}">${c.name.replace(/</g,'&lt;')}</option>`).join('')}</optgroup>`;
     }
 
+    // Every set-aside with money actually in it, across every category
+    // — not scoped to what the transaction happened to get auto-
+    // categorized as. "Charge to set-aside" needs to work regardless
+    // of whether Plaid's category guess landed on the right one, since
+    // most withdrawals default to Checking and set-asides are almost
+    // always on something more specific.
+    function buildChargeOptions() {
+      const options = [];
+      const seenEnvelopeIds = new Set();
+      const addEnvelope = (env, categoryName) => {
+        if (seenEnvelopeIds.has(env.id) || env.amount <= 0) return;
+        seenEnvelopeIds.add(env.id);
+        options.push({ envelopeId: env.id, categoryName, accountName: env.accountName, amount: env.amount });
+      };
+      ['savings', 'investment', 'expenses', 'checking'].forEach(key => {
+        (envelopesByCategoryId[key] || []).forEach(env => addEnvelope(env, CATEGORY_LABELS[key]));
+      });
+      customCategoryCards.forEach(c => {
+        (c.envelopes || []).forEach(env => addEnvelope(env, c.name));
+      });
+      return options;
+    }
+
     function txnReviewRowHtml(r) {
       const categoryKey = (r.category_name || '').toLowerCase();
       const verb = r.suggested_action === 'add' ? 'to' : 'from';
@@ -1162,16 +1184,18 @@
             <button type="button" class="txn-transfer-toggle" data-id="${r.id}" style="${r.is_credit_card_payment ? 'display:none;' : ''}">${r.is_transfer ? 'Switch to a single category' : 'This is actually a transfer'}</button>
           </div>
           <div class="txn-review-actions">
+          ${(!r.is_transfer && buildChargeOptions().length) ? `
+          <div class="txn-charge-row">
+            <select class="txn-charge-select" data-id="${r.id}">
+              <option value="">Charge to a set-aside…</option>
+              ${buildChargeOptions().map(o => `<option value="${o.envelopeId}">${o.categoryName.replace(/</g,'&lt;')} (${o.accountName.replace(/</g,'&lt;')}) — ${money(o.amount)} left</option>`).join('')}
+            </select>
+            <button type="button" class="txn-charge-btn" data-id="${r.id}" style="display:none;">Charge</button>
+          </div>
+          ` : ''}
+          <div class="txn-review-actions">
             <button type="button" class="txn-approve-btn" data-id="${r.id}">Looks good</button>
             <button type="button" class="txn-change-btn" data-id="${r.id}">Change</button>
-            ${!r.is_transfer ? (
-              (envelopesByCategoryId[r.category_id] && envelopesByCategoryId[r.category_id].length
-                ? envelopesByCategoryId[r.category_id]
-                : (envelopesByCategoryName[(r.category_name || '').toLowerCase()] || [])
-              ).filter(env => env.amount > 0).map(env => `
-              <button type="button" class="txn-envelope-charge-btn" data-id="${r.id}" data-envelope-id="${env.id}" data-envelope-name="${(r.category_name || '').replace(/"/g,'&quot;')}">Charge to ${(r.category_name || '').replace(/</g,'&lt;')} set-aside${env.accountName ? ` (${env.accountName.replace(/</g,'&lt;')})` : ''}</button>
-            `).join('')) : ''}
-            ${(() => { console.log('[charge-to-set-aside debug] review', r.id, { category_id: r.category_id, category_name: r.category_name, is_transfer: r.is_transfer, matchById: envelopesByCategoryId[r.category_id], matchByName: envelopesByCategoryName[(r.category_name || '').toLowerCase()] }); return ''; })()}
             <button type="button" class="txn-skip-btn" data-id="${r.id}">Skip</button>
           </div>
         </div>`;
@@ -1279,8 +1303,22 @@
       document.querySelectorAll('.txn-approve-btn').forEach(btn => {
         btn.addEventListener('click', () => approveTxnReview(btn.dataset.id));
       });
-      document.querySelectorAll('.txn-envelope-charge-btn').forEach(btn => {
-        btn.addEventListener('click', () => chargeReviewToEnvelope(btn.dataset.id, btn.dataset.envelopeId, btn.dataset.envelopeName));
+      document.querySelectorAll('.txn-charge-select').forEach(select => {
+        select.addEventListener('change', () => {
+          const id = select.dataset.id;
+          const chargeBtn = document.querySelector(`.txn-charge-btn[data-id="${id}"]`);
+          chargeBtn.style.display = select.value ? 'inline-block' : 'none';
+        });
+      });
+      document.querySelectorAll('.txn-charge-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const select = document.querySelector(`.txn-charge-select[data-id="${id}"]`);
+          const envelopeId = select.value;
+          if (!envelopeId) return;
+          const option = buildChargeOptions().find(o => o.envelopeId === envelopeId);
+          chargeReviewToEnvelope(id, envelopeId, option ? option.categoryName : 'Category');
+        });
       });
       document.querySelectorAll('.txn-skip-btn').forEach(btn => {
         btn.addEventListener('click', () => skipTxnReview(btn.dataset.id));
@@ -1769,7 +1807,6 @@
     let categoryIdByKey = { savings: null, investment: null, expenses: null, checking: null };
 
     async function loadConnectedTotals() {
-      console.log('[charge-to-set-aside debug] loadConnectedTotals started');
       connectedTotals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
       customCategoryCards = [];
       linkedLiabilities = {};
@@ -1778,15 +1815,15 @@
       orderedCategories = [];
 
       const { data: cats, error: catsError } = await supabaseClient.from('budget_categories').select('*').eq('user_id', currentUserId).order('sort_order', { ascending: true });
-      if (catsError) console.error('[charge-to-set-aside debug] budget_categories query failed:', catsError);
-      if (!cats || !cats.length) { console.log('[charge-to-set-aside debug] loadConnectedTotals returning early — no categories found'); return; }
+      if (catsError) console.error('loadConnectedTotals: budget_categories query failed:', catsError);
+      if (!cats || !cats.length) return;
 
       const { data: linkedAccts, error: linkedAcctsError } = await supabaseClient.from('linked_accounts').select('id, balance, account_type, institution_name, nickname, paid_from_category_id, source, last_synced_at').eq('user_id', currentUserId);
-      if (linkedAcctsError) console.error('[charge-to-set-aside debug] linked_accounts query failed:', linkedAcctsError);
+      if (linkedAcctsError) console.error('loadConnectedTotals: linked_accounts query failed:', linkedAcctsError);
       lastLoadedLinkedAccounts = linkedAccts || [];
-      if (!linkedAccts) { console.log('[charge-to-set-aside debug] loadConnectedTotals returning early — linked_accounts query returned null'); return; }
+      if (!linkedAccts) return;
       const { data: splits, error: splitsError } = await supabaseClient.from('account_category_splits').select('*').eq('user_id', currentUserId);
-      if (splitsError) console.error('[charge-to-set-aside debug] account_category_splits query failed:', splitsError);
+      if (splitsError) console.error('loadConnectedTotals: account_category_splits query failed:', splitsError);
       // Whether a category has ANY connected account mapped to it at
       // all — regardless of the resulting dollar total, which could
       // legitimately be $0 for a connected account with no balance.
@@ -1844,9 +1881,6 @@
         }
         totalsByCategoryId[e.category_id] = round2((totalsByCategoryId[e.category_id] || 0) + Number(e.envelope_balance || 0));
       });
-      console.log('[charge-to-set-aside debug] envelopeSplits:', envelopeSplits);
-      console.log('[charge-to-set-aside debug] envelopesByCategoryId:', envelopesByCategoryId);
-      console.log('[charge-to-set-aside debug] envelopesByCategoryName:', envelopesByCategoryName);
 
       (splits || []).filter(s => s.split_type !== 'envelope').forEach(s => {
         const rawBal = balanceById[s.linked_account_id] || 0;
