@@ -787,6 +787,59 @@
       });
 
       renderCustomCategoryCards();
+      refreshChargeDropdowns();
+    }
+
+    // Updates the "Charge to set-aside" dropdown options on any
+    // already-rendered reviews, without touching anything else about
+    // those rows — a full re-render here would also wipe out an open
+    // "Change" form or in-progress note typing, which is worse than
+    // just leaving a stale dropdown for the rare moment between an
+    // envelope change and the next totals refresh. Also handles a
+    // review that had no charge row at all yet (because no envelope
+    // existed when it was first rendered) by inserting one now that
+    // one does, rather than requiring a reload to notice it.
+    function refreshChargeDropdowns() {
+      const options = buildChargeOptions();
+      const optionsHtml = `<option value="">Charge to a set-aside…</option>`
+        + options.map(o => `<option value="${o.envelopeId}">${o.categoryName.replace(/</g,'&lt;')} (${o.accountName.replace(/</g,'&lt;')}) — ${money(o.amount)} left</option>`).join('');
+
+      document.querySelectorAll('.txn-charge-select').forEach(select => {
+        const currentValue = select.value;
+        select.innerHTML = optionsHtml;
+        const stillValid = options.some(o => o.envelopeId === currentValue);
+        select.value = stillValid ? currentValue : '';
+        const chargeBtn = document.querySelector(`.txn-charge-btn[data-id="${select.dataset.id}"]`);
+        if (chargeBtn) chargeBtn.style.display = stillValid ? 'inline-block' : 'none';
+      });
+
+      if (options.length) {
+        document.querySelectorAll('.txn-review-row').forEach(row => {
+          if (row.querySelector('.txn-charge-row')) return; // already has one
+          if (row.dataset.suggested === undefined) return;
+          const id = row.dataset.id;
+          const actionsDiv = row.querySelector('.txn-review-actions');
+          if (!actionsDiv) return;
+          const chargeRow = document.createElement('div');
+          chargeRow.className = 'txn-charge-row';
+          chargeRow.innerHTML = `
+            <select class="txn-charge-select" data-id="${id}">${optionsHtml}</select>
+            <button type="button" class="txn-charge-btn" data-id="${id}" style="display:none;">Charge</button>
+          `;
+          actionsDiv.parentNode.insertBefore(chargeRow, actionsDiv);
+          chargeRow.querySelector('.txn-charge-select').addEventListener('change', (e) => {
+            const btn = document.querySelector(`.txn-charge-btn[data-id="${id}"]`);
+            btn.style.display = e.target.value ? 'inline-block' : 'none';
+          });
+          chargeRow.querySelector('.txn-charge-btn').addEventListener('click', () => {
+            const select = chargeRow.querySelector('.txn-charge-select');
+            const envelopeId = select.value;
+            if (!envelopeId) return;
+            const option = buildChargeOptions().find(o => o.envelopeId === envelopeId);
+            chargeReviewToEnvelope(id, envelopeId, option ? option.categoryName : 'Category');
+          });
+        });
+      }
     }
 
     const ACCENT_COLORS = {
