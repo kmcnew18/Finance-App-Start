@@ -411,6 +411,20 @@
     </div>
   </div>
 
+  <!-- ================= FEATURE PREVIEW (locked features) ================= -->
+  <div class="feature-preview-overlay" id="feature-preview-overlay">
+    <div class="feature-preview-modal">
+      <button type="button" class="feature-preview-close" id="feature-preview-close">×</button>
+      <div class="feature-preview-stage" id="feature-preview-stage"></div>
+      <div class="feature-preview-body">
+        <span class="feature-preview-tier-badge" id="feature-preview-tier-badge"></span>
+        <div class="feature-preview-title" id="feature-preview-title"></div>
+        <p class="feature-preview-desc" id="feature-preview-desc"></p>
+        <button type="button" class="feature-preview-cta" id="feature-preview-cta">See plans</button>
+      </div>
+    </div>
+  </div>
+
   <div class="mfa-overlay" id="missing-logs-overlay">
     <div class="mfa-modal" style="max-width: 480px;">
       <div class="mfa-modal-head">
@@ -452,6 +466,104 @@
       if (billing.billing_period === 'trial') return 1; // trial expired, never upgraded
       return billing.tier || 1;
     }
+
+    // ================= FEATURE PREVIEW (locked features) =================
+    // Shown when a locked Premium Tools item is clicked, instead of
+    // bouncing straight to the pricing page with zero context. Each
+    // mockup is a small looping CSS/SVG animation built from the app's
+    // own visual language — a taste of what the feature looks like in
+    // motion, not a real screen recording.
+    const FEATURE_PREVIEW_DATA = {
+      connections: {
+        tier: 2, tierLabel: 'Tier 2 · Automation', color: '#6EC496',
+        title: 'Every account, one balance',
+        desc: 'Connect your banks and cards through Plaid — balances sync automatically, no manual entry required.',
+        stageClass: 'fp-connections',
+        svg: `<svg viewBox="0 0 220 160" width="190" height="150">
+          <circle class="fp-conn-total-glow fp-anim" cx="160" cy="80" r="36" fill="#6EC496"/>
+          <path class="fp-conn-stream fp-anim" d="M20,30 C100,30 130,70 160,80"/>
+          <path class="fp-conn-stream fp-anim" d="M20,80 C90,80 130,80 160,80"/>
+          <path class="fp-conn-stream fp-anim" d="M20,130 C100,130 130,90 160,80"/>
+          <circle class="fp-conn-node" cx="20" cy="30" r="5"/>
+          <circle class="fp-conn-node" cx="20" cy="80" r="5"/>
+          <circle class="fp-conn-node" cx="20" cy="130" r="5"/>
+          <text class="fp-conn-total" x="160" y="87" text-anchor="middle">$12,480</text>
+        </svg>`,
+      },
+      investments: {
+        tier: 3, tierLabel: 'Tier 3 · Full', color: '#A88FD8',
+        title: 'Your portfolio, unified',
+        desc: 'Holdings, allocation, and performance across every connected brokerage — one view instead of six apps.',
+        stageClass: 'fp-investments',
+        svg: `<svg viewBox="0 0 200 160" width="160" height="150">
+          <circle class="fp-inv-ring-bg" cx="100" cy="80" r="50"/>
+          <circle class="fp-inv-ring-fg fp-anim" cx="100" cy="80" r="50" transform="rotate(-90 100 80)"/>
+          <circle class="fp-inv-badge fp-anim" cx="42" cy="38" r="15"/>
+          <circle class="fp-inv-badge fp-b2 fp-anim" cx="160" cy="42" r="15"/>
+          <circle class="fp-inv-badge fp-b3 fp-anim" cx="155" cy="124" r="15"/>
+        </svg>`,
+      },
+      spending: {
+        tier: 3, tierLabel: 'Tier 3 · Full', color: '#E0806A',
+        title: 'See where it actually goes',
+        desc: 'Category breakdowns and spending trends over time, built automatically from your connected accounts.',
+        stageClass: 'fp-spending',
+        svg: `<svg viewBox="0 0 220 150" width="200" height="140">
+          <rect class="fp-spend-bar fp-anim" x="20" y="16" width="160" height="16" rx="4" fill="#E0806A"/>
+          <rect class="fp-spend-bar fp-b2 fp-anim" x="20" y="48" width="120" height="16" rx="4" fill="#D8BC7A"/>
+          <rect class="fp-spend-bar fp-b3 fp-anim" x="20" y="80" width="90" height="16" rx="4" fill="#A88FD8"/>
+          <rect class="fp-spend-bar fp-b4 fp-anim" x="20" y="112" width="60" height="16" rx="4" fill="#6EC4B8"/>
+        </svg>`,
+      },
+      savings: {
+        tier: 3, tierLabel: 'Tier 3 · Full', color: '#6EC4B8',
+        title: 'Watch your goals grow',
+        desc: 'Visual savings goals that fill in as you set money aside — six themes, real progress you can see.',
+        stageClass: 'fp-savings',
+        svg: `<svg viewBox="0 0 200 160" width="170" height="150">
+          <circle class="fp-inv-ring-bg" cx="150" cy="120" r="16" stroke-width="5"/>
+          <circle class="fp-sav-ring-fg fp-anim" cx="150" cy="120" r="16" stroke="#6EC4B8" stroke-width="5" fill="none" stroke-dasharray="100" transform="rotate(-90 150 120)"/>
+          <path class="fp-sav-stem fp-anim" d="M60,140 C58,110 62,80 60,50"/>
+          <ellipse class="fp-sav-leaf fp-anim" cx="45" cy="80" rx="14" ry="8" transform="rotate(-30 45 80)"/>
+          <ellipse class="fp-sav-leaf fp-l2 fp-anim" cx="76" cy="60" rx="14" ry="8" transform="rotate(30 76 60)"/>
+        </svg>`,
+      },
+    };
+
+    function showFeaturePreview(featureId) {
+      const data = FEATURE_PREVIEW_DATA[featureId];
+      if (!data) { window.location.href = 'paywall.html'; return; }
+
+      const stage = document.getElementById('feature-preview-stage');
+      stage.className = 'feature-preview-stage ' + data.stageClass;
+      stage.innerHTML = data.svg;
+
+      const badge = document.getElementById('feature-preview-tier-badge');
+      badge.textContent = data.tierLabel;
+      badge.style.background = data.color + '26';
+      badge.style.color = data.color;
+      badge.style.border = `1px solid ${data.color}55`;
+
+      document.getElementById('feature-preview-title').textContent = data.title;
+      document.getElementById('feature-preview-desc').textContent = data.desc;
+
+      const cta = document.getElementById('feature-preview-cta');
+      cta.style.background = data.color;
+      cta.style.color = '#171422';
+      cta.onclick = () => { window.location.href = `paywall.html?need=${data.tier}`; };
+
+      document.getElementById('feature-preview-overlay').classList.add('open');
+    }
+
+    function setupFeaturePreview() {
+      document.getElementById('feature-preview-close').addEventListener('click', () => {
+        document.getElementById('feature-preview-overlay').classList.remove('open');
+      });
+      document.getElementById('feature-preview-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'feature-preview-overlay') document.getElementById('feature-preview-overlay').classList.remove('open');
+      });
+    }
+
     let totals = { savings: 0, investment: 0, expenses: 0, checking: 0 };
 
     const dashMain = document.getElementById('dash-main');
@@ -991,6 +1103,7 @@
       setupSkippedActivity();
       setupMissingLogsOverlay();
       setupManageSubscription();
+      setupFeaturePreview();
       document.getElementById('refresh-detected-btn').addEventListener('click', refreshDetectedActivity);
 
       const dateNow = todayStr();
@@ -1022,6 +1135,14 @@
       loadingMessage.style.display = 'none';
       dashMain.style.display = 'block';
       renderTotals();
+
+      // Staggered entrance, once — never retriggers on later re-renders
+      // since renderTotals() just updates existing elements rather than
+      // recreating them, so the class only ever gets added this one time.
+      document.querySelectorAll('.overview-cards .card').forEach((card, i) => {
+        card.classList.add('card-enter');
+        card.style.animationDelay = `${i * 55}ms`;
+      });
 
       const cleanupNotice = sessionStorage.getItem('trialCleanupNotice');
       if (cleanupNotice !== null) {
@@ -3027,7 +3148,7 @@
           if (btn.disabled) return;
           const tool = PREMIUM_TOOLS.find(t => t.id === btn.dataset.toolId);
           const isLocked = tool && userTier < tool.requiredTier;
-          if (isLocked) { window.location.href = `paywall.html?need=${tool.requiredTier}`; return; }
+          if (isLocked) { closeLedgerMenu(); showFeaturePreview(tool.id); return; }
           if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);

@@ -247,6 +247,21 @@ h1, h2, h3 {
   border-color: rgba(110,143,163,0.5);
 }
 
+/* Staggered entrance on first load — applied once via JS by adding
+   .card-enter with an index-based delay, removed after it plays so it
+   never replays on a normal re-render (which happens constantly during
+   regular use and would be distracting if it animated every time). */
+.card.card-enter {
+  animation: cardEnterUp 0.5s cubic-bezier(.2,.8,.25,1) backwards;
+}
+@keyframes cardEnterUp {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card.card-enter { animation: none; }
+}
+
 .card { position: relative; }
 .sync-hint {
   position: absolute;
@@ -2414,3 +2429,130 @@ textarea:focus-visible,
 .arko-dialog-overlay.arko-dialog-danger .arko-dialog-btn-confirm { background: var(--error); }
 .arko-dialog-overlay.arko-dialog-danger .arko-dialog-btn-confirm:hover { background: #E8A896; }
 .arko-dialog-btn-single { width: 100%; }
+
+/* ==========================================================================
+   FEATURE PREVIEW MODAL — animated mockups for locked (paywalled) features,
+   shown when someone clicks a locked item in the Premium Tools menu instead
+   of bouncing straight to the pricing page with no context. Each mockup is
+   a small looping animation built from the app's own SVG/CSS, not real
+   screen-recorded video — a taste of what the feature looks like in motion.
+   ========================================================================== */
+.feature-preview-overlay {
+  position: fixed; inset: 0; background: rgba(6,8,11,0.82);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; z-index: 410;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s;
+}
+.feature-preview-overlay.open { opacity: 1; visibility: visible; }
+.feature-preview-modal {
+  background: var(--dark-vintage);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  width: 100%; max-width: 420px;
+  padding: 0;
+  box-shadow: 0 26px 64px rgba(0,0,0,0.55);
+  transform: translateY(-8px) scale(0.97);
+  transition: transform 0.25s cubic-bezier(.2,.9,.25,1.1);
+  overflow: hidden;
+}
+.feature-preview-overlay.open .feature-preview-modal { transform: translateY(0) scale(1); }
+.feature-preview-close {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  width: 30px; height: 30px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,0.35); color: var(--tan);
+  font-size: 1.1rem; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s ease;
+}
+.feature-preview-close:hover { background: rgba(0,0,0,0.55); }
+.feature-preview-stage {
+  height: 220px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.feature-preview-body { padding: 22px 26px 26px; }
+.feature-preview-tier-badge {
+  display: inline-block;
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 20px;
+  margin-bottom: 10px;
+}
+.feature-preview-title { font-family: 'Fraunces', serif; font-size: 1.2rem; color: var(--tan); margin-bottom: 6px; }
+.feature-preview-desc { font-size: 0.85rem; color: var(--silver-dim); line-height: 1.55; margin-bottom: 20px; }
+.feature-preview-cta {
+  width: 100%; padding: 12px; border: none; border-radius: 9px;
+  font-weight: 700; font-size: 0.88rem; cursor: pointer;
+  font-family: 'Public Sans', sans-serif;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+.feature-preview-cta:hover { transform: translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-anim { animation: none !important; }
+}
+
+/* ---- Connections (Tier 2, emerald) ---- */
+.feature-preview-stage.fp-connections { background: radial-gradient(ellipse at center, rgba(110,196,150,0.1), transparent 70%); }
+.fp-conn-node { fill: #6EC496; }
+.fp-conn-stream { fill: none; stroke: #6EC49688; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 6 5; }
+.fp-conn-stream.fp-anim { animation: fpDrift 2.2s linear infinite; }
+.fp-conn-total { fill: var(--tan); font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; }
+.fp-conn-total-glow.fp-anim { animation: fpPulseSoft 2.4s ease-in-out infinite; }
+@keyframes fpDrift { to { stroke-dashoffset: -110; } }
+@keyframes fpPulseSoft { 0%,100% { opacity: 0.15; } 50% { opacity: 0.32; } }
+
+/* ---- Investments (Tier 3, violet) ---- */
+.feature-preview-stage.fp-investments { background: radial-gradient(ellipse at center, rgba(168,143,216,0.1), transparent 70%); }
+.fp-inv-ring-bg { fill: none; stroke: #ffffff14; stroke-width: 10; }
+.fp-inv-ring-fg { fill: none; stroke: #A88FD8; stroke-width: 10; stroke-linecap: round; }
+.fp-inv-ring-fg.fp-anim { stroke-dasharray: 320; stroke-dashoffset: 320; animation: fpRingDraw 2.6s cubic-bezier(.3,.8,.3,1) infinite; }
+@keyframes fpRingDraw {
+  0% { stroke-dashoffset: 320; }
+  55%, 100% { stroke-dashoffset: 60; }
+}
+.fp-inv-badge { fill: #171422; stroke: #A88FD8; stroke-width: 1.5; opacity: 0; }
+.fp-inv-badge.fp-anim { animation: fpBadgeIn 2.6s ease infinite; }
+.fp-inv-badge.fp-b2.fp-anim { animation-delay: 0.3s; }
+.fp-inv-badge.fp-b3.fp-anim { animation-delay: 0.6s; }
+@keyframes fpBadgeIn {
+  0%, 15% { opacity: 0; transform: scale(0.6); }
+  35%, 85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ---- Spending (Tier 3, coral) ---- */
+.feature-preview-stage.fp-spending { background: radial-gradient(ellipse at center, rgba(224,128,106,0.1), transparent 70%); }
+.fp-spend-bar { transform-origin: left center; transform: scaleX(0); }
+.fp-spend-bar.fp-anim { animation: fpBarGrow 2.4s cubic-bezier(.3,.8,.3,1) infinite; }
+.fp-spend-bar.fp-b2.fp-anim { animation-delay: 0.15s; }
+.fp-spend-bar.fp-b3.fp-anim { animation-delay: 0.3s; }
+.fp-spend-bar.fp-b4.fp-anim { animation-delay: 0.45s; }
+@keyframes fpBarGrow {
+  0% { transform: scaleX(0); }
+  50%, 85% { transform: scaleX(1); }
+  100% { transform: scaleX(1); }
+}
+
+/* ---- Savings (Tier 3, teal) ---- */
+.feature-preview-stage.fp-savings { background: radial-gradient(ellipse at center, rgba(110,196,184,0.1), transparent 70%); }
+.fp-sav-stem { stroke: #6EC4B8; stroke-width: 3; stroke-linecap: round; fill: none; }
+.fp-sav-stem.fp-anim { stroke-dasharray: 80; stroke-dashoffset: 80; animation: fpGrow 2.6s cubic-bezier(.3,.8,.3,1) infinite; }
+@keyframes fpGrow {
+  0% { stroke-dashoffset: 80; }
+  60%, 100% { stroke-dashoffset: 0; }
+}
+.fp-sav-leaf { fill: #6EC4B8; opacity: 0; transform-origin: center; transform: scale(0.4); }
+.fp-sav-leaf.fp-anim { animation: fpLeafPop 2.6s ease infinite; }
+.fp-sav-leaf.fp-l2.fp-anim { animation-delay: 0.35s; }
+@keyframes fpLeafPop {
+  0%, 40% { opacity: 0; transform: scale(0.4); }
+  65%, 90% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.fp-sav-ring-fg.fp-anim { stroke-dasharray: 100; stroke-dashoffset: 100; animation: fpRingFill 2.6s cubic-bezier(.3,.8,.3,1) infinite; }
+@keyframes fpRingFill {
+  0% { stroke-dashoffset: 100; }
+  70%, 100% { stroke-dashoffset: 22; }
+}

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Log · Arko</title>
+  <title>Budget Planner · Arko</title>
   <link rel="icon" href="favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -12,18 +12,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Jura&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="budget.css" />
   <style>
     .wip-banner{
-      text-align:center;
-      padding:5px 20px;
-      background:transparent;
+      text-align:center; padding:5px 20px; background:transparent;
       border-bottom:1px solid rgba(139,111,71,0.25);
-      font-family:'Public Sans', sans-serif;
-      font-size:11px;
-      color:#b3ae9f;
-      letter-spacing:.15px;
+      font-family:'Public Sans', sans-serif; font-size:11px; color:#b3ae9f; letter-spacing:.15px;
     }
 
+    /* Identical to the dashboard log page's own style, so the mirrored log
+       table in the "+ From log" picker looks pixel-for-pixel the same. */
     .log-date-firstofmonth{
       color:#b5822a;
       font-weight:600;
@@ -41,11 +39,26 @@
   </style>
 </head>
 <body>
+  <!-- ================= FEATURE PREVIEW (locked features) ================= -->
+  <div class="feature-preview-overlay" id="feature-preview-overlay">
+    <div class="feature-preview-modal">
+      <button type="button" class="feature-preview-close" id="feature-preview-close">×</button>
+      <div class="feature-preview-stage" id="feature-preview-stage"></div>
+      <div class="feature-preview-body">
+        <span class="feature-preview-tier-badge" id="feature-preview-tier-badge"></span>
+        <div class="feature-preview-title" id="feature-preview-title"></div>
+        <p class="feature-preview-desc" id="feature-preview-desc"></p>
+        <button type="button" class="feature-preview-cta" id="feature-preview-cta">See plans</button>
+      </div>
+    </div>
+  </div>
+
 
   <header class="dash-header">
     <nav class="nav">
       <a href="dashboard.html" class="wordmark" style="text-decoration:none;"><span class="wordmark-brand">Arko</span> | Early Access</a>
       <div class="nav-auth">
+        <button type="button" id="history-button" class="btn-ghost">Archive</button>
 
         <!-- ================= PREMIUM FEATURE MENU ================= -->
         <div class="settings-wrap">
@@ -77,14 +90,14 @@
             <button type="button" id="manage-sub-btn" class="dropdown-item">Manage subscription</button>
             <button type="button" id="legal-policies-btn" class="dropdown-item">Legal & Policies</button>
             <div class="dropdown-divider"></div>
-            <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
-            <div class="dropdown-divider"></div>
-            <button type="button" id="clear-log-btn" class="dropdown-item danger">Clear entire log</button>
+            <button type="button" id="clear-archives-btn" class="dropdown-item danger">Clear budget archives</button>
           </div>
         </div>
-        <button type="button" id="back-button" class="btn-ghost">← Back to Dashboard</button>
+
+        <button type="button" id="logout-button" class="btn-logout">Log out</button>
       </div>
     </nav>
+  </header>
 
   <!-- ================= MANAGE SUBSCRIPTION ================= -->
   <div class="mfa-overlay" id="manage-sub-overlay">
@@ -96,69 +109,150 @@
       <div class="mfa-modal-body" id="manage-sub-body"></div>
     </div>
   </div>
-  </header>
 
   <div class="wip-banner">Early development · some features may not be live</div>
 
-  <main class="dash-main">
-    <h1 class="log-title">Full Log</h1>
+  <div id="loading-message" class="loading-message">Loading your budget planner...</div>
 
-    <div class="log-filter-bar">
-      <div class="log-filter-search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input type="text" id="log-search-input" placeholder="Search notes…" />
+  <main class="budget-shell" id="budget-shell" style="display:none;">
+
+    <aside class="ledger-rail" id="ledger-rail">
+      <div class="rail-tab" data-target="panel-income">Income</div>
+      <div class="rail-tab" data-target="panel-bills">Bills</div>
+      <div class="rail-tab" data-target="panel-expenses">Expenses</div>
+      <div class="rail-tab" data-target="panel-savings">Savings</div>
+      <div class="rail-tab" data-target="panel-debt">Debt</div>
+    </aside>
+
+    <div class="budget-main">
+
+      <div class="budget-title-row">
+        <div>
+          <span class="budget-eyebrow">Budget Planner</span>
+          <h1 id="period-title">This period</h1>
+        </div>
+        <span class="default-hint" id="default-hint" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          Filled in from your saved default layout
+        </span>
       </div>
-      <div class="log-month-picker">
-        <button type="button" id="log-month-prev" class="log-month-arrow" aria-label="Previous month">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        </button>
-        <span class="log-month-label" id="log-month-label">All time</span>
-        <button type="button" id="log-month-next" class="log-month-arrow" aria-label="Next month">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </button>
-        <div class="log-month-dropdown" id="log-month-dropdown">
-          <div class="log-month-dropdown-years" id="log-month-dropdown-years"></div>
-          <div class="log-month-dropdown-months" id="log-month-dropdown-months"></div>
-          <button type="button" class="log-month-dropdown-alltime" id="log-month-dropdown-alltime">All time</button>
+
+      <div class="period-bar">
+        <div class="field">
+          <label for="start-date-input">Start date</label>
+          <input type="date" id="start-date-input" />
+        </div>
+        <div class="field">
+          <label for="end-date-input">End date</label>
+          <input type="date" id="end-date-input" />
+        </div>
+        <span class="period-status-pill" id="status-pill">active</span>
+        <div class="period-bar-actions">
+          <button type="button" id="save-default-btn" class="btn-brass">Save as default layout</button>
+          <button type="button" id="new-period-btn" class="btn-brass">New period</button>
+          <button type="button" id="unlock-btn" class="btn-brass" style="display:none;">Unlock to edit</button>
+          <button type="button" id="reopen-btn" class="btn-brass" style="display:none;">Reopen period</button>
+          <button type="button" id="finalize-btn" class="btn-brass-solid">Finalize period</button>
         </div>
       </div>
-      <div class="log-type-pills" id="log-type-pills">
-        <button type="button" class="log-type-pill active" data-type="">All</button>
-        <button type="button" class="log-type-pill" data-type="add">Add</button>
-        <button type="button" class="log-type-pill" data-type="subtract">Subtract</button>
-        <button type="button" class="log-type-pill" data-type="transfer">Transfer</button>
-        <button type="button" class="log-type-pill" data-type="debt_payment">Card payment</button>
+
+      <div class="finalized-banner" id="finalized-banner" style="display:none;">
+        <span><b>This period is finalized.</b> It's archived, but you can still pull it up or unlock it to make edits.</span>
       </div>
-      <button type="button" id="log-filter-clear" class="btn-ghost" style="display:none;">Clear filters</button>
-    </div>
 
-    <div class="log-toolbar">
-      <label class="log-check-label">
-        <span class="log-check"><input type="checkbox" id="select-all" /><span class="check-box"></span></span>
-        Select all
-      </label>
-      <span class="log-filter-count" id="log-filter-count"></span>
-      <button type="button" id="delete-selected-btn" class="btn-danger">Delete selected</button>
-    </div>
+      <section class="recurring-review-card" id="recurring-review-card" style="display:none;">
+        <div class="recurring-review-head">
+          <h2>Detected recurring</h2>
+          <span class="recurring-review-sub">Subscriptions and bills you've mapped, matched against what's actually come through — nothing here touches your budget until you approve it.</span>
+        </div>
+        <div class="recurring-review-list" id="recurring-review-list"></div>
+      </section>
 
-    <div class="log-table-wrap">
-      <table class="log-table" id="log-table">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Date</th>
-            <th>Amount</th>
-            <th>Savings</th>
-            <th>Investment</th>
-            <th>Expenses</th>
-            <th>Checking</th>
-            <th>Notes</th>
-          </tr>
-        </thead>
-        <tbody id="log-body">
-          <tr><td colspan="8" class="loading-message">Loading...</td></tr>
-        </tbody>
-      </table>
+      <section class="cashflow-card">
+        <h2>Cash Flow Summary</h2>
+        <div class="cashflow-grid" id="cashflow-grid"></div>
+      </section>
+
+      <section class="charts-card">
+        <h2>Charts</h2>
+        <div class="charts-grid">
+          <div class="chart-box">
+            <div class="chart-box-head">
+              <span class="chart-box-title">Income breakdown</span>
+              <div class="chart-toggle" id="breakdown-toggle">
+                <button type="button" class="chart-toggle-btn active" data-mode="actual">Actual</button>
+                <button type="button" class="chart-toggle-btn" data-mode="budget">Budgeted</button>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="chart-breakdown"></canvas>
+              <div class="chart-empty-note" id="chart-breakdown-empty">Log some actuals to see this breakdown.</div>
+            </div>
+          </div>
+          <div class="chart-box">
+            <span class="chart-box-title">Budget vs. Actual</span>
+            <div class="chart-canvas-wrap"><canvas id="chart-budget-vs-actual"></canvas></div>
+          </div>
+          <div class="chart-box chart-wide">
+            <span class="chart-box-title">Left over time</span>
+            <div class="chart-canvas-wrap chart-canvas-wide">
+              <canvas id="chart-trend"></canvas>
+              <div class="chart-empty-note" id="chart-trend-empty">Create a couple of periods to see your trend over time.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="category-panel accent-income" id="panel-income" data-cat="income">
+        <div class="category-panel-head">
+          <h2>Income</h2>
+          <span class="cat-subtotal">Budget <b id="income-sub-budget">$0.00</b> · Actual <b id="income-sub-actual">$0.00</b></span>
+        </div>
+        <div class="ledger-col-heads"><span>Source</span><span>Budget</span><span>Actual</span><span></span><span></span></div>
+        <div class="ledger-rows" id="rows-income"></div>
+        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="income">+ Add line</button></div>
+      </section>
+
+      <section class="category-panel accent-bills" id="panel-bills" data-cat="bills">
+        <div class="category-panel-head">
+          <h2>Bills</h2>
+          <span class="cat-subtotal">Budget <b id="bills-sub-budget">$0.00</b> · Actual <b id="bills-sub-actual">$0.00</b></span>
+        </div>
+        <div class="ledger-col-heads"><span>Bill</span><span>Budget</span><span>Actual</span><span>Paid</span><span></span></div>
+        <div class="ledger-rows" id="rows-bills"></div>
+        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="bills">+ Add line</button></div>
+      </section>
+
+      <section class="category-panel accent-expenses" id="panel-expenses" data-cat="expenses">
+        <div class="category-panel-head">
+          <h2>Expenses</h2>
+          <span class="cat-subtotal">Budget <b id="expenses-sub-budget">$0.00</b> · Actual <b id="expenses-sub-actual">$0.00</b></span>
+        </div>
+        <div class="ledger-col-heads"><span>Category</span><span>Budget</span><span>Actual</span><span></span><span></span></div>
+        <div class="ledger-rows" id="rows-expenses"></div>
+        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="expenses">+ Add line</button></div>
+      </section>
+
+      <section class="category-panel accent-savings" id="panel-savings" data-cat="savings">
+        <div class="category-panel-head">
+          <h2>Savings</h2>
+          <span class="cat-subtotal">Budget <b id="savings-sub-budget">$0.00</b> · Actual <b id="savings-sub-actual">$0.00</b></span>
+        </div>
+        <div class="ledger-col-heads"><span>Goal</span><span>Budget</span><span>Actual</span><span></span><span></span></div>
+        <div class="ledger-rows" id="rows-savings"></div>
+        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="savings">+ Add line</button></div>
+      </section>
+
+      <section class="category-panel accent-debt" id="panel-debt" data-cat="debt">
+        <div class="category-panel-head">
+          <h2>Debt</h2>
+          <span class="cat-subtotal">Budget <b id="debt-sub-budget">$0.00</b> · Actual <b id="debt-sub-actual">$0.00</b></span>
+        </div>
+        <div class="ledger-col-heads"><span>Debt</span><span>Budget</span><span>Actual</span><span>Paid</span><span></span></div>
+        <div class="ledger-rows" id="rows-debt"></div>
+        <div class="add-line-row"><button type="button" class="add-line-btn" data-cat="debt">+ Add line</button></div>
+      </section>
+
     </div>
   </main>
 
@@ -188,6 +282,78 @@
     </div>
   </div>
 
+  <!-- ================= HISTORY / ARCHIVE OVERLAY ================= -->
+  <div class="history-overlay" id="history-overlay">
+    <div class="history-panel">
+      <div class="history-head">
+        <h2>Budget history</h2>
+        <button type="button" class="history-close" id="history-close">×</button>
+      </div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+  </div>
+
+  <!-- ================= CLEAR ARCHIVES OVERLAY ================= -->
+  <div class="history-overlay" id="archives-overlay">
+    <div class="history-panel">
+      <div class="history-head">
+        <h2>Clear budget archives</h2>
+        <button type="button" class="history-close" id="archives-close">×</button>
+      </div>
+      <div class="log-toolbar archives-toolbar">
+        <label class="log-check-label">
+          <span class="log-check"><input type="checkbox" id="archives-select-all" /><span class="check-box"></span></span>
+          Select all
+        </label>
+        <button type="button" id="archives-delete-selected" class="btn-danger">Delete selected</button>
+      </div>
+      <div class="history-list" id="archives-list"></div>
+    </div>
+  </div>
+
+  <!-- ================= "+ FROM LOG" OVERLAY =================
+       Deliberately reuses the exact same table markup/classes as the
+       dashboard's log.html (log-table-wrap, log-table, log-row-add/
+       subtract/transfer, log-date-firstofmonth) so it renders visually
+       identical — like the log itself appeared inside the planner. -->
+  <div class="history-overlay" id="logmirror-overlay">
+    <div class="history-panel logmirror-panel">
+      <div class="history-head">
+        <h2>Add from Log</h2>
+        <button type="button" class="history-close" id="logmirror-close">×</button>
+      </div>
+      <p class="logmirror-sub" id="logmirror-sub">Select entries to add them.</p>
+      <div class="log-toolbar logmirror-toolbar">
+        <label class="log-check-label">
+          <span class="log-check"><input type="checkbox" id="logmirror-select-all" /><span class="check-box"></span></span>
+          Select all
+        </label>
+      </div>
+      <div class="log-table-wrap logmirror-table-wrap">
+        <table class="log-table" id="logmirror-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Savings</th>
+              <th>Investment</th>
+              <th>Expenses</th>
+              <th>Checking</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="logmirror-body">
+            <tr><td colspan="8" class="loading-message">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="logmirror-actions" id="logmirror-actions" style="display:none;">
+        <button type="button" id="logmirror-add-selected" class="btn-brass-solid">Add selected</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= FEEDBACK ================= -->
   <div class="mfa-overlay" id="feedback-overlay">
     <div class="mfa-modal" style="max-width: 420px;">
@@ -199,26 +365,50 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    const APP_TIMEZONE = 'America/Chicago';
     let currentUserId = null;
-    let currentUserEmail = null;
-    let isPaidUser = false;
-    let trialExpired = false;
     let userTier = 1;
+    let currentUserEmail = null;
 
-    function computeEffectiveTier(billing) {
-      if (!billing) return 1;
-      const trialActive = billing.billing_period === 'trial' && new Date(billing.trial_end) > new Date();
-      if (trialActive) return 3;
-      if (billing.billing_period === 'trial') return 1;
-      return billing.tier || 1;
-    }
+    const CATS = [
+      { key: 'income',   label: 'Income',   checkbox: null },
+      { key: 'bills',    label: 'Bills',    checkbox: 'Paid' },
+      { key: 'expenses', label: 'Expenses', checkbox: null },
+      { key: 'savings',  label: 'Savings',  checkbox: null },
+      { key: 'debt',     label: 'Debt',     checkbox: 'Paid' },
+    ];
+    const SIGN = { income: 1, bills: -1, expenses: -1, savings: -1, debt: -1 };
 
+    const LOG_LABELS = {
+      income: 'income',
+      bills: 'payment',
+      expenses: 'expense',
+      savings: 'savings',
+      debt: 'payment',
+    };
+
+    const VISIBLE_LOG_ENTRIES = 3;
+    const expandedLogLines = new Set();
+
+    const SEED = {
+      income:   ['Paycheck', 'Business', 'Side Hustle', 'Interest Income', 'Dividends'],
+      bills:    ['Rent', 'Electricity', 'Mobile', 'Gym', 'Health Insurance', 'Subscriptions'],
+      expenses: ['Food', 'Personal', 'Transportation', 'Household', 'Education', 'Health', 'Beauty', 'Gifts', 'Self-Development', 'Dining Out'],
+      savings:  ['Emergency Fund', 'Investments', 'Vacation'],
+      debt:     ['Student Loan', 'Credit Card'],
+    };
+
+    function uid() { return (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2)); }
+    // Replaces native confirm()/alert() with a modal matching the
+    // app's own aesthetic — same call shape, await arkoConfirm/arkoAlert
+    // in place of confirm/alert.
     function arkoDialog(message, { mode = 'alert', danger = false } = {}) {
       return new Promise(resolve => {
         const overlay = document.getElementById('arko-dialog-overlay');
@@ -245,318 +435,817 @@
     function arkoConfirm(message, danger = false) { return arkoDialog(message, { mode: 'confirm', danger }); }
     function arkoAlert(message, danger = false) { return arkoDialog(message, { mode: 'alert', danger }); }
 
+    function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
     function money(n) {
       const num = Number(n || 0);
       const sign = num < 0 ? '-' : '';
       return sign + '$' + Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+    function todayISO() { return new Date().toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE }); }
+    function firstOfMonthISO(d) { const dt = new Date(d + 'T00:00:00'); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-01`; }
+    function lastOfMonthISO(d) { const dt = new Date(d + 'T00:00:00'); const last = new Date(dt.getFullYear(), dt.getMonth()+1, 0); return `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`; }
+    function fmtDate(d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 
-    function formatDate(d) {
-      return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    function blankCategories(seedNames) {
+      const out = {};
+      CATS.forEach(c => {
+        out[c.key] = (seedNames ? seedNames[c.key] : []).map(name => ({
+          id: uid(), name, budget: 0, actual: 0, done: false
+        }));
+      });
+      return out;
     }
 
-    function isFirstOfMonth(d) {
-      const day = d.split('-')[2];
-      return day === '01';
+    function cloneTemplateForNewPeriod(templateCategories) {
+      const out = {};
+      CATS.forEach(c => {
+        const lines = (templateCategories && templateCategories[c.key]) || [];
+        out[c.key] = lines.map(l => ({ id: uid(), name: l.name, budget: l.budget || 0, actual: 0, done: false }));
+      });
+      return out;
     }
 
-    const rowClassByType = {
-      add: 'log-row-add',
-      subtract: 'log-row-subtract',
-      transfer: 'log-row-transfer',
-      debt_payment: 'log-row-debtpayment'
+    let periods = [];
+    let current = null;
+    let unlocked = false;
+    let saveTimer = null;
+    let updateScrollSpy = () => {};
+
+    async function loadBillingAndGate() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return false; }
+      currentUserId = session.user.id;
+      currentUserEmail = session.user.email;
+      // Budget Planner is Tier 1 — free forever, no billing gate here
+      // at all. Session existing is the only requirement. Still loads
+      // billing to know the tier for the Premium Tools menu, which
+      // this page can no longer just assume is fully unlocked the way
+      // it could when reaching this page proved payment.
+      const { data: billing } = await supabaseClient.from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
+      userTier = computeEffectiveTier(billing);
+      return true;
+    }
+
+    function computeEffectiveTier(billing) {
+      if (!billing) return 1;
+      const trialActive = billing.billing_period === 'trial' && new Date(billing.trial_end) > new Date();
+      if (trialActive) return 3;
+      if (billing.billing_period === 'trial') return 1;
+      return billing.tier || 1;
+    }
+
+    // ================= FEATURE PREVIEW (locked features) =================
+    // Shown when a locked Premium Tools item is clicked, instead of
+    // bouncing straight to the pricing page with zero context. Each
+    // mockup is a small looping CSS/SVG animation built from the app's
+    // own visual language — a taste of what the feature looks like in
+    // motion, not a real screen recording.
+    const FEATURE_PREVIEW_DATA = {
+      connections: {
+        tier: 2, tierLabel: 'Tier 2 · Automation', color: '#6EC496',
+        title: 'Every account, one balance',
+        desc: 'Connect your banks and cards through Plaid — balances sync automatically, no manual entry required.',
+        stageClass: 'fp-connections',
+        svg: `<svg viewBox="0 0 220 160" width="190" height="150">
+          <circle class="fp-conn-total-glow fp-anim" cx="160" cy="80" r="36" fill="#6EC496"/>
+          <path class="fp-conn-stream fp-anim" d="M20,30 C100,30 130,70 160,80"/>
+          <path class="fp-conn-stream fp-anim" d="M20,80 C90,80 130,80 160,80"/>
+          <path class="fp-conn-stream fp-anim" d="M20,130 C100,130 130,90 160,80"/>
+          <circle class="fp-conn-node" cx="20" cy="30" r="5"/>
+          <circle class="fp-conn-node" cx="20" cy="80" r="5"/>
+          <circle class="fp-conn-node" cx="20" cy="130" r="5"/>
+          <text class="fp-conn-total" x="160" y="87" text-anchor="middle">$12,480</text>
+        </svg>`,
+      },
+      investments: {
+        tier: 3, tierLabel: 'Tier 3 · Full', color: '#A88FD8',
+        title: 'Your portfolio, unified',
+        desc: 'Holdings, allocation, and performance across every connected brokerage — one view instead of six apps.',
+        stageClass: 'fp-investments',
+        svg: `<svg viewBox="0 0 200 160" width="160" height="150">
+          <circle class="fp-inv-ring-bg" cx="100" cy="80" r="50"/>
+          <circle class="fp-inv-ring-fg fp-anim" cx="100" cy="80" r="50" transform="rotate(-90 100 80)"/>
+          <circle class="fp-inv-badge fp-anim" cx="42" cy="38" r="15"/>
+          <circle class="fp-inv-badge fp-b2 fp-anim" cx="160" cy="42" r="15"/>
+          <circle class="fp-inv-badge fp-b3 fp-anim" cx="155" cy="124" r="15"/>
+        </svg>`,
+      },
+      spending: {
+        tier: 3, tierLabel: 'Tier 3 · Full', color: '#E0806A',
+        title: 'See where it actually goes',
+        desc: 'Category breakdowns and spending trends over time, built automatically from your connected accounts.',
+        stageClass: 'fp-spending',
+        svg: `<svg viewBox="0 0 220 150" width="200" height="140">
+          <rect class="fp-spend-bar fp-anim" x="20" y="16" width="160" height="16" rx="4" fill="#E0806A"/>
+          <rect class="fp-spend-bar fp-b2 fp-anim" x="20" y="48" width="120" height="16" rx="4" fill="#D8BC7A"/>
+          <rect class="fp-spend-bar fp-b3 fp-anim" x="20" y="80" width="90" height="16" rx="4" fill="#A88FD8"/>
+          <rect class="fp-spend-bar fp-b4 fp-anim" x="20" y="112" width="60" height="16" rx="4" fill="#6EC4B8"/>
+        </svg>`,
+      },
+      savings: {
+        tier: 3, tierLabel: 'Tier 3 · Full', color: '#6EC4B8',
+        title: 'Watch your goals grow',
+        desc: 'Visual savings goals that fill in as you set money aside — six themes, real progress you can see.',
+        stageClass: 'fp-savings',
+        svg: `<svg viewBox="0 0 200 160" width="170" height="150">
+          <circle class="fp-inv-ring-bg" cx="150" cy="120" r="16" stroke-width="5"/>
+          <circle class="fp-sav-ring-fg fp-anim" cx="150" cy="120" r="16" stroke="#6EC4B8" stroke-width="5" fill="none" stroke-dasharray="100" transform="rotate(-90 150 120)"/>
+          <path class="fp-sav-stem fp-anim" d="M60,140 C58,110 62,80 60,50"/>
+          <ellipse class="fp-sav-leaf fp-anim" cx="45" cy="80" rx="14" ry="8" transform="rotate(-30 45 80)"/>
+          <ellipse class="fp-sav-leaf fp-l2 fp-anim" cx="76" cy="60" rx="14" ry="8" transform="rotate(30 76 60)"/>
+        </svg>`,
+      },
     };
 
-    let allLogRows = [];
+    function showFeaturePreview(featureId) {
+      const data = FEATURE_PREVIEW_DATA[featureId];
+      if (!data) { window.location.href = 'paywall.html'; return; }
 
-    let categoryNameById = {}; // resolves custom_category_id to a readable name for display
+      const stage = document.getElementById('feature-preview-stage');
+      stage.className = 'feature-preview-stage ' + data.stageClass;
+      stage.innerHTML = data.svg;
 
-    async function loadLog() {
-      const tbody = document.getElementById('log-body');
-      const [{ data: rows, error }, { data: cats }] = await Promise.all([
-        supabaseClient.from('finance_log').select('*').eq('user_id', currentUserId).order('entry_date', { ascending: false }),
-        supabaseClient.from('budget_categories').select('id, name').eq('user_id', currentUserId),
-      ]);
-      categoryNameById = Object.fromEntries((cats || []).map(c => [c.id, c.name]));
+      const badge = document.getElementById('feature-preview-tier-badge');
+      badge.textContent = data.tierLabel;
+      badge.style.background = data.color + '26';
+      badge.style.color = data.color;
+      badge.style.border = `1px solid ${data.color}55`;
 
-      if (error) {
-        console.error(error);
-        tbody.innerHTML = '<tr><td colspan="8">Could not load your log.</td></tr>';
-        return;
-      }
+      document.getElementById('feature-preview-title').textContent = data.title;
+      document.getElementById('feature-preview-desc').textContent = data.desc;
 
-      allLogRows = rows || [];
-      renderLogTable();
+      const cta = document.getElementById('feature-preview-cta');
+      cta.style.background = data.color;
+      cta.style.color = '#171422';
+      cta.onclick = () => { window.location.href = `paywall.html?need=${data.tier}`; };
+
+      document.getElementById('feature-preview-overlay').classList.add('open');
     }
 
-    let logSelectedMonth = null; // null = all time, else { year, month } (month is 0-11)
-    let logSelectedType = ''; // '' = all types
-    let logDropdownYear = new Date().getFullYear(); // which year's months are currently showing in the dropdown
-
-    function logMonthLabel() {
-      if (!logSelectedMonth) return 'All time';
-      return new Date(logSelectedMonth.year, logSelectedMonth.month, 1)
-        .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    }
-
-    function updateLogMonthLabel() {
-      document.getElementById('log-month-label').textContent = logMonthLabel();
-    }
-
-    function getActiveFilters() {
-      let monthKey = null;
-      if (logSelectedMonth) {
-        monthKey = `${logSelectedMonth.year}-${String(logSelectedMonth.month + 1).padStart(2, '0')}`;
-      }
-      return {
-        search: document.getElementById('log-search-input').value.trim().toLowerCase(),
-        monthKey,
-        type: logSelectedType,
-      };
-    }
-
-    function renderLogTable() {
-      const tbody = document.getElementById('log-body');
-      const countEl = document.getElementById('log-filter-count');
-      const clearBtn = document.getElementById('log-filter-clear');
-      const f = getActiveFilters();
-      const anyFilterActive = !!(f.search || f.monthKey || f.type);
-      clearBtn.style.display = anyFilterActive ? 'inline-block' : 'none';
-
-      if (!allLogRows.length) {
-        tbody.innerHTML = '<tr><td colspan="8">No entries yet.</td></tr>';
-        countEl.textContent = '';
-        return;
-      }
-
-      const rows = allLogRows.filter(r => {
-        if (f.search && !(r.notes || '').toLowerCase().includes(f.search)) return false;
-        if (f.monthKey && r.entry_date.slice(0, 7) !== f.monthKey) return false;
-        if (f.type && r.action_type !== f.type) return false;
-        return true;
+    function setupFeaturePreview() {
+      document.getElementById('feature-preview-close').addEventListener('click', () => {
+        document.getElementById('feature-preview-overlay').classList.remove('open');
       });
-
-      countEl.textContent = anyFilterActive ? `${rows.length} of ${allLogRows.length} shown` : '';
-
-      if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="8">No entries match your filters.</td></tr>';
-        return;
-      }
-
-      let prevActionType = null;
-      tbody.innerHTML = rows.map(r => {
-        const isGroupStart = r.action_type !== prevActionType;
-        prevActionType = r.action_type;
-        const customBadge = r.custom_category_id
-          ? `<span class="log-custom-category-badge">${(categoryNameById[r.custom_category_id] || 'Category').replace(/</g,'&lt;')}: ${money(r.custom_category_amount || 0)}</span> `
-          : '';
-        return `
-        <tr class="${rowClassByType[r.action_type] || ''}${isGroupStart ? ' log-group-start' : ''}">
-          <td><label class="log-check"><input type="checkbox" class="row-select" data-id="${r.id}" /><span class="check-box"></span></label></td>
-          <td class="${isFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${formatDate(r.entry_date)}</td>
-          <td class="num-cell log-amount-cell">${money(r.amount)}</td>
-          <td class="num-cell">${money(r.savings)}</td>
-          <td class="num-cell">${money(r.investment)}</td>
-          <td class="num-cell">${money(r.expenses)}</td>
-          <td class="num-cell">${money(r.checking)}</td>
-          <td class="notes-cell">${customBadge}${r.notes ? r.notes.replace(/</g,'&lt;') : ''}</td>
-        </tr>
-      `;
-      }).join('');
-    }
-
-    function shiftLogMonth(delta) {
-      if (!logSelectedMonth) {
-        const now = new Date();
-        logSelectedMonth = { year: now.getFullYear(), month: now.getMonth() };
-      } else {
-        let { year, month } = logSelectedMonth;
-        month += delta;
-        if (month < 0) { month = 11; year--; }
-        if (month > 11) { month = 0; year++; }
-        logSelectedMonth = { year, month };
-      }
-      updateLogMonthLabel();
-      renderLogTable();
-    }
-
-    const MONTH_ABBREVIATIONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-    // Years shown span from the earliest entry on record (or 4 years
-    // back if there's no data yet) through the current year — no reason
-    // to offer years with nothing in them.
-    function logAvailableYears() {
-      const currentYear = new Date().getFullYear();
-      let earliestYear = currentYear - 4;
-      if (allLogRows.length) {
-        const earliestDate = allLogRows.reduce((min, r) => r.entry_date < min ? r.entry_date : min, allLogRows[0].entry_date);
-        earliestYear = Math.min(earliestYear, parseInt(earliestDate.slice(0, 4), 10));
-      }
-      const years = [];
-      for (let y = currentYear; y >= earliestYear; y--) years.push(y);
-      return years;
-    }
-
-    function renderLogMonthDropdown() {
-      if (logSelectedMonth) logDropdownYear = logSelectedMonth.year;
-
-      const yearsEl = document.getElementById('log-month-dropdown-years');
-      yearsEl.innerHTML = logAvailableYears().map(y =>
-        `<button type="button" class="log-month-year-btn${y === logDropdownYear ? ' active' : ''}" data-year="${y}">${y}</button>`
-      ).join('');
-      yearsEl.querySelectorAll('.log-month-year-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          logDropdownYear = parseInt(btn.dataset.year, 10);
-          renderLogMonthDropdown();
-        });
-      });
-
-      const monthsEl = document.getElementById('log-month-dropdown-months');
-      monthsEl.innerHTML = MONTH_ABBREVIATIONS.map((label, i) => {
-        const isSelected = logSelectedMonth && logSelectedMonth.year === logDropdownYear && logSelectedMonth.month === i;
-        return `<button type="button" class="log-month-month-btn${isSelected ? ' active' : ''}" data-month="${i}">${label}</button>`;
-      }).join('');
-      monthsEl.querySelectorAll('.log-month-month-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          logSelectedMonth = { year: logDropdownYear, month: parseInt(btn.dataset.month, 10) };
-          updateLogMonthLabel();
-          renderLogTable();
-          closeLogMonthDropdown();
-        });
+      document.getElementById('feature-preview-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'feature-preview-overlay') document.getElementById('feature-preview-overlay').classList.remove('open');
       });
     }
 
-    function toggleLogMonthDropdown() {
-      const dropdown = document.getElementById('log-month-dropdown');
-      const opening = !dropdown.classList.contains('open');
-      if (opening) { renderLogMonthDropdown(); dropdown.classList.add('open'); }
-      else dropdown.classList.remove('open');
-    }
-    function closeLogMonthDropdown() {
-      document.getElementById('log-month-dropdown').classList.remove('open');
+
+    async function fetchDefaultTemplate() {
+      const { data, error } = await supabaseClient
+        .from('budget_defaults').select('categories').eq('user_id', currentUserId).maybeSingle();
+      if (error) { console.error(error); return null; }
+      return data ? data.categories : null;
     }
 
-    function setupLogFilters() {
-      let searchDebounce = null;
-      document.getElementById('log-search-input').addEventListener('input', () => {
-        clearTimeout(searchDebounce);
-        searchDebounce = setTimeout(renderLogTable, 150);
-      });
+    async function fetchPeriods() {
+      const { data, error } = await supabaseClient
+        .from('budget_periods').select('*').eq('user_id', currentUserId)
+        .order('start_date', { ascending: false });
+      if (error) { console.error(error); return []; }
+      return data || [];
+    }
 
-      document.getElementById('log-month-prev').addEventListener('click', () => shiftLogMonth(-1));
-      document.getElementById('log-month-next').addEventListener('click', () => shiftLogMonth(1));
-      document.getElementById('log-month-label').addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleLogMonthDropdown();
-      });
-      document.getElementById('log-month-dropdown-alltime').addEventListener('click', () => {
-        logSelectedMonth = null;
-        updateLogMonthLabel();
-        renderLogTable();
-        closeLogMonthDropdown();
-      });
-      document.getElementById('log-month-dropdown').addEventListener('click', (e) => e.stopPropagation());
-      document.addEventListener('click', closeLogMonthDropdown);
-
-      document.querySelectorAll('.log-type-pill').forEach(pill => {
-        pill.addEventListener('click', () => {
-          logSelectedType = pill.dataset.type;
-          document.querySelectorAll('.log-type-pill').forEach(p => p.classList.toggle('active', p === pill));
-          renderLogTable();
-        });
-      });
-
-      document.getElementById('log-filter-clear').addEventListener('click', () => {
-        document.getElementById('log-search-input').value = '';
-        logSelectedMonth = null;
-        logSelectedType = '';
-        updateLogMonthLabel();
-        document.querySelectorAll('.log-type-pill').forEach(p => p.classList.toggle('active', p.dataset.type === ''));
-        renderLogTable();
-      });
+    async function createPeriod(startISO, endISO) {
+      const template = await fetchDefaultTemplate();
+      const categories = template ? cloneTemplateForNewPeriod(template) : blankCategories(SEED);
+      const { data, error } = await supabaseClient
+        .from('budget_periods')
+        .insert({ user_id: currentUserId, start_date: startISO, end_date: endISO, status: 'active', categories })
+        .select().single();
+      if (error) { console.error(error); await arkoAlert('Could not create a new period: ' + error.message); return null; }
+      return data;
     }
 
     async function init() {
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if (!session) { window.location.href = 'login.html'; return; }
-      currentUserId = session.user.id;
-      currentUserEmail = session.user.email;
+      const ok = await loadBillingAndGate();
+      if (!ok) return;
 
-      const { data: billing } = await supabaseClient
-        .from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
-      // Log is Tier 1 — free forever, part of manual tracking. No
-      // redirect here at all; billing is only loaded to know the tier
-      // for the Premium Tools menu.
-      userTier = computeEffectiveTier(billing);
-      isPaidUser = userTier >= 2;
-      setupLedgerMenu();
-      setupMfaOverlay();
+      periods = await fetchPeriods();
+
+      const today = todayISO();
+      current = periods.find(p => p.status === 'active' && p.start_date <= today && p.end_date >= today)
+             || periods.find(p => p.status === 'active')
+             || null;
+
+      if (!current) {
+        current = await createPeriod(firstOfMonthISO(today), lastOfMonthISO(today));
+        if (current) periods.unshift(current);
+      }
+
+      unlocked = false;
+      document.getElementById('loading-message').style.display = 'none';
+      document.getElementById('budget-shell').style.display = 'flex';
+      renderAll();
+      setupStaticListeners();
       setupIdleTimeout();
       setupFeedback();
-      setupLogFilters();
+      setupRecurringReviews();
+      await loadRecurringReviews();
 
-      await loadLog();
+      if (new URLSearchParams(window.location.search).get('history') === '1') {
+        document.getElementById('history-button').click();
+      }
     }
 
-    document.getElementById('back-button').addEventListener('click', () => {
-      window.location.href = 'dashboard.html';
-    });
+    function isLocked() { return current.status === 'finalized' && !unlocked; }
 
-    document.getElementById('select-all').addEventListener('change', (e) => {
-      document.querySelectorAll('.row-select').forEach(cb => cb.checked = e.target.checked);
-    });
+    function computeTotals() {
+      const totals = {};
+      CATS.forEach(c => {
+        const lines = current.categories[c.key] || [];
+        totals[c.key] = {
+          budget: round2(lines.reduce((s, l) => s + (Number(l.budget) || 0), 0)),
+          actual: round2(lines.reduce((s, l) => s + (Number(l.actual) || 0), 0)),
+        };
+      });
+      const leftBudget = round2(CATS.reduce((s, c) => s + SIGN[c.key] * totals[c.key].budget, 0));
+      const leftActual = round2(CATS.reduce((s, c) => s + SIGN[c.key] * totals[c.key].actual, 0));
+      return { totals, leftBudget, leftActual };
+    }
 
-    document.getElementById('delete-selected-btn').addEventListener('click', async () => {
-      const ids = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.dataset.id);
-      if (ids.length === 0) {
-        await arkoAlert('No entries selected.');
-        return;
+    function computeRolloverChain() {
+      const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
+      const map = {};
+      let carry = 0;
+      sorted.forEach(p => {
+        const catTotals = {};
+        CATS.forEach(c => {
+          const lines = (p.categories && p.categories[c.key]) || [];
+          catTotals[c.key] = round2(lines.reduce((s, l) => s + (Number(l.actual) || 0), 0));
+        });
+        const baseLeftActual = round2(CATS.reduce((s, c) => s + SIGN[c.key] * catTotals[c.key], 0));
+        const rollover = carry;
+        const leftWithRollover = round2(baseLeftActual + rollover);
+        map[p.id] = { rollover, leftWithRollover };
+        carry = leftWithRollover;
+      });
+      return map;
+    }
+
+    function renderAll() {
+      const isCalendarMonth = current.start_date === firstOfMonthISO(current.start_date) && current.end_date === lastOfMonthISO(current.start_date);
+      document.getElementById('period-title').textContent = isCalendarMonth
+        ? new Date(current.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        : `${fmtDate(current.start_date)} – ${fmtDate(current.end_date)}`;
+
+      document.getElementById('start-date-input').value = current.start_date;
+      document.getElementById('end-date-input').value = current.end_date;
+
+      const pill = document.getElementById('status-pill');
+      pill.textContent = current.status;
+      pill.className = 'period-status-pill ' + current.status;
+
+      const finalized = current.status === 'finalized';
+      document.getElementById('finalized-banner').style.display = finalized ? 'flex' : 'none';
+      document.getElementById('unlock-btn').style.display = finalized && !unlocked ? 'inline-block' : 'none';
+      document.getElementById('reopen-btn').style.display = finalized ? 'inline-block' : 'none';
+      document.getElementById('finalize-btn').style.display = finalized ? 'none' : 'inline-block';
+
+      CATS.forEach(c => renderCategoryPanel(c.key));
+      recalcSummary();
+    }
+
+    function rowTemplate(cat, line, locked) {
+      const c = CATS.find(x => x.key === cat);
+      const checkboxCell = c.checkbox
+        ? `<label class="log-check"><input type="checkbox" class="row-input" data-field="done" ${line.done ? 'checked' : ''} ${locked ? 'disabled' : ''} /><span class="check-box"></span></label>`
+        : '';
+      const rowHtml = `
+        <div class="ledger-row" data-id="${line.id}">
+          <input type="text" class="row-input" data-field="name" value="${line.name.replace(/"/g,'&quot;')}" placeholder="Name" ${locked ? 'disabled' : ''} />
+          <input type="number" class="row-input" data-field="budget" value="${line.budget ? line.budget : ''}" placeholder="0.00" step="0.01" ${locked ? 'disabled' : ''} />
+          <input type="number" class="row-input" data-field="actual" value="${line.actual ? line.actual : ''}" placeholder="0.00" step="0.01" ${locked ? 'disabled' : ''} />
+          <div class="row-check-cell">${checkboxCell}</div>
+          <button type="button" class="row-delete" ${locked ? 'disabled style="visibility:hidden"' : ''} title="Delete line">×</button>
+        </div>`;
+
+      if (!LOG_LABELS[cat]) return rowHtml;
+
+      const noun = LOG_LABELS[cat];
+      const entries = line.entries || [];
+      const allEntriesDesc = entries.slice().sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+      const isExpanded = expandedLogLines.has(line.id);
+      const visibleEntries = isExpanded ? allEntriesDesc : allEntriesDesc.slice(0, VISIBLE_LOG_ENTRIES);
+      const hiddenCount = allEntriesDesc.length - visibleEntries.length;
+      const toggleHtml = allEntriesDesc.length > VISIBLE_LOG_ENTRIES
+        ? (isExpanded
+            ? `<button type="button" class="expense-log-showtoggle" data-id="${line.id}" data-action="less">Show less</button>`
+            : `<button type="button" class="expense-log-showtoggle" data-id="${line.id}" data-action="more">+ Show ${hiddenCount} more</button>`)
+        : '';
+      const expenseExtra = `
+        <div class="expense-log-wrap" data-id="${line.id}">
+          <div class="expense-log-actions">
+            <button type="button" class="expense-log-toggle" data-id="${line.id}" ${locked ? 'disabled' : ''}>
+              + Log ${noun}${entries.length ? `<span class="expense-log-count">${entries.length}</span>` : ''}
+            </button>
+            <button type="button" class="expense-log-fromlog" data-id="${line.id}" data-cat="${cat}" data-name="${(line.name || '').replace(/"/g,'&quot;')}" ${locked ? 'disabled' : ''}>
+              + From log
+            </button>
+          </div>
+          <div class="expense-log-form" id="expense-form-${line.id}" style="display:none;">
+            <input type="number" class="expense-log-amount" placeholder="0.00" step="0.01" />
+            <input type="text" class="expense-log-note" placeholder="What was it? (optional)" />
+            <button type="button" class="expense-log-submit" data-id="${line.id}">Add</button>
+            <button type="button" class="expense-log-cancel" data-id="${line.id}">Cancel</button>
+          </div>
+          ${entries.length ? `
+          <div class="expense-log-list">
+            ${visibleEntries.map(e => `
+              <div class="expense-log-entry" data-entry-id="${e.id}">
+                <span class="expense-entry-date">${fmtDate(e.date)}</span>
+                <span class="expense-entry-note">${e.note ? e.note.replace(/</g,'&lt;') : '—'}</span>
+                <span class="expense-entry-amount">${money(e.amount)}</span>
+                <button type="button" class="expense-entry-delete" data-id="${line.id}" data-entry-id="${e.id}" ${locked ? 'disabled style="visibility:hidden"' : ''} title="Remove entry">×</button>
+              </div>
+            `).join('')}
+          </div>
+          ${toggleHtml}` : ''}
+        </div>`;
+
+      return rowHtml + expenseExtra;
+    }
+
+    function renderCategoryPanel(cat) {
+      const locked = isLocked();
+      const panel = document.getElementById('panel-' + cat);
+      panel.classList.toggle('locked', locked);
+      const container = document.getElementById('rows-' + cat);
+      const lines = current.categories[cat] || [];
+      container.innerHTML = lines.map(l => rowTemplate(cat, l, locked)).join('');
+
+      container.querySelectorAll('.ledger-row').forEach(rowEl => {
+        const id = rowEl.dataset.id;
+        rowEl.querySelectorAll('.row-input').forEach(input => {
+          const evt = input.type === 'checkbox' ? 'change' : 'input';
+          input.addEventListener(evt, () => {
+            const line = current.categories[cat].find(l => l.id === id);
+            if (!line) return;
+            const field = input.dataset.field;
+            if (field === 'name') {
+              line.name = input.value;
+            } else if (field === 'done') {
+              line.done = input.checked;
+              if (c_hasAutoFill(cat) && line.done) {
+                line.actual = Number(line.budget) || 0;
+                const actualInput = rowEl.querySelector('input[data-field="actual"]');
+                if (actualInput) actualInput.value = line.actual ? line.actual : '';
+              }
+            } else {
+              line[field] = parseFloat(input.value) || 0;
+              if (field === 'actual' && c_shouldMarkPaid(cat, line) && !line.done) {
+                line.done = true;
+                const doneInput = rowEl.querySelector('input[data-field="done"]');
+                if (doneInput) doneInput.checked = true;
+              }
+            }
+            recalcSummary();
+            queueSave();
+          });
+        });
+        const delBtn = rowEl.querySelector('.row-delete');
+        delBtn.addEventListener('click', () => {
+          current.categories[cat] = current.categories[cat].filter(l => l.id !== id);
+          expandedLogLines.delete(id);
+          renderCategoryPanel(cat);
+          recalcSummary();
+          queueSave();
+          updateScrollSpy();
+        });
+      });
+
+      panel.querySelector('.add-line-btn').onclick = () => {
+        if (isLocked()) return;
+        current.categories[cat].push({ id: uid(), name: '', budget: 0, actual: 0, done: false });
+        renderCategoryPanel(cat);
+        queueSave();
+        updateScrollSpy();
+      };
+
+      if (LOG_LABELS[cat]) {
+        container.querySelectorAll('.expense-log-showtoggle').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            if (btn.dataset.action === 'more') expandedLogLines.add(id);
+            else expandedLogLines.delete(id);
+            renderCategoryPanel(cat);
+            updateScrollSpy();
+          });
+        });
+
+        container.querySelectorAll('.expense-log-fromlog').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (isLocked()) return;
+            openLogMirrorOverlay(btn.dataset.cat, btn.dataset.id, btn.dataset.name);
+          });
+        });
+
+        container.querySelectorAll('.expense-log-toggle').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (isLocked()) return;
+            const form = document.getElementById('expense-form-' + btn.dataset.id);
+            if (!form) return;
+            const opening = form.style.display === 'none';
+            container.querySelectorAll('.expense-log-form').forEach(f => f.style.display = 'none');
+            if (opening) {
+              form.style.display = 'flex';
+              const amountInput = form.querySelector('.expense-log-amount');
+              if (amountInput) amountInput.focus();
+            }
+          });
+        });
+
+        container.querySelectorAll('.expense-log-cancel').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const form = document.getElementById('expense-form-' + btn.dataset.id);
+            if (!form) return;
+            form.style.display = 'none';
+            form.querySelector('.expense-log-amount').value = '';
+            form.querySelector('.expense-log-note').value = '';
+          });
+        });
+
+        container.querySelectorAll('.expense-log-submit').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (isLocked()) return;
+            const id = btn.dataset.id;
+            const form = document.getElementById('expense-form-' + id);
+            if (!form) return;
+            const amountInput = form.querySelector('.expense-log-amount');
+            const noteInput = form.querySelector('.expense-log-note');
+            const amount = round2(parseFloat(amountInput.value) || 0);
+            if (amount <= 0) { amountInput.focus(); return; }
+
+            const line = current.categories[cat].find(l => l.id === id);
+            if (!line) return;
+            if (!Array.isArray(line.entries)) line.entries = [];
+            line.entries.push({ id: uid(), amount, note: noteInput.value.trim(), date: todayISO() });
+            line.actual = round2((Number(line.actual) || 0) + amount);
+            if (c_shouldMarkPaid(cat, line)) line.done = true;
+
+            renderCategoryPanel(cat);
+            recalcSummary();
+            queueSave();
+            updateScrollSpy();
+          });
+        });
+
+        container.querySelectorAll('.expense-entry-delete').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (isLocked()) return;
+            const id = btn.dataset.id;
+            const entryId = btn.dataset.entryId;
+            const line = current.categories[cat].find(l => l.id === id);
+            if (!line || !Array.isArray(line.entries)) return;
+            const entry = line.entries.find(e => e.id === entryId);
+            if (!entry) return;
+            if (!await arkoConfirm(`Remove this ${money(entry.amount)} entry${entry.note ? ' ("' + entry.note + '")' : ''}?`)) return;
+            line.entries = line.entries.filter(e => e.id !== entryId);
+            line.actual = Math.max(0, round2((Number(line.actual) || 0) - entry.amount));
+
+            renderCategoryPanel(cat);
+            recalcSummary();
+            queueSave();
+            updateScrollSpy();
+          });
+        });
       }
-      if (!await arkoConfirm(`Delete ${ids.length} selected entr${ids.length === 1 ? 'y' : 'ies'}? This cannot be undone.`)) return;
+    }
 
-      const { data: deletedRows, error } = await supabaseClient
-        .from('finance_log')
-        .delete()
-        .in('id', ids)
-        .select('source_review_id');
-      if (error) { console.error(error); await arkoAlert('Could not delete entries.'); return; }
+    function c_hasAutoFill(cat) {
+      const c = CATS.find(x => x.key === cat);
+      return !!(c && c.checkbox === 'Paid');
+    }
 
-      // Any deleted entry that came from a detected transaction gets its
-      // review flipped back to 'pending' so it can resurface on Dashboard
-      // instead of being stuck as 'approved' with nothing pointing to it.
-      const restoredReviewIds = (deletedRows || [])
-        .map(r => r.source_review_id)
-        .filter(Boolean);
-      if (restoredReviewIds.length) {
-        const { error: restoreError } = await supabaseClient
-          .from('pending_dashboard_reviews')
-          .update({ status: 'pending' })
-          .in('id', restoredReviewIds);
-        if (restoreError) console.error('Could not restore reviews:', restoreError);
+    function c_shouldMarkPaid(cat, line) {
+      return c_hasAutoFill(cat) && (Number(line.actual) || 0) >= (Number(line.budget) || 0) && (Number(line.budget) || 0) > 0;
+    }
+
+    function recalcSummary() {
+      const { totals, leftBudget, leftActual } = computeTotals();
+      CATS.forEach(c => {
+        const b = document.getElementById(c.key + '-sub-budget');
+        const a = document.getElementById(c.key + '-sub-actual');
+        if (b) b.textContent = money(totals[c.key].budget);
+        if (a) a.textContent = money(totals[c.key].actual);
+      });
+
+      const rolloverMap = computeRolloverChain();
+      const rolloverInfo = rolloverMap[current.id] || { rollover: 0, leftWithRollover: leftActual };
+
+      const grid = document.getElementById('cashflow-grid');
+      grid.innerHTML = `
+        <div class="cashflow-item cf-rollover">
+          <span class="cf-label">Rollover (+)</span>
+          <span class="cf-value ${rolloverInfo.rollover >= 0 ? 'positive' : 'negative'}">${money(rolloverInfo.rollover)}</span>
+        </div>
+      ` + CATS.map(c => `
+        <div class="cashflow-item">
+          <span class="cf-label">${c.label}${SIGN[c.key] < 0 ? ' (–)' : ' (+)'}</span>
+          <span class="cf-value">${money(totals[c.key].actual)}</span>
+        </div>
+      `).join('') + `
+        <div class="cashflow-item cf-left">
+          <span class="cf-label">Left</span>
+          <span class="cf-value ${rolloverInfo.leftWithRollover >= 0 ? 'positive' : 'negative'}">${money(rolloverInfo.leftWithRollover)}</span>
+          <span class="cf-sub-hint">budgeted: ${money(leftBudget)}</span>
+        </div>
+      `;
+
+      renderCharts();
+    }
+
+    let breakdownChart = null;
+    let budgetVsActualChart = null;
+    let trendChart = null;
+    let breakdownChartMode = 'actual';
+
+    const CHART_COLORS = {
+      income: '#5C8A6B',
+      bills: '#E0806A',
+      expenses: '#E0B96E',
+      savings: '#6E96C4',
+      debt: '#B27AC4',
+      leftover: 'rgba(92,138,107,0.28)',
+      brassBright: '#D8BC7A',
+      gridLine: 'rgba(232,225,211,0.08)',
+      tickColor: '#7C8489',
+      legendColor: '#B3B6B9',
+    };
+
+    function chartFont() { return { family: "'Public Sans', sans-serif", size: 11 }; }
+
+    function renderCharts() {
+      if (typeof Chart === 'undefined') return;
+      const { totals } = computeTotals();
+      renderBreakdownChart(totals);
+      renderBudgetVsActualChart(totals);
+      renderTrendChart();
+    }
+
+    function renderBreakdownChart(totals) {
+      const canvas = document.getElementById('chart-breakdown');
+      const emptyNote = document.getElementById('chart-breakdown-empty');
+      if (!canvas) return;
+
+      const field = breakdownChartMode;
+      const keys = ['bills', 'expenses', 'savings', 'debt'];
+      const labels = ['Bills', 'Expenses', 'Savings', 'Debt'];
+      const colors = keys.map(k => CHART_COLORS[k]);
+      const data = keys.map(k => Math.max(0, totals[k][field]));
+
+      const outflow = data.reduce((s, v) => s + v, 0);
+      const incomeField = Math.max(0, totals.income[field]);
+      const leftover = round2(incomeField - outflow);
+      if (leftover > 0) {
+        labels.push(field === 'actual' ? 'Unspent' : 'Unbudgeted');
+        data.push(leftover);
+        colors.push(CHART_COLORS.leftover);
       }
 
-      await loadLog();
-    });
+      const hasData = data.some(v => v > 0);
 
-    // ================= SETTINGS GEAR =================
-    const gearBtn = document.getElementById('settings-gear');
-    const gearDropdown = document.getElementById('settings-dropdown');
+      if (breakdownChart) { breakdownChart.destroy(); breakdownChart = null; }
+      canvas.style.display = hasData ? 'block' : 'none';
+      if (emptyNote) {
+        emptyNote.textContent = field === 'actual'
+          ? 'Log some actuals to see this breakdown.'
+          : 'Set some budget amounts to see this breakdown.';
+        emptyNote.style.display = hasData ? 'none' : 'flex';
+      }
+      if (!hasData) return;
 
-    gearBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeLedgerMenu();
-      gearDropdown.classList.toggle('open');
-      gearBtn.classList.toggle('spin');
-    });
+      breakdownChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#171208', borderWidth: 2 }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: { position: 'bottom', labels: { color: CHART_COLORS.legendColor, font: chartFont(), boxWidth: 10, padding: 12 } },
+            tooltip: { callbacks: { label: (item) => `${item.label}: ${money(item.parsed)}` } }
+          }
+        }
+      });
+    }
 
-    document.addEventListener('click', () => {
-      gearDropdown.classList.remove('open');
-      gearBtn.classList.remove('spin');
-      closeLedgerMenu();
-    });
+    function renderBudgetVsActualChart(totals) {
+      const canvas = document.getElementById('chart-budget-vs-actual');
+      if (!canvas) return;
 
-    // ================= TWO-FACTOR AUTHENTICATION =================
+      const labels = CATS.map(c => c.label);
+      const budgetData = CATS.map(c => totals[c.key].budget);
+      const actualData = CATS.map(c => totals[c.key].actual);
+
+      if (budgetVsActualChart) { budgetVsActualChart.destroy(); budgetVsActualChart = null; }
+
+      budgetVsActualChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Budget', data: budgetData, backgroundColor: 'rgba(184,147,74,0.32)', borderColor: '#5C4A22', borderWidth: 1, borderRadius: 4, maxBarThickness: 26 },
+            { label: 'Actual', data: actualData, backgroundColor: '#B8934A', borderRadius: 4, maxBarThickness: 26 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { color: CHART_COLORS.tickColor, font: chartFont() }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { color: CHART_COLORS.tickColor, font: chartFont(), callback: (v) => '$' + v }, grid: { color: CHART_COLORS.gridLine } }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: CHART_COLORS.legendColor, font: chartFont(), boxWidth: 10, padding: 12 } },
+            tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${money(item.parsed.y)}` } }
+          }
+        }
+      });
+    }
+
+    function renderTrendChart() {
+      const canvas = document.getElementById('chart-trend');
+      const emptyNote = document.getElementById('chart-trend-empty');
+      if (!canvas) return;
+
+      const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
+      const hasEnoughData = sorted.length >= 2;
+
+      if (trendChart) { trendChart.destroy(); trendChart = null; }
+      canvas.style.display = hasEnoughData ? 'block' : 'none';
+      if (emptyNote) emptyNote.style.display = hasEnoughData ? 'none' : 'flex';
+      if (!hasEnoughData) return;
+
+      const rolloverMap = computeRolloverChain();
+      const labels = sorted.map(p => {
+        const isCal = p.start_date === firstOfMonthISO(p.start_date) && p.end_date === lastOfMonthISO(p.start_date);
+        return isCal
+          ? new Date(p.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+          : fmtDate(p.start_date);
+      });
+      const data = sorted.map(p => (rolloverMap[p.id] ? rolloverMap[p.id].leftWithRollover : 0));
+
+      trendChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Left',
+            data,
+            borderColor: CHART_COLORS.brassBright,
+            backgroundColor: 'rgba(216,188,122,0.12)',
+            pointBackgroundColor: CHART_COLORS.brassBright,
+            pointRadius: 3,
+            tension: 0.25,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { color: CHART_COLORS.tickColor, font: chartFont() }, grid: { display: false } },
+            y: { ticks: { color: CHART_COLORS.tickColor, font: chartFont(), callback: (v) => '$' + v }, grid: { color: CHART_COLORS.gridLine } }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (item) => `Left: ${money(item.parsed.y)}` } }
+          }
+        }
+      });
+    }
+
+    function setupBreakdownToggle() {
+      document.querySelectorAll('.chart-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (btn.classList.contains('active')) return;
+          breakdownChartMode = btn.dataset.mode;
+          document.querySelectorAll('.chart-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+          const { totals } = computeTotals();
+          renderBreakdownChart(totals);
+        });
+      });
+    }
+
+    function queueSave() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveCurrentPeriod, 500);
+    }
+
+    async function saveCurrentPeriod() {
+      if (!current) return;
+      const { error } = await supabaseClient
+        .from('budget_periods')
+        .update({ categories: current.categories, start_date: current.start_date, end_date: current.end_date, updated_at: new Date().toISOString() })
+        .eq('id', current.id);
+      if (error) console.error('Save error:', error);
+    }
+
+    // ================= DETECTED RECURRING REVIEW =================
+    // The backend has been detecting and queueing matches here all
+    // along (any subscription mapped to a Bills line via Spendings) —
+    // this is genuinely the first UI that's ever shown or acted on
+    // them. Nothing here touches budget_periods until "Add to budget"
+    // is actually clicked.
+    let recurringReviews = [];
+
+    async function loadRecurringReviews() {
+      const { data, error } = await supabaseClient
+        .from('pending_transaction_reviews')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .eq('status', 'pending')
+        .order('txn_date', { ascending: false });
+      if (error) { console.error(error); return; }
+      recurringReviews = data || [];
+      renderRecurringReviews();
+    }
+
+    function renderRecurringReviews() {
+      const card = document.getElementById('recurring-review-card');
+      const list = document.getElementById('recurring-review-list');
+      if (!recurringReviews.length) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+
+      list.innerHTML = recurringReviews.map(r => `
+        <div class="recurring-review-row" data-id="${r.id}">
+          <div class="recurring-review-info">
+            <span class="recurring-review-merchant">${(r.merchant_name || 'Recurring charge').replace(/</g,'&lt;')}</span>
+            <span class="recurring-review-meta">${fmtDate(r.txn_date)} · ${money(r.amount)} → ${(r.mapped_line_name || r.mapped_cat).replace(/</g,'&lt;')}</span>
+          </div>
+          <div class="recurring-review-actions">
+            <button type="button" class="recurring-review-approve" data-id="${r.id}">Add to budget</button>
+            <button type="button" class="recurring-review-dismiss" data-id="${r.id}">Dismiss</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function setupRecurringReviews() {
+      // Delegated on the static card, not individual rows — the list
+      // gets fully re-rendered after every approve/dismiss, so binding
+      // fresh per-row would risk the same listener pile-up the old
+      // arrow-based category reorder had before it was rebuilt properly.
+      document.getElementById('recurring-review-list').addEventListener('click', async (e) => {
+        const approveBtn = e.target.closest('.recurring-review-approve');
+        const dismissBtn = e.target.closest('.recurring-review-dismiss');
+        if (approveBtn) await approveRecurringReview(approveBtn.dataset.id);
+        else if (dismissBtn) await dismissRecurringReview(dismissBtn.dataset.id);
+      });
+    }
+
+    async function approveRecurringReview(reviewId) {
+      const review = recurringReviews.find(r => r.id === reviewId);
+      if (!review || !current) return;
+
+      const cat = review.mapped_cat; // 'bills' or 'income'
+      if (!current.categories[cat]) current.categories[cat] = [];
+
+      // Match by name, not by a stored id — budget line ids aren't
+      // stable across periods (a new period clones lines with fresh
+      // ids), so a name match against whatever period is actually open
+      // right now is the only thing that reliably still means the same
+      // line months later. Creates the line if this period doesn't
+      // have one with that name yet.
+      const targetName = (review.mapped_line_name || '').toLowerCase();
+      let line = current.categories[cat].find(l => (l.name || '').toLowerCase() === targetName);
+      if (!line) {
+        line = { id: uid(), name: review.mapped_line_name || 'Recurring', budget: 0, actual: 0, done: false, entries: [] };
+        current.categories[cat].push(line);
+      }
+      if (!Array.isArray(line.entries)) line.entries = [];
+
+      const amount = round2(Number(review.amount) || 0);
+      line.entries.push({ id: uid(), amount, note: review.merchant_name || '', date: review.txn_date });
+      line.actual = round2((Number(line.actual) || 0) + amount);
+      if (c_shouldMarkPaid(cat, line)) line.done = true;
+
+      const { error } = await supabaseClient.from('pending_transaction_reviews').update({ status: 'approved' }).eq('id', reviewId);
+      if (error) { await arkoAlert('Could not approve: ' + error.message); return; }
+
+      renderCategoryPanel(cat);
+      recalcSummary();
+      queueSave();
+      updateScrollSpy();
+
+      recurringReviews = recurringReviews.filter(r => r.id !== reviewId);
+      renderRecurringReviews();
+    }
+
+    async function dismissRecurringReview(reviewId) {
+      const { error } = await supabaseClient.from('pending_transaction_reviews').update({ status: 'dismissed' }).eq('id', reviewId);
+      if (error) { await arkoAlert('Could not dismiss: ' + error.message); return; }
+      recurringReviews = recurringReviews.filter(r => r.id !== reviewId);
+      renderRecurringReviews();
+    }
+
     // ================= MANAGE SUBSCRIPTION =================
+    // Reads live from Stripe (via the backend) rather than trusting a
+    // possibly-stale mirror in Supabase — subscription state can
+    // change on Stripe's side without a webhook necessarily having
+    // landed here yet.
     async function openManageSubscription() {
       const body = document.getElementById('manage-sub-body');
       body.innerHTML = `<p class="mfa-modal-sub">Loading your plan…</p>`;
@@ -887,7 +1576,25 @@
       });
     }
 
-    function setupMfaOverlay() {
+    function setupSettingsGear() {
+      const gearBtn = document.getElementById('settings-gear');
+      const gearDropdown = document.getElementById('settings-dropdown');
+
+      gearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeLedgerMenu();
+        gearDropdown.classList.toggle('open');
+        gearBtn.classList.toggle('spin');
+      });
+
+      document.addEventListener('click', () => {
+        gearDropdown.classList.remove('open');
+        gearBtn.classList.remove('spin');
+        closeLedgerMenu();
+      });
+
+      gearDropdown.addEventListener('click', (e) => e.stopPropagation());
+
       document.getElementById('manage-mfa-btn').addEventListener('click', () => {
         gearDropdown.classList.remove('open');
         openMfaOverlay(false);
@@ -909,131 +1616,108 @@
       document.getElementById('mfa-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'mfa-overlay') closeMfaOverlay();
       });
+
+      document.getElementById('clear-archives-btn').addEventListener('click', () => {
+        gearDropdown.classList.remove('open');
+        gearBtn.classList.remove('spin');
+        openArchivesOverlay();
+      });
     }
 
-    document.getElementById('reset-categories-btn').addEventListener('click', async () => {
-      if (!await arkoConfirm('Reset all category totals to $0.00? This cannot be undone.')) return;
-      const { error } = await supabaseClient
-        .from('finance_totals')
-        .update({ savings: 0, investment: 0, expenses: 0, checking: 0, updated_at: new Date().toISOString() })
-        .eq('user_id', currentUserId);
-      if (error) console.error(error);
-      gearDropdown.classList.remove('open');
-      await arkoAlert('Category totals reset.');
-    });
+    function renderArchivesList() {
+      const list = document.getElementById('archives-list');
+      const deleteBtn = document.getElementById('archives-delete-selected');
+      const selectAll = document.getElementById('archives-select-all');
+      const finalizedPeriods = periods.filter(p => p.status === 'finalized');
 
-    document.getElementById('clear-log-btn').addEventListener('click', async () => {
-      if (!await arkoConfirm('This will clear your entire log and reset all category totals to $0.00 \u2014 just like a fresh account. This cannot be undone.')) return;
+      selectAll.checked = false;
 
-      const { count: beforeCount } = await supabaseClient
-        .from('finance_log')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', currentUserId);
-
-      const { data: deletedRows, error: logError } = await supabaseClient
-        .from('finance_log')
-        .delete()
-        .eq('user_id', currentUserId)
-        .select();
-
-      if (logError) {
-        console.error('Clear log error:', logError);
-        await arkoAlert('Could not clear the log: ' + logError.message);
+      if (!finalizedPeriods.length) {
+        list.innerHTML = '<div class="history-empty">No archived periods to clear.</div>';
+        deleteBtn.disabled = true;
+        selectAll.disabled = true;
         return;
       }
 
-      const { error: totalsError } = await supabaseClient
-        .from('finance_totals')
-        .update({ savings: 0, investment: 0, expenses: 0, checking: 0, updated_at: new Date().toISOString() })
-        .eq('user_id', currentUserId);
-      if (totalsError) console.error(totalsError);
+      selectAll.disabled = false;
+      deleteBtn.disabled = false;
 
-      gearDropdown.classList.remove('open');
-      await loadLog();
+      list.innerHTML = finalizedPeriods.map(p => {
+        const isCal = p.start_date === firstOfMonthISO(p.start_date) && p.end_date === lastOfMonthISO(p.start_date);
+        const title = isCal
+          ? new Date(p.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          : `${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}`;
+        return `
+          <div class="history-item">
+            <label class="log-check"><input type="checkbox" class="archive-select" data-id="${p.id}" /><span class="check-box"></span></label>
+            <div class="history-item-left">
+              <span class="history-item-title">${title}</span>
+              <span class="history-item-sub">${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}</span>
+            </div>
+            <span class="history-item-status finalized">finalized</span>
+          </div>`;
+      }).join('');
+    }
 
-      if (beforeCount > 0 && (!deletedRows || deletedRows.length === 0)) {
-        await arkoAlert('Category totals were reset, but the log entries could not be deleted. Your Supabase "finance_log" table is likely missing a DELETE policy that lets a user delete their own rows (e.g. USING (auth.uid() = user_id)). Check Row Level Security policies on that table.');
-      } else {
-        await arkoAlert('Your account has been reset to a fresh state.');
+    function openArchivesOverlay() {
+      renderArchivesList();
+      document.getElementById('archives-overlay').classList.add('open');
+    }
+
+    function closeArchivesOverlay() {
+      document.getElementById('archives-overlay').classList.remove('open');
+    }
+
+    async function pickOrCreateCurrentPeriod() {
+      const today = todayISO();
+      let next = periods.find(p => p.status === 'active' && p.start_date <= today && p.end_date >= today)
+              || periods.find(p => p.status === 'active')
+              || null;
+      if (!next) {
+        next = await createPeriod(firstOfMonthISO(today), lastOfMonthISO(today));
+        if (next) periods.unshift(next);
       }
-    });
+      return next;
+    }
 
-    // ================= FEEDBACK =================
-    function renderFeedbackForm() {
-      const body = document.getElementById('feedback-modal-body');
-      body.innerHTML = `
-        <p class="mfa-modal-sub">Goes straight to the team — bugs, ideas, anything.</p>
-        <div class="mfa-field">
-          <label for="feedback-name">Name (optional)</label>
-          <input type="text" id="feedback-name" placeholder="Your name" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
-        </div>
-        <div class="mfa-field" style="margin-top:12px;">
-          <label for="feedback-type">Type</label>
-          <select id="feedback-type">
-            <option value="bug">Bug report</option>
-            <option value="improvement">Improvement idea</option>
-            <option value="question">Question</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="mfa-field" style="margin-top:12px;">
-          <label for="feedback-message">What's on your mind?</label>
-          <textarea id="feedback-message" rows="5" placeholder="Tell us what happened, or what you'd like to see…" style="width:100%; padding:12px 14px; border-radius:8px; border:1px solid var(--panel-border); background:#0F151C; color:var(--tan); font-size:0.85rem; font-family:'Public Sans',sans-serif; resize:vertical;"></textarea>
-        </div>
-        <button type="button" class="mfa-verify-btn" id="feedback-send-btn" style="margin-top:14px;">Send feedback</button>
-        <p class="mfa-modal-sub" id="feedback-error" style="color:var(--error); display:none; margin-top:8px;"></p>
-      `;
+    function setupArchivesOverlay() {
+      document.getElementById('archives-close').addEventListener('click', closeArchivesOverlay);
+      document.getElementById('archives-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'archives-overlay') closeArchivesOverlay();
+      });
 
-      document.getElementById('feedback-send-btn').addEventListener('click', async () => {
-        const name = document.getElementById('feedback-name').value.trim();
-        const type = document.getElementById('feedback-type').value;
-        const message = document.getElementById('feedback-message').value.trim();
-        const errorEl = document.getElementById('feedback-error');
-        errorEl.style.display = 'none';
+      document.getElementById('archives-select-all').addEventListener('change', (e) => {
+        document.querySelectorAll('.archive-select').forEach(cb => cb.checked = e.target.checked);
+      });
 
-        if (!message) {
-          errorEl.textContent = 'Add a message before sending.';
-          errorEl.style.display = 'block';
+      document.getElementById('archives-delete-selected').addEventListener('click', async () => {
+        const ids = Array.from(document.querySelectorAll('.archive-select:checked')).map(cb => cb.dataset.id);
+        if (ids.length === 0) {
+          await arkoAlert('No archived periods selected.');
           return;
         }
+        if (!await arkoConfirm(`Delete ${ids.length} selected archived period${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
 
-        const btn = document.getElementById('feedback-send-btn');
-        btn.disabled = true;
-        btn.textContent = 'Sending…';
+        const { error } = await supabaseClient
+          .from('budget_periods')
+          .delete()
+          .eq('user_id', currentUserId)
+          .in('id', ids);
+        if (error) { console.error(error); await arkoAlert('Could not delete the selected periods: ' + error.message); return; }
 
-        try {
-          const res = await fetch('/api/send-feedback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, type, message, userEmail: currentUserEmail }),
-          });
-          if (!res.ok) throw new Error('Could not send feedback right now — try again in a bit.');
+        periods = periods.filter(p => !ids.includes(p.id));
 
-          document.getElementById('feedback-modal-body').innerHTML = `<p class="mfa-modal-sub">Thanks — that's on its way to the team.</p>`;
-        } catch (err) {
-          errorEl.textContent = err.message;
-          errorEl.style.display = 'block';
-          btn.disabled = false;
-          btn.textContent = 'Send feedback';
+        if (current && ids.includes(current.id)) {
+          current = await pickOrCreateCurrentPeriod();
+          unlocked = false;
+          renderAll();
+        } else {
+          renderCharts();
         }
+
+        renderArchivesList();
       });
     }
-
-    function setupFeedback() {
-      document.getElementById('feedback-close').addEventListener('click', () => {
-        document.getElementById('feedback-overlay').classList.remove('open');
-      });
-      document.getElementById('feedback-overlay').addEventListener('click', (e) => {
-        if (e.target.id === 'feedback-overlay') document.getElementById('feedback-overlay').classList.remove('open');
-      });
-    }
-
-    // ================= PREMIUM FEATURE MENU =================
-    // Which tools are covered by the free trial vs. requiring full
-    // access. Connections joined Dashboard/Log here — seeing real,
-    // synced accounts is a big part of what makes trying the trial
-    // worthwhile. Budget Planner and Spendings stay paid-only.
-
 
     const PREMIUM_TOOLS = [
       {
@@ -1092,22 +1776,14 @@
       }
     ];
 
-    function currentFileName() {
-      const seg = window.location.pathname.split('/').pop();
-      const raw = seg && seg.length ? seg : 'dashboard.html';
-      return raw.replace(/\.html?$/i, '');
-    }
-
     function renderLedgerMenu() {
       const inner = document.getElementById('ledger-dropdown-inner');
       const lockBadge = document.getElementById('ledger-lock-badge');
       lockBadge.style.display = userTier >= 3 ? 'none' : 'flex';
       document.getElementById('ledger-menu-btn').classList.toggle('unlocked', userTier >= 3);
 
-      const here = currentFileName();
-
       const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
-        const isCurrent = tool.href.replace(/\.html?$/i, '') === here;
+        const isCurrent = tool.href === 'budget.html';
         const isLocked = userTier < tool.requiredTier;
         const classes = ['ledger-tool-item'];
         if (isCurrent) classes.push('current');
@@ -1149,7 +1825,7 @@
           if (btn.disabled) return;
           const tool = PREMIUM_TOOLS.find(t => t.id === btn.dataset.toolId);
           const isLocked = tool && userTier < tool.requiredTier;
-          if (isLocked) { window.location.href = `paywall.html?need=${tool.requiredTier}`; return; }
+          if (isLocked) { closeLedgerMenu(); showFeaturePreview(tool.id); return; }
           if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);
@@ -1183,6 +1859,8 @@
     function setupLedgerMenu() {
       const btn = document.getElementById('ledger-menu-btn');
       const dd = document.getElementById('ledger-dropdown');
+      const gearBtn = document.getElementById('settings-gear');
+      const gearDropdown = document.getElementById('settings-dropdown');
 
       renderLedgerMenu();
 
@@ -1203,8 +1881,467 @@
       dd.addEventListener('click', (e) => e.stopPropagation());
     }
 
+    let logMirrorTargetCat = null;
+    let logMirrorTargetLineId = null;
+    let logMirrorRows = [];
+    let logMirrorCategoryNameById = {}; // resolves custom_category_id to a readable name, same as the real Log page
 
-    // ================= IDLE SESSION TIMEOUT =================
+    const logMirrorRowClass = { add: 'log-row-add', subtract: 'log-row-subtract', transfer: 'log-row-transfer', debt_payment: 'log-row-debtpayment' };
+
+    function logMirrorFormatDate(d) {
+      return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+    function logMirrorIsFirstOfMonth(d) {
+      return d.split('-')[2] === '01';
+    }
+
+    const LOG_SPLIT_COLUMNS = [
+      { key: 'savings', label: 'Savings', col: 'savings' },
+      { key: 'investment', label: 'Investment', col: 'investment' },
+      { key: 'expenses', label: 'Expenses', col: 'expenses' },
+      { key: 'checking', label: 'Checking', col: 'checking' },
+    ];
+    const SPLIT_COLUMN_BY_CAT = { savings: 'savings', expenses: 'expenses' };
+
+    function logMirrorSplitOptions(row) {
+      return LOG_SPLIT_COLUMNS
+        .map(c => ({ key: c.key, label: c.label, amount: round2(Math.abs(Number(row[c.col]) || 0)) }))
+        .filter(s => s.amount > 0);
+    }
+
+    function logMirrorRowAmount(row, cat) {
+      const chosen = logMirrorSplitChoice[row.id];
+      if (chosen && chosen.size > 0) {
+        const sum = LOG_SPLIT_COLUMNS
+          .filter(c => chosen.has(c.key))
+          .reduce((s, c) => s + Math.abs(Number(row[c.col]) || 0), 0);
+        return round2(sum);
+      }
+      const col = SPLIT_COLUMN_BY_CAT[cat];
+      if (col && row[col] && Number(row[col]) !== 0) {
+        return round2(Math.abs(Number(row[col])));
+      }
+      return round2(Math.abs(Number(row.amount) || 0));
+    }
+
+    let logMirrorSplitChoice = {};
+
+    function updateLogMirrorActions() {
+      const count = document.querySelectorAll('.logmirror-select:checked').length;
+      const actions = document.getElementById('logmirror-actions');
+      const addBtn = document.getElementById('logmirror-add-selected');
+      actions.style.display = count > 0 ? 'flex' : 'none';
+      if (count > 0) addBtn.textContent = `Add ${count} selected`;
+
+      const total = document.querySelectorAll('.logmirror-select').length;
+      const selectAll = document.getElementById('logmirror-select-all');
+      if (selectAll) selectAll.checked = total > 0 && count === total;
+    }
+
+    async function openLogMirrorOverlay(cat, lineId, lineName) {
+      logMirrorTargetCat = cat;
+      logMirrorTargetLineId = lineId;
+      logMirrorSplitChoice = {};
+      document.getElementById('logmirror-sub').textContent = `Select entries to add to "${lineName || '(unnamed line)'}".`;
+      document.getElementById('logmirror-body').innerHTML = '<tr><td colspan="8" class="loading-message">Loading...</td></tr>';
+      document.getElementById('logmirror-actions').style.display = 'none';
+      document.getElementById('logmirror-select-all').checked = false;
+      document.getElementById('logmirror-overlay').classList.add('open');
+
+      const [{ data: rows, error }, { data: cats }] = await Promise.all([
+        supabaseClient.from('finance_log').select('*').eq('user_id', currentUserId).order('entry_date', { ascending: false }).limit(150),
+        supabaseClient.from('budget_categories').select('id, name').eq('user_id', currentUserId),
+      ]);
+      logMirrorCategoryNameById = Object.fromEntries((cats || []).map(c => [c.id, c.name]));
+
+      logMirrorRows = rows || [];
+      const tbody = document.getElementById('logmirror-body');
+      if (error) { console.error(error); tbody.innerHTML = '<tr><td colspan="8">Could not load your log.</td></tr>'; return; }
+      if (!logMirrorRows.length) { tbody.innerHTML = '<tr><td colspan="8">No entries yet — add some from the Dashboard first.</td></tr>'; return; }
+
+      let prevActionType = null;
+      tbody.innerHTML = logMirrorRows.map(r => {
+        const isGroupStart = r.action_type !== prevActionType;
+        prevActionType = r.action_type;
+        const customBadge = r.custom_category_id
+          ? `<span class="log-custom-category-badge">${(logMirrorCategoryNameById[r.custom_category_id] || 'Category').replace(/</g,'&lt;')}: ${money(r.custom_category_amount || 0)}</span> `
+          : '';
+        const mainRow = `
+        <tr class="${logMirrorRowClass[r.action_type] || ''} logmirror-row${isGroupStart ? ' log-group-start' : ''}" data-log-id="${r.id}">
+          <td><label class="log-check" onclick="event.stopPropagation();"><input type="checkbox" class="logmirror-select" data-log-id="${r.id}" /><span class="check-box"></span></label></td>
+          <td class="${logMirrorIsFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${logMirrorFormatDate(r.entry_date)}</td>
+          <td class="num-cell log-amount-cell">${money(r.amount)}</td>
+          <td class="num-cell">${money(r.savings)}</td>
+          <td class="num-cell">${money(r.investment)}</td>
+          <td class="num-cell">${money(r.expenses)}</td>
+          <td class="num-cell">${money(r.checking)}</td>
+          <td class="notes-cell">${customBadge}${r.notes ? r.notes.replace(/</g, '&lt;') : ''}</td>
+        </tr>`;
+
+        const splits = (r.action_type === 'add' && logMirrorTargetCat !== 'income') ? logMirrorSplitOptions(r) : [];
+        if (splits.length > 1) {
+          const exactMatch = splits.find(s => s.key === logMirrorTargetCat);
+          const defaultKey = exactMatch ? exactMatch.key : splits.slice().sort((a, b) => b.amount - a.amount)[0].key;
+          logMirrorSplitChoice[r.id] = new Set([defaultKey]);
+          const optionsHtml = splits.map(s => `
+            <label class="logmirror-split-option${s.key === defaultKey ? ' chip-active' : ''}">
+              <input type="checkbox" class="logmirror-split-checkbox" data-row-id="${r.id}" data-key="${s.key}" ${s.key === defaultKey ? 'checked' : ''} />
+              ${s.label} <span class="logmirror-split-amount">${money(s.amount)}</span>
+            </label>
+          `).join('');
+          const splitRow = `
+        <tr class="logmirror-split-row" id="logmirror-split-${r.id}" style="display:none;">
+          <td></td>
+          <td colspan="7">
+            <div class="logmirror-split-picker">
+              <span class="logmirror-split-label">Split:</span>
+              <div class="logmirror-split-options">${optionsHtml}</div>
+              <label class="logmirror-split-selectall">
+                <span class="log-check"><input type="checkbox" class="logmirror-split-selectall-cb" data-row-id="${r.id}" /><span class="check-box"></span></span>
+                All
+              </label>
+            </div>
+          </td>
+        </tr>`;
+          return mainRow + splitRow;
+        }
+        return mainRow;
+      }).join('');
+
+      tbody.querySelectorAll('.logmirror-row').forEach(rowEl => {
+        rowEl.addEventListener('click', () => {
+          const cb = rowEl.querySelector('.logmirror-select');
+          if (cb) { cb.checked = !cb.checked; syncLogMirrorSplitRow(rowEl.dataset.logId, cb.checked); updateLogMirrorActions(); }
+        });
+      });
+      tbody.querySelectorAll('.logmirror-select').forEach(cb => {
+        cb.addEventListener('change', () => {
+          syncLogMirrorSplitRow(cb.dataset.logId, cb.checked);
+          updateLogMirrorActions();
+        });
+      });
+      tbody.querySelectorAll('.logmirror-split-checkbox').forEach(cb => {
+        cb.addEventListener('click', (e) => e.stopPropagation());
+        cb.addEventListener('change', () => {
+          const rowId = cb.dataset.rowId;
+          if (!logMirrorSplitChoice[rowId]) logMirrorSplitChoice[rowId] = new Set();
+          if (cb.checked) logMirrorSplitChoice[rowId].add(cb.dataset.key);
+          else logMirrorSplitChoice[rowId].delete(cb.dataset.key);
+          cb.closest('.logmirror-split-option').classList.toggle('chip-active', cb.checked);
+
+          const rowChecks = tbody.querySelectorAll(`.logmirror-split-checkbox[data-row-id="${rowId}"]`);
+          const selectAllCb = tbody.querySelector(`.logmirror-split-selectall-cb[data-row-id="${rowId}"]`);
+          if (selectAllCb) selectAllCb.checked = Array.from(rowChecks).every(x => x.checked);
+        });
+      });
+      tbody.querySelectorAll('.logmirror-split-selectall-cb').forEach(cb => {
+        cb.addEventListener('click', (e) => e.stopPropagation());
+        cb.addEventListener('change', () => {
+          const rowId = cb.dataset.rowId;
+          const rowChecks = tbody.querySelectorAll(`.logmirror-split-checkbox[data-row-id="${rowId}"]`);
+          rowChecks.forEach(x => {
+            x.checked = cb.checked;
+            x.closest('.logmirror-split-option').classList.toggle('chip-active', cb.checked);
+          });
+          logMirrorSplitChoice[rowId] = new Set(cb.checked ? Array.from(rowChecks).map(x => x.dataset.key) : []);
+        });
+      });
+
+      updateLogMirrorActions();
+    }
+
+    function syncLogMirrorSplitRow(rowId, visible) {
+      const splitRow = document.getElementById('logmirror-split-' + rowId);
+      if (splitRow) splitRow.style.display = visible ? 'table-row' : 'none';
+    }
+
+    function closeLogMirrorOverlay() {
+      document.getElementById('logmirror-overlay').classList.remove('open');
+      logMirrorTargetCat = null;
+      logMirrorTargetLineId = null;
+      logMirrorRows = [];
+      logMirrorSplitChoice = {};
+    }
+
+    async function addSelectedLogRowsToTargetLine() {
+      const cat = logMirrorTargetCat;
+      const lines = cat && current.categories[cat];
+      const line = lines && lines.find(l => l.id === logMirrorTargetLineId);
+      if (!line) { closeLogMirrorOverlay(); return; }
+
+      const ids = Array.from(document.querySelectorAll('.logmirror-select:checked')).map(cb => cb.dataset.logId);
+      if (ids.length === 0) return;
+
+      if (!Array.isArray(line.entries)) line.entries = [];
+      let addedCount = 0;
+
+      ids.forEach(id => {
+        const row = logMirrorRows.find(r => r.id === id);
+        if (!row) return;
+        const amount = logMirrorRowAmount(row, cat);
+        if (amount <= 0) return;
+        line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date, action_type: row.action_type });
+        line.entries.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+        line.actual = round2((Number(line.actual) || 0) + amount);
+        addedCount++;
+      });
+
+      if (addedCount === 0) {
+        await arkoAlert('None of the selected entries have a dollar amount to add.');
+        return;
+      }
+
+      if (c_shouldMarkPaid(cat, line)) line.done = true;
+
+      renderCategoryPanel(cat);
+      recalcSummary();
+      queueSave();
+      updateScrollSpy();
+      closeLogMirrorOverlay();
+    }
+
+    function setupLogMirrorOverlay() {
+      document.getElementById('logmirror-close').addEventListener('click', closeLogMirrorOverlay);
+      document.getElementById('logmirror-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'logmirror-overlay') closeLogMirrorOverlay();
+      });
+      document.getElementById('logmirror-select-all').addEventListener('change', (e) => {
+        document.querySelectorAll('.logmirror-select').forEach(cb => {
+          cb.checked = e.target.checked;
+          syncLogMirrorSplitRow(cb.dataset.logId, cb.checked);
+        });
+        updateLogMirrorActions();
+      });
+      document.getElementById('logmirror-add-selected').addEventListener('click', addSelectedLogRowsToTargetLine);
+    }
+
+    // ================= FEEDBACK =================
+    function renderFeedbackForm() {
+      const body = document.getElementById('feedback-modal-body');
+      body.innerHTML = `
+        <p class="mfa-modal-sub">Goes straight to the team — bugs, ideas, anything.</p>
+        <div class="mfa-field">
+          <label for="feedback-name">Name (optional)</label>
+          <input type="text" id="feedback-name" placeholder="Your name" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
+        </div>
+        <div class="mfa-field" style="margin-top:12px;">
+          <label for="feedback-type">Type</label>
+          <select id="feedback-type">
+            <option value="bug">Bug report</option>
+            <option value="improvement">Improvement idea</option>
+            <option value="question">Question</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="mfa-field" style="margin-top:12px;">
+          <label for="feedback-message">What's on your mind?</label>
+          <textarea id="feedback-message" rows="5" placeholder="Tell us what happened, or what you'd like to see…" style="width:100%; padding:12px 14px; border-radius:8px; border:1px solid var(--panel-border); background:#171208; color:var(--tan); font-size:0.85rem; font-family:'Public Sans',sans-serif; resize:vertical;"></textarea>
+        </div>
+        <button type="button" class="mfa-verify-btn" id="feedback-send-btn" style="margin-top:14px;">Send feedback</button>
+        <p class="mfa-modal-sub" id="feedback-error" style="color:var(--error); display:none; margin-top:8px;"></p>
+      `;
+
+      document.getElementById('feedback-send-btn').addEventListener('click', async () => {
+        const name = document.getElementById('feedback-name').value.trim();
+        const type = document.getElementById('feedback-type').value;
+        const message = document.getElementById('feedback-message').value.trim();
+        const errorEl = document.getElementById('feedback-error');
+        errorEl.style.display = 'none';
+
+        if (!message) {
+          errorEl.textContent = 'Add a message before sending.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        const btn = document.getElementById('feedback-send-btn');
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+
+        try {
+          const res = await fetch('/api/send-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, type, message, userEmail: currentUserEmail }),
+          });
+          if (!res.ok) throw new Error('Could not send feedback right now — try again in a bit.');
+
+          document.getElementById('feedback-modal-body').innerHTML = `<p class="mfa-modal-sub">Thanks — that's on its way to the team.</p>`;
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Send feedback';
+        }
+      });
+    }
+
+    function setupFeedback() {
+      document.getElementById('feedback-close').addEventListener('click', () => {
+        document.getElementById('feedback-overlay').classList.remove('open');
+      });
+      document.getElementById('feedback-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'feedback-overlay') document.getElementById('feedback-overlay').classList.remove('open');
+      });
+    }
+
+    function setupStaticListeners() {
+      document.getElementById('logout-button').addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'login.html';
+      });
+
+      setupSettingsGear();
+      setupLedgerMenu();
+      setupFeaturePreview();
+      setupArchivesOverlay();
+      setupLogMirrorOverlay();
+      setupBreakdownToggle();
+
+      document.getElementById('start-date-input').addEventListener('change', (e) => {
+        current.start_date = e.target.value;
+        renderAll();
+        queueSave();
+      });
+      document.getElementById('end-date-input').addEventListener('change', (e) => {
+        current.end_date = e.target.value;
+        renderAll();
+        queueSave();
+      });
+
+      const railTabs = Array.from(document.querySelectorAll('.rail-tab'));
+      const railPanels = CATS.map(c => document.getElementById('panel-' + c.key));
+      const ACTIVE_ZONE = 150;
+
+      function updateRailActive() {
+        let activeIndex = 0;
+        for (let i = 0; i < railPanels.length; i++) {
+          const panel = railPanels[i];
+          if (!panel) continue;
+          const rect = panel.getBoundingClientRect();
+          if (rect.top <= ACTIVE_ZONE) {
+            activeIndex = i;
+            if (rect.bottom > ACTIVE_ZONE) break;
+          } else {
+            break;
+          }
+        }
+        const atBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 2);
+        if (atBottom) activeIndex = railPanels.length - 1;
+        railTabs.forEach((t, i) => t.classList.toggle('active', i === activeIndex));
+      }
+
+      railTabs.forEach((tab, i) => {
+        tab.addEventListener('click', () => {
+          const target = railPanels[i];
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          railTabs.forEach((t, j) => t.classList.toggle('active', j === i));
+        });
+      });
+
+      window.addEventListener('scroll', updateRailActive, { passive: true });
+      window.addEventListener('resize', updateRailActive);
+      updateScrollSpy = updateRailActive;
+      updateRailActive();
+
+      document.getElementById('save-default-btn').addEventListener('click', async () => {
+        const template = {};
+        CATS.forEach(c => {
+          template[c.key] = (current.categories[c.key] || []).map(l => ({ name: l.name, budget: l.budget || 0 }));
+        });
+        const { error } = await supabaseClient
+          .from('budget_defaults')
+          .upsert({ user_id: currentUserId, categories: template, updated_at: new Date().toISOString() });
+        if (error) { console.error(error); await arkoAlert('Could not save your default layout: ' + error.message); return; }
+        await arkoAlert('Saved. New periods will start filled in with this layout.');
+      });
+
+      document.getElementById('new-period-btn').addEventListener('click', async () => {
+        const today = todayISO();
+        const start = firstOfMonthISO(today);
+        const end = lastOfMonthISO(today);
+        if (!await arkoConfirm(`Create a new period for ${fmtDate(start)} – ${fmtDate(end)}, filled in from your saved default layout?`)) return;
+        const created = await createPeriod(start, end);
+        if (!created) return;
+        periods.unshift(created);
+        current = created;
+        unlocked = false;
+        renderAll();
+      });
+
+      document.getElementById('finalize-btn').addEventListener('click', async () => {
+        if (!await arkoConfirm('Finalize this period? It will move to your archive as a record you can still pull up or unlock later.')) return;
+        const { data, error } = await supabaseClient
+          .from('budget_periods')
+          .update({ status: 'finalized', finalized_at: new Date().toISOString() })
+          .eq('id', current.id).select().single();
+        if (error) { console.error(error); await arkoAlert('Could not finalize: ' + error.message); return; }
+        current = data;
+        const idx = periods.findIndex(p => p.id === current.id);
+        if (idx > -1) periods[idx] = current;
+        unlocked = false;
+        renderAll();
+      });
+
+      document.getElementById('unlock-btn').addEventListener('click', () => {
+        unlocked = true;
+        renderAll();
+      });
+
+      document.getElementById('reopen-btn').addEventListener('click', async () => {
+        if (!await arkoConfirm('Reopen this period? Its status will change back to active.')) return;
+        const { data, error } = await supabaseClient
+          .from('budget_periods').update({ status: 'active' }).eq('id', current.id).select().single();
+        if (error) { console.error(error); await arkoAlert('Could not reopen: ' + error.message); return; }
+        current = data;
+        const idx = periods.findIndex(p => p.id === current.id);
+        if (idx > -1) periods[idx] = current;
+        unlocked = false;
+        renderAll();
+      });
+
+      const overlay = document.getElementById('history-overlay');
+      function openHistory() {
+        renderHistoryList();
+        overlay.classList.add('open');
+      }
+      function closeHistory() { overlay.classList.remove('open'); }
+      document.getElementById('history-button').addEventListener('click', openHistory);
+      document.getElementById('history-close').addEventListener('click', closeHistory);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeHistory(); });
+
+      function renderHistoryList() {
+        const list = document.getElementById('history-list');
+        if (!periods.length) {
+          list.innerHTML = '<div class="history-empty">No periods yet.</div>';
+          return;
+        }
+        list.innerHTML = periods.map(p => {
+          const isCal = p.start_date === firstOfMonthISO(p.start_date) && p.end_date === lastOfMonthISO(p.start_date);
+          const title = isCal
+            ? new Date(p.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+            : `${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}`;
+          return `
+            <div class="history-item ${current && p.id === current.id ? 'current' : ''}" data-id="${p.id}">
+              <div class="history-item-left">
+                <span class="history-item-title">${title}</span>
+                <span class="history-item-sub">${fmtDate(p.start_date)} – ${fmtDate(p.end_date)}</span>
+              </div>
+              <span class="history-item-status ${p.status}">${p.status}</span>
+            </div>`;
+        }).join('');
+
+        list.querySelectorAll('.history-item').forEach(item => {
+          item.addEventListener('click', () => {
+            current = periods.find(p => p.id === item.dataset.id);
+            unlocked = false;
+            renderAll();
+            closeHistory();
+          });
+        });
+      }
+    }
+
     const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
     const IDLE_WARNING_MS = 60 * 1000;
     let idleTimer = null;
