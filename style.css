@@ -331,6 +331,116 @@ h1, h2, h3, h4 {
   font-size: 0.92rem;
 }
 
+/* ---------- GETTING SET UP (dark, alternating with the tan How section) ---------- */
+.setup {
+  background: var(--grey);
+  padding: 64px 24px;
+}
+.setup h2 {
+  text-align: center;
+  font-size: 1.8rem;
+  color: var(--tan);
+  margin-bottom: 8px;
+}
+.setup-sub {
+  text-align: center;
+  color: var(--brown);
+  opacity: 0.85;
+  font-size: 0.95rem;
+  margin-bottom: 40px;
+}
+.setup-steps {
+  max-width: 640px;
+  margin: 0 auto;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.setup-steps li {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.setup-num {
+  flex-shrink: 0;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: rgba(107,74,56,0.18);
+  border: 1px solid var(--brown);
+  color: var(--tan);
+  font-family: 'Fraunces', serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+.setup-steps h4 {
+  font-size: 1.02rem;
+  color: var(--tan);
+  margin-bottom: 4px;
+}
+.setup-steps p {
+  color: var(--brown);
+  opacity: 0.85;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+/* ---------- FAQ (tan, alternating back) ---------- */
+.faq {
+  background: var(--tan);
+  padding: 64px 24px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.faq h2 {
+  text-align: center;
+  font-size: 1.8rem;
+  color: var(--blue-deep);
+  margin-bottom: 40px;
+}
+.faq-list {
+  max-width: 700px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.faq-item {
+  background: rgba(107,74,56,0.05);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 4px 20px;
+}
+.faq-item summary {
+  padding: 16px 0;
+  font-family: 'Fraunces', serif;
+  font-size: 1rem;
+  color: var(--blue-deep);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after {
+  content: "+";
+  font-family: 'Public Sans', sans-serif;
+  font-size: 1.3rem;
+  color: var(--brown);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.faq-item[open] summary::after { content: "\2212"; }
+.faq-item p {
+  color: var(--slate);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  padding-bottom: 18px;
+}
+
 /* ==========================================================================
    PRICING — the one section on this page deliberately built to look and
    feel different from everything around it. Dark, neon-edged cards on a
