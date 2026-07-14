@@ -501,7 +501,7 @@ h1, h2, h3, h4 {
   padding: 32px 24px;
   color: var(--brown);
   font-size: 0.85rem;
-  background: var(--paper-light);
+  background: var(--tan);
 }
 
 /* ---------- RESPONSIVE ---------- */

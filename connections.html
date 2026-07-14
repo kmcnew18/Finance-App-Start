@@ -55,6 +55,7 @@
           </button>
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
+            <button type="button" id="manage-sub-btn" class="dropdown-item">Manage subscription</button>
             <button type="button" id="view-activity-btn" class="dropdown-item">Recent activity</button>
             <button type="button" id="manage-categories-btn" class="dropdown-item">Manage categories</button>
             <div class="dropdown-divider"></div>
@@ -199,6 +200,17 @@
        every page) so Dashboard, Log, Budget, and Connections all present
        an identical MFA flow. Entry to this page is gated on it — see
        requireMfaVerified(true) awaited at the top of init() below. -->
+  <!-- ================= MANAGE SUBSCRIPTION ================= -->
+  <div class="mfa-overlay" id="manage-sub-overlay">
+    <div class="mfa-modal" style="max-width: 440px;">
+      <div class="mfa-modal-head">
+        <h2>Manage subscription</h2>
+        <button type="button" class="mfa-modal-close" id="manage-sub-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="manage-sub-body"></div>
+    </div>
+  </div>
+
   <div class="mfa-overlay" id="mfa-overlay">
     <div class="mfa-modal">
       <div class="mfa-modal-head">

@@ -152,7 +152,10 @@
   <header class="paywall-header">
     <nav class="paywall-nav">
       <span class="wordmark"><span class="wordmark-brand">Arko</span> | Early Access</span>
-      <button type="button" id="paywall-logout-button" class="paywall-logout-btn">Log out</button>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button type="button" id="paywall-back-button" class="paywall-logout-btn">← Back to Dashboard</button>
+        <button type="button" id="paywall-logout-button" class="paywall-logout-btn">Log out</button>
+      </div>
     </nav>
   </header>
 
@@ -239,9 +242,11 @@
 
     let currentUser = null;
     let userTier = 1;
+    let userBillingPeriod = 'free';
     let billingPeriod = 'monthly';
 
     const TIER2_MONTHLY = 8, TIER2_LIFETIME = 95, TIER3_MONTHLY = 15, TIER3_LIFETIME = 165;
+    const TIER3_LIFETIME_UPGRADE_FROM_TIER2 = TIER3_LIFETIME - TIER2_LIFETIME; // $70 — the actual difference, not the full price again
 
     function computeEffectiveTier(billing) {
       if (!billing) return 1;
@@ -254,19 +259,37 @@
     function updatePrices() {
       document.getElementById('tier-2-price').innerHTML = billingPeriod === 'monthly'
         ? `$${TIER2_MONTHLY}<span class="tier-price-period">/mo</span>` : `$${TIER2_LIFETIME}<span class="tier-price-period"> once</span>`;
+      document.getElementById('tier-2-price-note').textContent = billingPeriod === 'lifetime' ? 'Pay once, never again' : '';
+
+      // A Tier 2 subscriber sees the upgrade cost, not the full Tier 3
+      // price again — Stripe prorates the monthly case automatically;
+      // the lifetime case is the literal, calculated dollar
+      // difference between what they already paid and full Tier 3.
+      if (userTier === 2) {
+        if (userBillingPeriod === 'lifetime') {
+          document.getElementById('tier-3-price').innerHTML = `$${TIER3_LIFETIME_UPGRADE_FROM_TIER2}<span class="tier-price-period"> to upgrade</span>`;
+          document.getElementById('tier-3-price-note').textContent = `You already paid $${TIER2_LIFETIME} for Tier 2 — this is just the difference`;
+        } else if (userBillingPeriod === 'monthly') {
+          document.getElementById('tier-3-price').innerHTML = `$${TIER3_MONTHLY}<span class="tier-price-period">/mo</span>`;
+          document.getElementById('tier-3-price-note').textContent = `Charged today: only the prorated difference for the rest of this period`;
+        }
+        return;
+      }
+
       document.getElementById('tier-3-price').innerHTML = billingPeriod === 'monthly'
         ? `$${TIER3_MONTHLY}<span class="tier-price-period">/mo</span>` : `$${TIER3_LIFETIME}<span class="tier-price-period"> once</span>`;
-      document.getElementById('tier-2-price-note').textContent = billingPeriod === 'lifetime' ? 'Pay once, never again' : '';
       document.getElementById('tier-3-price-note').textContent = billingPeriod === 'lifetime' ? 'Pay once, never again' : '';
     }
 
     document.getElementById('toggle-monthly-btn').addEventListener('click', () => {
+      if (userTier === 2) return; // locked to their actual billing period — see the note rendered near the toggle
       billingPeriod = 'monthly';
       document.getElementById('toggle-monthly-btn').classList.add('active');
       document.getElementById('toggle-lifetime-btn').classList.remove('active');
       updatePrices();
     });
     document.getElementById('toggle-lifetime-btn').addEventListener('click', () => {
+      if (userTier === 2) return;
       billingPeriod = 'lifetime';
       document.getElementById('toggle-lifetime-btn').classList.add('active');
       document.getElementById('toggle-monthly-btn').classList.remove('active');
@@ -305,8 +328,50 @@
       }
     }
 
+    async function startUpgrade(btn) {
+      const message = document.getElementById('paywall-message');
+      message.textContent = '';
+      message.className = 'paywall-message';
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Processing…';
+
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id, email: currentUser.email, action: 'upgrade' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not process the upgrade.');
+
+        if (data.mode === 'checkout' && data.url) {
+          window.location.href = data.url;
+        } else if (data.upgraded) {
+          message.textContent = data.message;
+          message.className = 'paywall-message';
+          message.style.color = '#6EC496';
+          btn.textContent = 'Upgraded!';
+          setTimeout(() => { window.location.href = 'dashboard.html'; }, 1800);
+        }
+      } catch (err) {
+        console.error(err);
+        message.textContent = err.message || 'Network error — please try again.';
+        message.classList.add('paywall-message-error');
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+
     document.getElementById('tier-2-cta').addEventListener('click', (e) => startCheckout(2, e.target));
-    document.getElementById('tier-3-cta').addEventListener('click', (e) => startCheckout(3, e.target));
+    document.getElementById('tier-3-cta').addEventListener('click', (e) => {
+      if (userTier === 2) startUpgrade(e.target);
+      else startCheckout(3, e.target);
+    });
+
+    document.getElementById('paywall-back-button').addEventListener('click', () => {
+      window.location.href = 'dashboard.html';
+    });
 
     document.getElementById('paywall-logout-button').addEventListener('click', async () => {
       await supabaseClient.auth.signOut();
@@ -321,6 +386,7 @@
       const { data: billing } = await supabaseClient
         .from('user_billing').select('*').eq('user_id', currentUser.id).maybeSingle();
       userTier = computeEffectiveTier(billing);
+      userBillingPeriod = billing?.billing_period || 'free';
 
       // Mark the current tier's card, and disable buying a tier you
       // already have (or a lower one than you already have).
@@ -334,6 +400,18 @@
         const btn3 = document.getElementById('tier-3-cta');
         btn3.disabled = true;
         btn3.textContent = 'Current plan';
+      } else if (userTier === 2) {
+        // Locked to whichever billing period they actually have — the
+        // upgrade discount is computed against their real plan, not
+        // an independently-selectable toggle that might not match it.
+        billingPeriod = userBillingPeriod === 'lifetime' ? 'lifetime' : 'monthly';
+        document.getElementById('toggle-monthly-btn').classList.toggle('active', billingPeriod === 'monthly');
+        document.getElementById('toggle-lifetime-btn').classList.toggle('active', billingPeriod === 'lifetime');
+        document.getElementById('toggle-monthly-btn').style.opacity = '0.4';
+        document.getElementById('toggle-lifetime-btn').style.opacity = '0.4';
+        document.getElementById('toggle-monthly-btn').style.cursor = 'default';
+        document.getElementById('toggle-lifetime-btn').style.cursor = 'default';
+        document.getElementById('tier-3-cta').textContent = 'Upgrade to Full';
       }
 
       // A specific locked feature sent someone here — say which tier
@@ -359,6 +437,24 @@
       } else if (billing && billing.billing_period === 'trial' && new Date(billing.trial_end) <= new Date()) {
         document.getElementById('paywall-heading').textContent = 'Your free trial has ended';
         document.getElementById('paywall-subhead').textContent = 'Your account is still free on Tier 1 — pick a plan below for automation and beyond.';
+      }
+
+      // billing_period flips to 'free' the moment cleanup actually
+      // runs (on Dashboard or Connections, whichever was visited
+      // first), which can happen *before* this page's own billing
+      // fetch above — so by the time this runs, billing_period might
+      // already read 'free' rather than 'trial', and the branch above
+      // would miss this exact case entirely. This flag is the
+      // reliable signal instead, since it's set at the moment cleanup
+      // actually executed, not inferred from current state.
+      const cleanupNotice = sessionStorage.getItem('trialCleanupNotice');
+      if (cleanupNotice !== null) {
+        sessionStorage.removeItem('trialCleanupNotice');
+        const count = Number(cleanupNotice);
+        document.getElementById('paywall-heading').textContent = 'Your free trial has ended';
+        document.getElementById('paywall-subhead').textContent = count > 0
+          ? `Your account is on the free Manual tier now. ${count} connected account${count === 1 ? '' : 's'} ${count === 1 ? 'was' : 'were'} automatically disconnected, since Plaid connections are part of Tier 2 and up.`
+          : 'Your account is on the free Manual tier now.';
       }
 
       updatePrices();

@@ -360,6 +360,37 @@
 .account-reconnect-btn:hover { background: #EFC578; }
 .account-reconnect-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* Stale (long-unsynced) connection — informational, not an error, so
+   a muted slate tone rather than the amber reconnect warning. */
+.account-card.is-stale {
+  border-color: rgba(139, 148, 158, 0.35);
+}
+.account-card-stale-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  color: #8B949E;
+  margin-top: 6px;
+}
+.account-card-stale-badge .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #8B949E;
+}
+.account-card-stale-block {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(139, 148, 158, 0.06);
+  border: 1px dashed rgba(139, 148, 158, 0.3);
+  border-radius: 8px;
+}
+.account-card-stale-block p {
+  font-size: 0.76rem; color: #A8AFB5; line-height: 1.45;
+}
+.account-delete-btn.suggested {
+  background: rgba(139, 148, 158, 0.14);
+  border-color: rgba(139, 148, 158, 0.4);
+  color: #C4CACF;
+}
+
 /* New account available — happy-path prompt, emerald tone (matches the
    "live/synced" identity) rather than the amber reconnect warning. */
 .new-accounts-banner-row {

@@ -74,6 +74,7 @@
           </button>
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-mfa-btn" class="dropdown-item">Two-factor authentication</button>
+            <button type="button" id="manage-sub-btn" class="dropdown-item">Manage subscription</button>
             <div class="dropdown-divider"></div>
             <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
             <div class="dropdown-divider"></div>
@@ -83,6 +84,17 @@
         <button type="button" id="back-button" class="btn-ghost">← Back to Dashboard</button>
       </div>
     </nav>
+
+  <!-- ================= MANAGE SUBSCRIPTION ================= -->
+  <div class="mfa-overlay" id="manage-sub-overlay">
+    <div class="mfa-modal" style="max-width: 440px;">
+      <div class="mfa-modal-head">
+        <h2>Manage subscription</h2>
+        <button type="button" class="mfa-modal-close" id="manage-sub-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="manage-sub-body"></div>
+    </div>
+  </div>
   </header>
 
   <div class="wip-banner">Early development · some features may not be live</div>
@@ -543,6 +555,93 @@
     });
 
     // ================= TWO-FACTOR AUTHENTICATION =================
+    // ================= MANAGE SUBSCRIPTION =================
+    async function openManageSubscription() {
+      const body = document.getElementById('manage-sub-body');
+      body.innerHTML = `<p class="mfa-modal-sub">Loading your plan…</p>`;
+      document.getElementById('manage-sub-overlay').classList.add('open');
+
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, action: 'status' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not load subscription info.');
+        renderManageSubBody(data);
+      } catch (err) {
+        body.innerHTML = `<p class="mfa-modal-sub" style="color:var(--error);">${(err.message || 'Something went wrong loading this.').replace(/</g,'&lt;')}</p>`;
+      }
+    }
+
+    const TIER_NAMES = { 1: 'Manual (free)', 2: 'Automation', 3: 'Full' };
+
+    function renderManageSubBody(data) {
+      const body = document.getElementById('manage-sub-body');
+
+      if (!data.hasSubscription) {
+        const isTrial = data.billingPeriod === 'trial';
+        const isLifetime = data.billingPeriod === 'lifetime';
+        body.innerHTML = `
+          <p class="mfa-modal-sub" style="margin-bottom:14px;">You're currently on <strong style="color:var(--vintage-blue-light);">${TIER_NAMES[data.tier] || 'Manual (free)'}</strong>${isTrial ? ' via a free trial' : ''}${isLifetime ? ' — lifetime access, no recurring charge, ever.' : '.'}</p>
+          ${data.tier < 3 || isTrial ? `<button type="button" class="mfa-verify-btn" id="manage-sub-see-plans-btn">See plans</button>` : ''}
+        `;
+        const seePlansBtn = document.getElementById('manage-sub-see-plans-btn');
+        if (seePlansBtn) seePlansBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
+        return;
+      }
+
+      if (data.cancelAtPeriodEnd) {
+        const endDate = new Date(data.currentPeriodEnd * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        body.innerHTML = `
+          <p class="mfa-modal-sub" style="margin-bottom:14px;">Your <strong style="color:var(--vintage-blue-light);">${TIER_NAMES[data.tier]}</strong> subscription is set to cancel. You'll keep full access through <strong>${endDate}</strong>, and won't be charged again after that.</p>
+          <button type="button" class="mfa-verify-btn" id="manage-sub-resume-btn">Resume subscription</button>
+        `;
+        document.getElementById('manage-sub-resume-btn').addEventListener('click', () => changeSubscription('resume'));
+      } else {
+        const renewDate = new Date(data.currentPeriodEnd * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        // Tier 2 is the one case with somewhere to go from here —
+        // Tier 3 at a prorated difference rather than full price.
+        // Tier 3 subscribers have nothing above them to offer.
+        const upgradeHtml = data.tier === 2
+          ? `<button type="button" class="mfa-verify-btn" id="manage-sub-upgrade-btn" style="margin-bottom:10px;">Upgrade to Full — prorated difference</button>`
+          : '';
+        body.innerHTML = `
+          <p class="mfa-modal-sub" style="margin-bottom:14px;">You're on <strong style="color:var(--vintage-blue-light);">${TIER_NAMES[data.tier]}</strong>, billed monthly. Renews <strong>${renewDate}</strong>.</p>
+          ${upgradeHtml}
+          <button type="button" class="mfa-remove-factor-btn" id="manage-sub-cancel-btn" style="width:100%;">Cancel subscription</button>
+        `;
+        const upgradeBtn = document.getElementById('manage-sub-upgrade-btn');
+        if (upgradeBtn) upgradeBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
+        document.getElementById('manage-sub-cancel-btn').addEventListener('click', () => changeSubscription('cancel'));
+      }
+    }
+
+    async function changeSubscription(action) {
+      const confirmMsg = action === 'cancel'
+        ? "Cancel your subscription? You'll keep access through the end of your current billing period — you won't lose anything you already paid for, and you won't be charged again after that."
+        : 'Resume your subscription? Your card will be charged again at the next renewal date.';
+      if (!await arkoConfirm(confirmMsg, action === 'cancel')) return;
+
+      const body = document.getElementById('manage-sub-body');
+      body.innerHTML = `<p class="mfa-modal-sub">${action === 'cancel' ? 'Cancelling…' : 'Resuming…'}</p>`;
+
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId, action })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not update your subscription.');
+        renderManageSubBody(data);
+        logAuditEvent(action === 'cancel' ? 'subscription_cancelled' : 'subscription_resumed', {});
+      } catch (err) {
+        body.innerHTML = `<p class="mfa-modal-sub" style="color:var(--error);">${(err.message || 'Something went wrong.').replace(/</g,'&lt;')}</p>`;
+      }
+    }
+
     function logAuditEvent(eventType, detail) {
       supabaseClient.from('audit_log').insert({ user_id: currentUserId, event_type: eventType, detail: detail || {} })
         .then(({ error }) => { if (error) console.error('Audit log write failed:', error); });
@@ -792,6 +891,16 @@
         gearDropdown.classList.remove('open');
         openMfaOverlay(false);
         renderMfaManage();
+      });
+      document.getElementById('manage-sub-btn').addEventListener('click', () => {
+        gearDropdown.classList.remove('open');
+        openManageSubscription();
+      });
+      document.getElementById('manage-sub-close').addEventListener('click', () => {
+        document.getElementById('manage-sub-overlay').classList.remove('open');
+      });
+      document.getElementById('manage-sub-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'manage-sub-overlay') document.getElementById('manage-sub-overlay').classList.remove('open');
       });
       document.getElementById('mfa-close').addEventListener('click', closeMfaOverlay);
       document.getElementById('mfa-cancel-btn').addEventListener('click', cancelMfaOverlay);

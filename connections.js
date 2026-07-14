@@ -90,6 +90,93 @@ function money(n) {
 // Fire-and-forget audit trail write. Never blocks or fails the action
 // it's logging — an audit log that could break the feature it watches
 // isn't one you actually want in production.
+// ================= MANAGE SUBSCRIPTION =================
+async function openManageSubscription() {
+  const body = document.getElementById('manage-sub-body');
+  body.innerHTML = `<p class="mfa-modal-sub">Loading your plan…</p>`;
+  document.getElementById('manage-sub-overlay').classList.add('open');
+
+  try {
+    const res = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUserId, action: 'status' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not load subscription info.');
+    renderManageSubBody(data);
+  } catch (err) {
+    body.innerHTML = `<p class="mfa-modal-sub" style="color:var(--error);">${(err.message || 'Something went wrong loading this.').replace(/</g,'&lt;')}</p>`;
+  }
+}
+
+const TIER_NAMES = { 1: 'Manual (free)', 2: 'Automation', 3: 'Full' };
+
+function renderManageSubBody(data) {
+  const body = document.getElementById('manage-sub-body');
+
+  if (!data.hasSubscription) {
+    const isTrial = data.billingPeriod === 'trial';
+    const isLifetime = data.billingPeriod === 'lifetime';
+    body.innerHTML = `
+      <p class="mfa-modal-sub" style="margin-bottom:14px;">You're currently on <strong style="color:var(--vintage-blue-light);">${TIER_NAMES[data.tier] || 'Manual (free)'}</strong>${isTrial ? ' via a free trial' : ''}${isLifetime ? ' — lifetime access, no recurring charge, ever.' : '.'}</p>
+      ${data.tier < 3 || isTrial ? `<button type="button" class="mfa-verify-btn" id="manage-sub-see-plans-btn">See plans</button>` : ''}
+    `;
+    const seePlansBtn = document.getElementById('manage-sub-see-plans-btn');
+    if (seePlansBtn) seePlansBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
+    return;
+  }
+
+  if (data.cancelAtPeriodEnd) {
+    const endDate = new Date(data.currentPeriodEnd * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    body.innerHTML = `
+      <p class="mfa-modal-sub" style="margin-bottom:14px;">Your <strong style="color:var(--vintage-blue-light);">${TIER_NAMES[data.tier]}</strong> subscription is set to cancel. You'll keep full access through <strong>${endDate}</strong>, and won't be charged again after that.</p>
+      <button type="button" class="mfa-verify-btn" id="manage-sub-resume-btn">Resume subscription</button>
+    `;
+    document.getElementById('manage-sub-resume-btn').addEventListener('click', () => changeSubscription('resume'));
+  } else {
+    const renewDate = new Date(data.currentPeriodEnd * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    // Tier 2 is the one case with somewhere to go from here —
+    // Tier 3 at a prorated difference rather than full price.
+    // Tier 3 subscribers have nothing above them to offer.
+    const upgradeHtml = data.tier === 2
+      ? `<button type="button" class="mfa-verify-btn" id="manage-sub-upgrade-btn" style="margin-bottom:10px;">Upgrade to Full — prorated difference</button>`
+      : '';
+    body.innerHTML = `
+      <p class="mfa-modal-sub" style="margin-bottom:14px;">You're on <strong style="color:var(--vintage-blue-light);">${TIER_NAMES[data.tier]}</strong>, billed monthly. Renews <strong>${renewDate}</strong>.</p>
+      ${upgradeHtml}
+      <button type="button" class="mfa-remove-factor-btn" id="manage-sub-cancel-btn" style="width:100%;">Cancel subscription</button>
+    `;
+    const upgradeBtn = document.getElementById('manage-sub-upgrade-btn');
+    if (upgradeBtn) upgradeBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
+    document.getElementById('manage-sub-cancel-btn').addEventListener('click', () => changeSubscription('cancel'));
+  }
+}
+
+async function changeSubscription(action) {
+  const confirmMsg = action === 'cancel'
+    ? "Cancel your subscription? You'll keep access through the end of your current billing period — you won't lose anything you already paid for, and you won't be charged again after that."
+    : 'Resume your subscription? Your card will be charged again at the next renewal date.';
+  if (!await arkoConfirm(confirmMsg, action === 'cancel')) return;
+
+  const body = document.getElementById('manage-sub-body');
+  body.innerHTML = `<p class="mfa-modal-sub">${action === 'cancel' ? 'Cancelling…' : 'Resuming…'}</p>`;
+
+  try {
+    const res = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUserId, action })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not update your subscription.');
+    renderManageSubBody(data);
+    logAuditEvent(action === 'cancel' ? 'subscription_cancelled' : 'subscription_resumed', {});
+  } catch (err) {
+    body.innerHTML = `<p class="mfa-modal-sub" style="color:var(--error);">${(err.message || 'Something went wrong.').replace(/</g,'&lt;')}</p>`;
+  }
+}
+
 function logAuditEvent(eventType, detail) {
   supabaseClient.from('audit_log').insert({ user_id: currentUserId, event_type: eventType, detail: detail || {} })
     .then(({ error }) => { if (error) console.error('Audit log write failed:', error); });
@@ -110,6 +197,25 @@ async function init() {
   // someone try this during the trial without having paid yet.
   userTier = computeEffectiveTier(billing);
   isPaidUser = userTier >= 2;
+
+  // If a trial genuinely just expired, actually disconnect whatever
+  // was linked during it before bouncing to the paywall below —
+  // otherwise those accounts would just sit there orphaned in a
+  // Tier-1 account that has no way to use them anyway.
+  if (billing && billing.billing_period === 'trial' && new Date(billing.trial_end) < new Date()) {
+    try {
+      const cleanupRes = await fetch('/api/plaid-remove-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUserId, cleanupExpiredTrial: true })
+      });
+      const cleanupData = await cleanupRes.json();
+      if (cleanupData.cleaned) sessionStorage.setItem('trialCleanupNotice', String(cleanupData.accountsRemoved || 0));
+    } catch (err) {
+      console.error('Trial-expiry cleanup check failed:', err);
+    }
+  }
+
   if (userTier < 2) { window.location.href = 'paywall.html?need=2'; return; }
 
   setupLedgerMenu();
@@ -496,16 +602,35 @@ function accountCardHtml(a, t) {
     ? connectionStatus.find(i => i.item_id === a.plaid_item_id && i.needs_reconnect)
     : null;
 
+  // Distinct from brokenItem — this connection isn't necessarily
+  // flagged as broken by Plaid, it's just gone a long time without
+  // actually syncing, which usually means it's been forgotten about
+  // rather than actively used. 60 days is long enough that this
+  // isn't flagging someone who just hasn't opened the app in a
+  // couple weeks — that's normal. It's meant to catch connections
+  // that have genuinely gone stale.
+  const daysSinceSync = (a.source === 'plaid' && a.last_synced_at && !brokenItem)
+    ? Math.floor((Date.now() - new Date(a.last_synced_at).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  const isStale = daysSinceSync !== null && daysSinceSync >= 60;
+
   const synced = brokenItem
     ? `<span class="account-card-reconnect-badge"><span class="dot"></span>Needs reconnecting</span>`
-    : a.source === 'plaid'
-      ? `<span class="account-card-live-badge"><span class="dot"></span>Synced via Plaid</span>`
-      : `<span class="account-card-synced">Added manually</span>`;
+    : isStale
+      ? `<span class="account-card-stale-badge"><span class="dot"></span>Hasn't synced in ${daysSinceSync} days</span>`
+      : a.source === 'plaid'
+        ? `<span class="account-card-live-badge"><span class="dot"></span>Synced via Plaid</span>`
+        : `<span class="account-card-synced">Added manually</span>`;
 
   const reconnectBlock = brokenItem ? `
       <div class="account-card-reconnect-block">
         <p>${(brokenItem.reconnect_reason || 'This connection needs to be renewed.').replace(/</g,'&lt;')}</p>
         <button type="button" class="account-reconnect-btn" data-item-id="${brokenItem.item_id}" data-institution="${(brokenItem.institution_name || 'this account').replace(/"/g,'&quot;')}">Reconnect</button>
+      </div>` : '';
+
+  const staleBlock = (isStale && !brokenItem) ? `
+      <div class="account-card-stale-block">
+        <p>No activity picked up here in ${daysSinceSync} days. If this account isn't being used anymore, removing it frees up a connection slot${a.account_type === 'credit_card' || a.account_type === 'checking' ? '' : ' toward your plan\'s limit'}.</p>
       </div>` : '';
 
   const pendingAmount = pendingByAccountId[a.id] || 0;
@@ -518,7 +643,7 @@ function accountCardHtml(a, t) {
     : `<div class="account-card-balance">${money(a.balance)}</div>`;
 
   return `
-    <div class="account-card type-${a.account_type}${brokenItem ? ' needs-reconnect' : ''}">
+    <div class="account-card type-${a.account_type}${brokenItem ? ' needs-reconnect' : ''}${isStale ? ' is-stale' : ''}">
       <div class="account-card-head">
         <div>
           <div class="account-card-institution">${(a.institution_name || '').replace(/</g,'&lt;')}</div>
@@ -530,9 +655,10 @@ function accountCardHtml(a, t) {
       ${synced}
       ${a.account_type === 'credit_card' ? creditCardPaidFromPillHtml(a) : categoryPillHtml(a.id)}
       ${reconnectBlock}
+      ${staleBlock}
       <div class="account-card-actions" style="margin-top:10px;">
         <button type="button" class="account-edit-btn" data-id="${a.id}">Edit</button>
-        <button type="button" class="account-delete-btn danger" data-id="${a.id}">Remove</button>
+        <button type="button" class="account-delete-btn danger${isStale ? ' suggested' : ''}" data-id="${a.id}">Remove${isStale ? ' unused connection' : ''}</button>
       </div>
     </div>`;
 }
@@ -1745,6 +1871,16 @@ function setupMfaOverlay() {
     document.getElementById('settings-dropdown').classList.remove('open');
     openMfaOverlay(false);
     renderMfaManage();
+  });
+  document.getElementById('manage-sub-btn').addEventListener('click', () => {
+    document.getElementById('settings-dropdown').classList.remove('open');
+    openManageSubscription();
+  });
+  document.getElementById('manage-sub-close').addEventListener('click', () => {
+    document.getElementById('manage-sub-overlay').classList.remove('open');
+  });
+  document.getElementById('manage-sub-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'manage-sub-overlay') document.getElementById('manage-sub-overlay').classList.remove('open');
   });
   document.getElementById('mfa-close').addEventListener('click', closeMfaOverlay);
   document.getElementById('mfa-cancel-btn').addEventListener('click', cancelMfaOverlay);
