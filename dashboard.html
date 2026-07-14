@@ -1857,6 +1857,17 @@
 
     async function deleteSkippedActivity(reviewId) {
       if (!await arkoConfirm('Delete this permanently? Unlike Restore, this can\'t be undone — it won\'t come back even if the same transaction gets detected again.')) return;
+
+      // Fetch first so there's something to fingerprint — the delete
+      // below only returns the row if it succeeds, and by then it's
+      // too late to read its account/amount/date.
+      const { data: reviewRow } = await supabaseClient
+        .from('pending_dashboard_reviews')
+        .select('linked_account_id, amount, txn_date')
+        .eq('id', reviewId)
+        .eq('status', 'dismissed')
+        .maybeSingle();
+
       // Scoped to dismissed rows only, same belt-and-suspenders reasoning
       // as restore — this should never be able to touch anything approved.
       // .select() after .delete() so the response includes which rows
@@ -1872,6 +1883,21 @@
         .select();
       if (error) { await arkoAlert('Could not delete: ' + error.message); return; }
       if (!data || !data.length) { await arkoAlert('Nothing was deleted — this may be a permissions issue. Check that the delete policy on pending_dashboard_reviews has been applied in Supabase.'); return; }
+
+      // Record a fingerprint so this same purchase can't sneak back in
+      // under a new plaid_transaction_id (e.g. a pending charge that
+      // later posts and gets reissued a different id by Plaid) — the
+      // review row itself is gone now, so this is the only thing left
+      // that "remembers" it was deliberately deleted.
+      if (reviewRow) {
+        await supabaseClient.from('deleted_review_fingerprints').insert({
+          user_id: currentUserId,
+          linked_account_id: reviewRow.linked_account_id,
+          amount: reviewRow.amount,
+          txn_date: reviewRow.txn_date,
+        });
+      }
+
       logAuditEvent('txn_review_deleted', {});
       await openSkippedActivity();
     }
@@ -1879,7 +1905,7 @@
     async function clearAllSkippedActivity() {
       const { data: dismissed } = await supabaseClient
         .from('pending_dashboard_reviews')
-        .select('id')
+        .select('id, linked_account_id, amount, txn_date')
         .eq('user_id', currentUserId)
         .eq('status', 'dismissed');
       if (!dismissed || !dismissed.length) return;
@@ -1894,6 +1920,21 @@
         .select();
       if (error) { await arkoAlert('Could not clear: ' + error.message); return; }
       if (!deletedRows || !deletedRows.length) { await arkoAlert('Nothing was deleted — this may be a permissions issue. Check that the delete policy on pending_dashboard_reviews has been applied in Supabase.'); return; }
+
+      // Same fingerprinting as the single-item delete, for every row
+      // that actually got removed.
+      const fingerprints = dismissed
+        .filter(r => deletedRows.some(d => d.id === r.id))
+        .map(r => ({
+          user_id: currentUserId,
+          linked_account_id: r.linked_account_id,
+          amount: r.amount,
+          txn_date: r.txn_date,
+        }));
+      if (fingerprints.length) {
+        await supabaseClient.from('deleted_review_fingerprints').insert(fingerprints);
+      }
+
       logAuditEvent('skipped_activity_cleared', { count: deletedRows.length });
       await openSkippedActivity();
     }
