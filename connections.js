@@ -1971,6 +1971,7 @@ function setupMfaOverlay() {
     openManageSubscription();
   });
   document.getElementById('legal-policies-btn').addEventListener('click', () => { window.location.href = 'legal.html'; });
+  document.getElementById('help-faq-btn').addEventListener('click', () => { window.location.href = 'index.html#faq'; });
   document.getElementById('manage-sub-close').addEventListener('click', () => {
     document.getElementById('manage-sub-overlay').classList.remove('open');
   });

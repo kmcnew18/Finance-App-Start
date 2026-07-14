@@ -34,7 +34,7 @@
   <header class="hero">
     <nav class="nav">
       <span class="wordmark"><span class="wordmark-brand">Arko</span> | Early Access</span>
-      <div class="nav-auth">
+      <div class="nav-auth" id="nav-auth">
         <button type="button" class="btn-login" onclick="window.location.href='login.html'">Log in</button>
         <button type="button" class="btn-signup" onclick="window.location.href='signup.html'">Sign up</button>
       </div>
@@ -146,7 +146,7 @@
   </section>
 
   <!-- FAQ -->
-  <section class="faq">
+  <section class="faq" id="faq">
     <h2>Common questions</h2>
     <div class="faq-list">
       <details class="faq-item" open>
@@ -255,11 +255,21 @@
 
     (async () => {
       const { data: { session } } = await supabaseClient.auth.getSession();
-      if (session) {
-        // Logged in -> go straight to dashboard
+      // A hash fragment (e.g. #faq) means someone was deliberately sent
+      // here for a specific section — most often a logged-in user
+      // clicking "Help & FAQ" from Settings. Redirecting them straight
+      // to Dashboard in that case would defeat the entire point of the
+      // link, so this only auto-redirects when there's nowhere specific
+      // to go on this page.
+      if (session && !window.location.hash) {
+        // Logged in, no specific destination -> go straight to dashboard
         window.location.href = 'dashboard.html';
       } else {
-        // Not logged in -> reveal the landing page
+        // Not logged in, or came here for a specific section -> reveal the landing page
+        if (session) {
+          document.getElementById('nav-auth').innerHTML =
+            '<button type="button" class="btn-signup" onclick="window.location.href=\'dashboard.html\'">Back to Dashboard</button>';
+        }
         document.body.classList.remove('auth-checking');
       }
     })();

@@ -50,6 +50,7 @@
           <div class="settings-dropdown" id="settings-dropdown">
             <button type="button" id="manage-sub-btn" class="dropdown-item">Manage subscription</button>
             <button type="button" id="legal-policies-btn" class="dropdown-item">Legal & Policies</button>
+            <button type="button" id="help-faq-btn" class="dropdown-item">Help & FAQ</button>
           </div>
         </div>
 
@@ -196,6 +197,7 @@
         openManageSubscription();
       });
       document.getElementById('legal-policies-btn').addEventListener('click', () => { window.location.href = 'legal.html'; });
+      document.getElementById('help-faq-btn').addEventListener('click', () => { window.location.href = 'index.html#faq'; });
     }
 
     // ================= MANAGE SUBSCRIPTION =================
