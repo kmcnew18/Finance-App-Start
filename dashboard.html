@@ -452,6 +452,18 @@
     let trialExpired = false;
     let userTier = 1;
 
+    // Every /api/* call that acts on the current user's data must send
+    // their real session token, not just their claimed user id in the
+    // body — the backend endpoints run on Supabase's service-role key,
+    // which bypasses RLS entirely, so a userId in a request body is
+    // just a claim unless the server verifies it against a real
+    // session. This helper is the single place that grabs the current
+    // token so every call site does it the same way.
+    async function authHeader() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      return session ? { 'Authorization': `Bearer ${session.access_token}` } : {};
+    }
+
     // The single source of truth for what tier someone actually has
     // right now, computed fresh from billing data rather than trusted
     // from a stored column — nothing actively flips billing_period
@@ -1079,7 +1091,7 @@
         try {
           const cleanupRes = await fetch('/api/plaid-remove-item', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
             body: JSON.stringify({ userId: currentUserId, cleanupExpiredTrial: true })
           });
           const cleanupData = await cleanupRes.json();
@@ -1179,7 +1191,7 @@
       try {
         const res = await fetch('/api/plaid-sync-accounts', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
           body: JSON.stringify({ userId: currentUserId })
         });
         if (res.ok) {
@@ -1361,11 +1373,18 @@
       const transferBadge = r.is_credit_card_payment
         ? '<span class="txn-cardpayment-badge">Card payment</span>'
         : (r.is_transfer ? '<span class="txn-transfer-badge">Transfer</span>' : '');
+      // category_name is user-controlled (set via "Add category"), so it
+      // needs the same escaping every other user-facing string here
+      // already gets — everything else in this template was already
+      // escaped except this one, which was an inconsistency worth
+      // closing even though the practical exposure is limited to a
+      // user injecting into their own view of their own data.
+      const safeCategoryName = (r.category_name || 'Uncategorized').replace(/</g,'&lt;');
       const suggestionText = r.is_credit_card_payment
-        ? `Looks like a credit card payment — ${money(r.amount)} ${verb} <strong>${r.category_name || 'Uncategorized'}</strong>, settling debt rather than new spending.`
+        ? `Looks like a credit card payment — ${money(r.amount)} ${verb} <strong>${safeCategoryName}</strong>, settling debt rather than new spending.`
         : (r.is_transfer
-          ? `Looks like a transfer — ${money(r.amount)} ${verb === 'to' ? 'into' : 'out of'} <strong>${r.category_name || 'Uncategorized'}</strong>, not new spending.`
-          : `We think this is ${money(r.amount)} ${verb} <strong>${r.category_name || 'Uncategorized'}</strong>.`);
+          ? `Looks like a transfer — ${money(r.amount)} ${verb === 'to' ? 'into' : 'out of'} <strong>${safeCategoryName}</strong>, not new spending.`
+          : `We think this is ${money(r.amount)} ${verb} <strong>${safeCategoryName}</strong>.`);
       return `
         <div class="txn-review-row" data-id="${r.id}" data-suggested="${r.suggested_action}">
           <div class="txn-review-info">
@@ -1948,31 +1967,26 @@
     // regular automatic sync (webhook-triggered) is untouched by any
     // of this — this is purely an additional manual trigger.
     async function refreshDetectedActivity() {
-  const btn = document.getElementById('refresh-detected-btn');
-  btn.disabled = true;
-  btn.classList.add('syncing');
+      const btn = document.getElementById('refresh-detected-btn');
+      btn.disabled = true;
+      btn.classList.add('syncing');
 
-  try {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    const res = await fetch('/api/plaid-sync-recurring', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ userId: currentUserId, mode: 'deep-refresh' })
-    });
-    if (!res.ok) throw new Error('Sync failed (' + res.status + ')');
-    await loadPendingReviews();
-  } catch (err) {
-    console.error('Refresh detected activity failed:', err);
-    await arkoAlert('Could not refresh right now — try again in a bit.');
-  } finally {
-    btn.disabled = false;
-    btn.classList.remove('syncing');
-  }
-}
-    
+      try {
+        const res = await fetch('/api/plaid-sync-recurring', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+          body: JSON.stringify({ userId: currentUserId, mode: 'deep-refresh' })
+        });
+        if (!res.ok) throw new Error('Sync failed (' + res.status + ')');
+        await loadPendingReviews();
+      } catch (err) {
+        console.error('Refresh detected activity failed:', err);
+        await arkoAlert('Could not refresh right now — try again in a bit.');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('syncing');
+      }
+    }
 
     // ================= FIND MISSING LOG ENTRIES =================
     // Recovers from the period where "Charge to set-aside" decremented
@@ -2060,7 +2074,7 @@
       try {
         const res = await fetch('/api/create-checkout-session', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
           body: JSON.stringify({ userId: currentUserId, action: 'status' })
         });
         const data = await res.json();
@@ -2126,7 +2140,7 @@
       try {
         const res = await fetch('/api/create-checkout-session', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
           body: JSON.stringify({ userId: currentUserId, action })
         });
         const data = await res.json();
@@ -2756,7 +2770,7 @@
         try {
           const res = await fetch('/api/send-feedback', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
             body: JSON.stringify({ name, type, message, userEmail: currentUserEmail }),
           });
           if (!res.ok) throw new Error('Could not send feedback right now — try again in a bit.');

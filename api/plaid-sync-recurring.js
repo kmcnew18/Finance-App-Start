@@ -39,9 +39,14 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // Verify the caller is actually authenticated as this user
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    // Verify the caller is actually authenticated as this user before
+    // doing anything else. Every query below runs on supabaseAdmin
+    // (the service-role key), which bypasses RLS entirely — without
+    // this check, userId in the request body is just an unverified
+    // claim, and anyone who knew or guessed another user's UUID could
+    // trigger real Plaid syncs (which cost money) on their behalf.
+    const authHeaderVal = req.headers.authorization || '';
+    const token = authHeaderVal.startsWith('Bearer ') ? authHeaderVal.slice(7) : null;
     if (!token) {
       res.status(401).json({ error: 'Missing authorization token' });
       return;
@@ -135,4 +140,3 @@ module.exports = async (req, res) => {
     res.status(500).json({ error: 'Could not sync recurring transactions' });
   }
 };
-  

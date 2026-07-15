@@ -50,6 +50,15 @@ html {
   scrollbar-color: #26313F transparent;
 }
 
+/* Defensive guard against any single mis-sized element (a fixed-width
+   dropdown, an unusually long unbroken string, etc.) forcing the whole
+   page to scroll horizontally on a phone. Doesn't change desktop
+   layout at all — it only ever matters when something would otherwise
+   overflow the viewport width. */
+html, body {
+  overflow-x: hidden;
+}
+
 /* ---------- SCROLLBAR ---------- */
 ::-webkit-scrollbar { width: 7px; height: 7px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -70,7 +79,6 @@ body {
   color: var(--tan);
   line-height: 1.55;
   min-height: 100vh;
-  overflow-x: hidden;
 }
 
 h1, h2, h3 {
@@ -1686,20 +1694,6 @@ input[type="number"]::-webkit-outer-spin-button {
 /* Everything below only applies on small screens — desktop is untouched */
 
 @media (max-width: 600px) {
- /* inside the existing @media (max-width: 600px) block */
-.ledger-dropdown {
-  width: min(302px, calc(100vw - 32px));
-}
-.settings-dropdown {
-  min-width: 0;
-  width: min(220px, calc(100vw - 32px));
-}
-.txn-review-section {
-  padding: 16px 14px;
-}
-.txn-review-row {
-  padding: 12px 12px 12px 16px;
-}
   .dash-header { padding: 14px 16px; }
 
   .nav { gap: 8px; flex-wrap: wrap; }
@@ -1769,6 +1763,30 @@ input[type="number"]::-webkit-outer-spin-button {
   .txn-review-change-form { flex-direction: column; }
   .txn-review-actions { flex-wrap: wrap; }
   .mfa-field > div[style*="flex"] { flex-direction: column; }
+
+  /* Premium Tools + Settings dropdowns — cap width against actual
+     viewport space rather than assuming 302px/220px always fits.
+     Shrinks gracefully on narrow phones, stays full-size everywhere
+     the room already exists. */
+  .ledger-dropdown {
+    width: min(302px, calc(100vw - 32px));
+  }
+  .settings-dropdown {
+    min-width: 0;
+    width: min(220px, calc(100vw - 32px));
+  }
+
+  /* Detected Activity section was keeping its full desktop padding on
+     mobile — unlike .panel, which already tightens here — so it was
+     stacking with .dash-main's own mobile padding and squeezing the
+     split-row controls (category select + amount + remove button)
+     tighter than they needed to be. */
+  .txn-review-section {
+    padding: 16px 14px;
+  }
+  .txn-review-row {
+    padding: 12px 12px 12px 16px;
+  }
 }
 
 /* ==========================================================================

@@ -436,7 +436,6 @@
   letter-spacing: 0.06em;
   color: var(--silver-dim);
   border-bottom: 1px solid var(--ledger-line);
-  grid-template-columns: 1fr 108px 108px 74px 30px;
 }
 .ledger-col-heads span:nth-child(2),
 .ledger-col-heads span:nth-child(3) { text-align: right; }
@@ -448,7 +447,6 @@
   gap: 10px;
   align-items: center;
   padding: 10px 0 6px;
-  grid-template-columns: 1fr 108px 108px 74px 30px;
 }
 
 .ledger-row input[type="text"] {
@@ -865,7 +863,16 @@
 .budget-shell input:focus-visible {
   outline: 2px solid var(--brass-bright);
   outline-offset: 2px;
+}
 
+/* ============= MOBILE-ONLY ADJUSTMENTS ============= */
+/* .ledger-rail already hides itself above at 760px. Everything below
+   handles the narrower phone breakpoint — tightening padding to match
+   the same treatment dashboard.css gives .panel, and critically,
+   shrinking the ledger row's hardcoded desktop column widths (108px +
+   108px + 74px + 30px = 320px before the flexible name column even
+   gets anything), which otherwise overflow a phone viewport outright
+   and make every budget/actual line item unusable. */
 @media (max-width: 600px) {
   .budget-shell {
     padding: 20px 12px 90px;
@@ -888,10 +895,6 @@
     padding: 16px 14px 8px;
   }
 
-  /* The core fix: shrink the ledger row's fixed columns so they fit
-     within a phone viewport instead of hardcoding desktop widths that
-     overflow. Still tight, but usable — inputs keep working, currency
-     values still fit at this size. */
   .ledger-col-heads,
   .ledger-row {
     grid-template-columns: 1fr 74px 74px 44px 22px;
@@ -901,5 +904,4 @@
     padding: 6px 5px;
     font-size: 0.74rem;
   }
-}
 }
