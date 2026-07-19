@@ -5,10 +5,14 @@
 // to run only that half — used by the two separate "Refresh
 // transactions" / "Refresh subscriptions" buttons, so neither one
 // triggers the other. Omitting mode runs both, for anything that still
-// wants the old combined behavior. 'deep-refresh' runs the combined
-// sync too, then also backfills anything that was stored but somehow
-// never made it into the review queue, and dedupes whatever's
-// currently pending — used by Dashboard's "Refresh detected activity."
+// wants the old combined behavior (Connections' "Sync all accounts").
+// 'deep-refresh' — used only by Dashboard's "Refresh detected activity"
+// — runs the transactions-only sync, then also backfills anything that
+// was stored but somehow never made it into the review queue, and
+// dedupes whatever's currently pending. It deliberately does NOT touch
+// subscriptions: Dashboard never displays them (that's Spendings), so
+// there's no reason for this button to spend a Plaid
+// /transactions/recurring/get call on every click.
 //
 // Requires: npm install plaid @supabase/supabase-js
 
@@ -104,11 +108,27 @@ module.exports = async (req, res) => {
         } else if (mode === 'subscriptions') {
           const result = await refreshSubscriptionsForItem(item);
           totalQueued += result.queuedCount;
+        } else if (mode === 'deep-refresh') {
+          // Dashboard's "Refresh detected activity" is the only caller
+          // of deep-refresh, and Dashboard never displays subscriptions
+          // (that's Spendings, fed by the separate "Refresh
+          // subscriptions" button on Connections) — so routing this
+          // through processItemUpdate used to also call
+          // refreshSubscriptionsForItem for no reason, which spends a
+          // full Plaid /transactions/recurring/get call per item (plus
+          // its isLikelyReimbursedPattern checks and stream upserts)
+          // on every single click. Scoped to transactions only now.
+          // The backfill/dedupe/reclassify passes below — the actual
+          // point of deep-refresh — are pure DB work, never touched
+          // Plaid to begin with, and are unaffected by this change.
+          const result = await refreshTransactionsForItem(item);
+          totalAdded += result.addedCount;
         } else {
-          // Both 'deep-refresh' and the default (no mode) run the same
-          // combined per-item sync — deep-refresh's extra work
-          // (backfill + dedupe) happens once, after this loop, since
-          // those are user-level operations rather than per-item ones.
+          // No mode = the old fully-combined behavior. Still used by
+          // Connections' "Sync all accounts," where refreshing
+          // subscriptions alongside transactions is the actual point —
+          // Spendings reads recurring_streams, so that page's full sync
+          // genuinely needs both halves.
           const result = await processItemUpdate(item);
           totalAdded += result.addedCount;
           totalQueued += result.queuedCount;
