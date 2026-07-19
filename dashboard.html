@@ -388,13 +388,13 @@
 
   <!-- ================= SET-ASIDE PICKER ================= -->
   <div class="mfa-overlay" id="envelope-picker-overlay">
-    <div class="mfa-modal" style="max-width: 400px;">
+    <div class="mfa-modal" style="max-width: 440px;">
       <div class="mfa-modal-head">
         <h2>Adjust set-aside</h2>
         <button type="button" class="mfa-modal-close" id="envelope-picker-close">×</button>
       </div>
       <div class="mfa-modal-body">
-        <p class="mfa-modal-sub" id="envelope-picker-sub" style="margin-bottom:12px;"></p>
+        <p class="mfa-modal-sub" id="envelope-picker-sub" style="margin-bottom:14px;"></p>
         <div class="envelope-picker-list" id="envelope-picker-list"></div>
       </div>
     </div>
@@ -740,22 +740,95 @@
       if (!envelopes.length) return;
 
       document.getElementById('envelope-picker-sub').textContent =
-        envelopes.length === 1 ? 'Set aside from ' + envelopes[0].accountName + ':' : 'Each account\'s set-aside amount for this category:';
+        envelopes.length === 1
+          ? `Set aside from ${envelopes[0].accountName} — add to it, or set an exact amount.`
+          : 'Each account\'s set-aside amount for this category — add to any of them, or set an exact amount.';
       renderEnvelopePickerList(envelopes);
       document.getElementById('envelope-picker-overlay').classList.add('open');
     }
 
+    // Card-per-envelope layout: the current amount up top, quick-add
+    // chips + a custom amount as the primary action (this is the "just
+    // add money" path most visits are actually for), and setting an
+    // exact total tucked behind a toggle for the rarer case where the
+    // real-world amount needs correcting outright rather than added to.
     function renderEnvelopePickerList(envelopes) {
       const list = document.getElementById('envelope-picker-list');
       list.innerHTML = envelopes.map(env => `
-        <div class="envelope-picker-row" data-envelope-id="${env.id}">
-          <label>${env.accountName.replace(/</g,'&lt;')}</label>
-          <div class="envelope-picker-input-row">
+        <div class="envelope-picker-card" data-envelope-id="${env.id}">
+          <div class="envelope-picker-card-head">
+            <span class="envelope-picker-account">${env.accountName.replace(/</g,'&lt;')}</span>
+            <span class="envelope-picker-amount" id="envelope-picker-amount-${env.id}">${money(env.amount)}</span>
+          </div>
+          <div class="envelope-picker-quick-row">
+            <div class="envelope-picker-chips">
+              <button type="button" class="envelope-picker-chip" data-envelope-id="${env.id}" data-amount="20">+$20</button>
+              <button type="button" class="envelope-picker-chip" data-envelope-id="${env.id}" data-amount="50">+$50</button>
+              <button type="button" class="envelope-picker-chip" data-envelope-id="${env.id}" data-amount="100">+$100</button>
+            </div>
+            <div class="envelope-picker-custom-add">
+              <input type="number" class="envelope-picker-add-input" data-envelope-id="${env.id}" step="0.01" min="0.01" placeholder="Amount" />
+              <button type="button" class="envelope-picker-add-btn" data-envelope-id="${env.id}" title="Add to this amount" aria-label="Add amount">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </button>
+            </div>
+          </div>
+          <button type="button" class="envelope-picker-exact-toggle" data-envelope-id="${env.id}">Set an exact amount instead</button>
+          <div class="envelope-picker-exact-row" id="envelope-picker-exact-${env.id}" style="display:none;">
             <input type="number" class="envelope-picker-input" data-envelope-id="${env.id}" step="0.01" value="${env.amount}" />
             <button type="button" class="envelope-picker-save-btn" data-envelope-id="${env.id}">Save</button>
           </div>
         </div>
       `).join('');
+    }
+
+    // Briefly flashes an envelope's displayed amount to the "add" green
+    // after a successful quick-add, then fades it back — a small,
+    // unmissable confirmation that the click landed, without needing a
+    // toast or closing the modal (someone adding to several envelopes
+    // in a row shouldn't have to reopen the picker each time).
+    function flashEnvelopeAmount(envelopeId) {
+      const el = document.getElementById('envelope-picker-amount-' + envelopeId);
+      if (!el) return;
+      el.classList.add('just-updated');
+      setTimeout(() => el.classList.remove('just-updated'), 900);
+    }
+
+    // Adds `delta` to whatever the envelope's balance actually is right
+    // now (fetched fresh rather than trusting the picker's snapshot, in
+    // case it's been open a while) and saves the sum — this is the
+    // whole point of the quick-add row: no mental math, no re-typing
+    // the current total, just "put $50 more toward this."
+    async function addToEnvelopeAmount(envelopeId, delta) {
+      if (!delta || delta <= 0 || !isFinite(delta)) return;
+
+      const { data: envelope, error: fetchError } = await supabaseClient
+        .from('account_category_splits')
+        .select('envelope_balance')
+        .eq('id', envelopeId)
+        .maybeSingle();
+      if (fetchError || !envelope) { await arkoAlert('Could not find that set-aside amount — it may have been removed.'); return; }
+
+      const newAmount = round2(Math.max(0, Number(envelope.envelope_balance || 0) + delta));
+      const { error } = await supabaseClient
+        .from('account_category_splits')
+        .update({ envelope_balance: newAmount })
+        .eq('id', envelopeId);
+      if (error) { await arkoAlert('Could not save: ' + error.message); return; }
+
+      // Update this one card in place rather than re-rendering the
+      // whole list — keeps any other envelope's in-progress typing
+      // untouched if there's more than one in this category.
+      const amountEl = document.getElementById('envelope-picker-amount-' + envelopeId);
+      if (amountEl) amountEl.textContent = money(newAmount);
+      const addInput = document.querySelector(`.envelope-picker-add-input[data-envelope-id="${envelopeId}"]`);
+      if (addInput) addInput.value = '';
+      const exactInput = document.querySelector(`.envelope-picker-input[data-envelope-id="${envelopeId}"]`);
+      if (exactInput) exactInput.value = newAmount;
+      flashEnvelopeAmount(envelopeId);
+
+      await loadConnectedTotals();
+      renderTotals();
     }
 
     async function saveEnvelopeAmount(envelopeId) {
@@ -769,9 +842,12 @@
         .eq('id', envelopeId);
       if (error) { await arkoAlert('Could not save: ' + error.message); return; }
 
+      const amountEl = document.getElementById('envelope-picker-amount-' + envelopeId);
+      if (amountEl) amountEl.textContent = money(newAmount);
+      flashEnvelopeAmount(envelopeId);
+
       await loadConnectedTotals();
       renderTotals();
-      document.getElementById('envelope-picker-overlay').classList.remove('open');
     }
 
     function setupEnvelopePicker() {
@@ -781,13 +857,47 @@
       document.getElementById('envelope-picker-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'envelope-picker-overlay') document.getElementById('envelope-picker-overlay').classList.remove('open');
       });
-      // Delegated — the list is repopulated every time the picker opens.
-      document.getElementById('envelope-picker-list').addEventListener('click', (e) => {
-        const btn = e.target.closest('.envelope-picker-save-btn');
-        if (btn) saveEnvelopeAmount(btn.dataset.envelopeId);
+
+      // Delegated — the list is repopulated every time the picker opens,
+      // and this covers every button/input inside every envelope card
+      // through one binding rather than re-wiring per row on each render.
+      const list = document.getElementById('envelope-picker-list');
+
+      list.addEventListener('click', (e) => {
+        const chip = e.target.closest('.envelope-picker-chip');
+        if (chip) { addToEnvelopeAmount(chip.dataset.envelopeId, parseFloat(chip.dataset.amount)); return; }
+
+        const addBtn = e.target.closest('.envelope-picker-add-btn');
+        if (addBtn) {
+          const input = document.querySelector(`.envelope-picker-add-input[data-envelope-id="${addBtn.dataset.envelopeId}"]`);
+          const amt = parseFloat(input && input.value);
+          if (!amt || amt <= 0) { if (input) input.focus(); return; }
+          addToEnvelopeAmount(addBtn.dataset.envelopeId, amt);
+          return;
+        }
+
+        const exactToggle = e.target.closest('.envelope-picker-exact-toggle');
+        if (exactToggle) {
+          const row = document.getElementById('envelope-picker-exact-' + exactToggle.dataset.envelopeId);
+          if (!row) return;
+          const opening = row.style.display === 'none';
+          row.style.display = opening ? 'flex' : 'none';
+          exactToggle.textContent = opening ? 'Cancel' : 'Set an exact amount instead';
+          return;
+        }
+
+        const saveBtn = e.target.closest('.envelope-picker-save-btn');
+        if (saveBtn) { saveEnvelopeAmount(saveBtn.dataset.envelopeId); return; }
       });
-      document.getElementById('envelope-picker-list').addEventListener('keydown', (e) => {
+
+      list.addEventListener('keydown', (e) => {
+        if (e.target.classList.contains('envelope-picker-add-input') && e.key === 'Enter') {
+          e.preventDefault();
+          const btn = document.querySelector(`.envelope-picker-add-btn[data-envelope-id="${e.target.dataset.envelopeId}"]`);
+          if (btn) btn.click();
+        }
         if (e.target.classList.contains('envelope-picker-input') && e.key === 'Enter') {
+          e.preventDefault();
           saveEnvelopeAmount(e.target.dataset.envelopeId);
         }
       });
