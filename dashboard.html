@@ -355,6 +355,17 @@
     </div>
   </div>
 
+  <!-- ================= RENAME CATEGORY ================= -->
+  <div class="mfa-overlay" id="rename-category-overlay">
+    <div class="mfa-modal" style="max-width: 380px;">
+      <div class="mfa-modal-head">
+        <h2>Rename category</h2>
+        <button type="button" class="mfa-modal-close" id="rename-category-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="rename-category-body"></div>
+    </div>
+  </div>
+
   <!-- ================= CATEGORY COLOR PICKER ================= -->
   <div class="mfa-overlay" id="color-picker-overlay">
     <div class="mfa-modal" style="max-width: 340px;">
@@ -974,6 +985,133 @@
       });
     }
 
+    // ================= RENAME / DELETE CUSTOM CATEGORY =================
+    // Deliberately scoped to custom categories only — the four default
+    // categories are matched by exact name ("savings", "investment", etc.)
+    // all over this file and in the Add/Subtract/Transfer panels, and
+    // finance_totals has dedicated columns for them, so renaming or
+    // deleting one of those from here would silently break far more
+    // than this menu could safely account for.
+    let renameCategoryTargetId = null;
+
+    function closeAllCardMenus() {
+      document.querySelectorAll('.card-menu-dropdown.open').forEach(el => el.classList.remove('open'));
+      document.querySelectorAll('.card-menu-btn.menu-open').forEach(el => el.classList.remove('menu-open'));
+    }
+
+    function setupCategoryMenu() {
+      const container = document.querySelector('.overview-cards');
+      if (!container) return;
+
+      // Delegated on the static container — custom cards get recreated
+      // on every render, so binding fresh listeners to them directly
+      // would risk the same listener pile-up bug the old reorder
+      // arrows had.
+      container.addEventListener('click', (e) => {
+        const menuBtn = e.target.closest('.card-menu-btn');
+        if (menuBtn) {
+          e.stopPropagation();
+          const dropdown = menuBtn.nextElementSibling;
+          const wasOpen = dropdown.classList.contains('open');
+          closeAllCardMenus();
+          if (!wasOpen) { dropdown.classList.add('open'); menuBtn.classList.add('menu-open'); }
+          return;
+        }
+
+        const renameItem = e.target.closest('.card-menu-item[data-action="rename"]');
+        if (renameItem) {
+          e.stopPropagation();
+          closeAllCardMenus();
+          renameCategoryTargetId = renameItem.dataset.catId;
+          renderRenameCategoryForm();
+          document.getElementById('rename-category-overlay').classList.add('open');
+          return;
+        }
+
+        const deleteItem = e.target.closest('.card-menu-item[data-action="delete"]');
+        if (deleteItem) {
+          e.stopPropagation();
+          closeAllCardMenus();
+          deleteCustomCategory(deleteItem.dataset.catId);
+          return;
+        }
+      });
+    }
+
+    const RESERVED_CATEGORY_NAMES = ['savings', 'investment', 'expenses', 'checking'];
+
+    function renderRenameCategoryForm() {
+      const cat = customCategoryCards.find(c => c.id === renameCategoryTargetId);
+      const body = document.getElementById('rename-category-body');
+      body.innerHTML = `
+        <div class="mfa-field">
+          <label for="rename-category-name">Category name</label>
+          <input type="text" id="rename-category-name" maxlength="30" value="${(cat ? cat.name : '').replace(/"/g,'&quot;')}" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
+        </div>
+        <button type="button" class="mfa-verify-btn" id="rename-category-save-btn" style="margin-top:12px;">Save</button>
+        <p class="mfa-modal-sub" id="rename-category-error" style="color:var(--error); display:none; margin-top:8px;"></p>
+      `;
+      const input = document.getElementById('rename-category-name');
+      input.focus();
+      input.select();
+      document.getElementById('rename-category-save-btn').addEventListener('click', saveRenameCategory);
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveRenameCategory(); });
+    }
+
+    async function saveRenameCategory() {
+      const input = document.getElementById('rename-category-name');
+      const errorEl = document.getElementById('rename-category-error');
+      errorEl.style.display = 'none';
+      const name = input.value.trim();
+      if (!name) { errorEl.textContent = 'Give it a name first.'; errorEl.style.display = 'block'; return; }
+      if (RESERVED_CATEGORY_NAMES.includes(name.toLowerCase())) {
+        errorEl.textContent = `"${name}" is a reserved category name — pick something else.`;
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const { error } = await supabaseClient.from('budget_categories').update({ name }).eq('id', renameCategoryTargetId);
+      if (error) { errorEl.textContent = 'Could not rename: ' + error.message; errorEl.style.display = 'block'; return; }
+
+      logAuditEvent('category_renamed', { newName: name });
+      document.getElementById('rename-category-overlay').classList.remove('open');
+      await loadConnectedTotals();
+      renderTotals();
+    }
+
+    function setupRenameCategory() {
+      document.getElementById('rename-category-close').addEventListener('click', () => {
+        document.getElementById('rename-category-overlay').classList.remove('open');
+      });
+      document.getElementById('rename-category-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'rename-category-overlay') document.getElementById('rename-category-overlay').classList.remove('open');
+      });
+    }
+
+    async function deleteCustomCategory(catId) {
+      const cat = customCategoryCards.find(c => c.id === catId);
+      if (!cat) return;
+
+      const hasMoney = cat.total > 0;
+      const msg = hasMoney
+        ? `Delete "${cat.name}"? It currently shows ${money(cat.total)} — that goes away too, along with any account mappings for it in Connections. This can't be undone.`
+        : `Delete "${cat.name}"? Any account mappings for it in Connections will be removed too. This can't be undone.`;
+      if (!await arkoConfirm(msg, true)) return;
+
+      // Clean up any Connections mappings (percent splits and
+      // envelopes) pointing at this category first, so nothing there
+      // is left referencing a category that no longer exists.
+      const { error: splitsError } = await supabaseClient.from('account_category_splits').delete().eq('category_id', catId);
+      if (splitsError) { await arkoAlert('Could not delete: ' + splitsError.message); return; }
+
+      const { error } = await supabaseClient.from('budget_categories').delete().eq('id', catId);
+      if (error) { await arkoAlert('Could not delete: ' + error.message); return; }
+
+      logAuditEvent('category_deleted', { name: cat.name });
+      await loadConnectedTotals();
+      renderTotals();
+    }
+
     function renderColorPickerSwatches() {
       const wrap = document.getElementById('color-picker-swatches');
       wrap.innerHTML = COLOR_PICKER_OPTIONS.map(accent => `
@@ -1136,6 +1274,13 @@
         const hintText = adjustLink ? '' : (cat.hasConnection ? 'Synced from Connections' : 'Set aside manually — not connected to an account');
         card.innerHTML = `
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
+          <button type="button" class="card-menu-btn" title="More options" aria-label="More options for ${cat.name.replace(/"/g,'&quot;')}">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="12" cy="19" r="1.7"></circle></svg>
+          </button>
+          <div class="card-menu-dropdown">
+            <button type="button" class="card-menu-item" data-action="rename" data-cat-id="${cat.id}">Rename</button>
+            <button type="button" class="card-menu-item danger" data-action="delete" data-cat-id="${cat.id}">Delete</button>
+          </div>
           <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor};"></button>
           <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
           ${valueHtml}
@@ -1221,6 +1366,8 @@
       setupAddCategory();
       setupCardDragDrop();
       setupColorPicker();
+      setupCategoryMenu();
+      setupRenameCategory();
       setupManualCategoryEdit();
       setupEnvelopePicker();
       setupSkippedActivity();
@@ -2492,6 +2639,7 @@
       gearDropdown.classList.remove('open');
       gearBtn.classList.remove('spin');
       closeLedgerMenu();
+      closeAllCardMenus();
     });
 
     // ================= TWO-FACTOR AUTHENTICATION =================

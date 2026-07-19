@@ -528,6 +528,68 @@ h1, h2, h3 {
 .card:hover .card-color-btn { opacity: 0.85; }
 .card-color-btn:hover { opacity: 1 !important; transform: scale(1.2); border-color: rgba(255,255,255,0.5); }
 
+/* Kebab menu (Rename / Delete) — custom categories only. Default
+   categories (Savings/Investment/Expenses/Checking) are wired into
+   too much else (the Add/Subtract/Transfer panels, finance_totals'
+   own columns) to safely rename or delete from here, so they keep
+   just the color swatch; this menu only ever renders on custom cards. */
+.card-menu-btn {
+  position: absolute;
+  top: 10px; right: 60px;
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--silver-dim);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  z-index: 2;
+  padding: 0;
+}
+.card:hover .card-menu-btn { opacity: 0.7; }
+.card-menu-btn:hover,
+.card-menu-btn.menu-open { opacity: 1 !important; background: rgba(110,143,163,0.16); color: var(--tan); }
+.card-menu-btn svg { width: 13px; height: 13px; }
+
+.card-menu-dropdown {
+  position: absolute;
+  top: 34px; right: 8px;
+  min-width: 128px;
+  background: var(--dark-vintage);
+  border: 1px solid #222C3A;
+  border-radius: 9px;
+  padding: 5px;
+  z-index: 10;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.42);
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.94) translateY(-4px);
+  transform-origin: top right;
+  transition: opacity 0.14s ease, transform 0.14s ease, visibility 0.14s;
+}
+.card-menu-dropdown.open { opacity: 1; visibility: visible; transform: scale(1) translateY(0); }
+
+.card-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tan);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+.card-menu-item:hover { background: rgba(255,255,255,0.06); }
+.card-menu-item.danger { color: var(--error); }
+.card-menu-item.danger:hover { background: rgba(224,139,125,0.12); }
+
 .color-picker-swatches {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
