@@ -25,6 +25,14 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Defensive guard against any single mis-sized element forcing the
+   whole page to scroll horizontally on a phone — dashboard.css already
+   has this same rule for the app pages; the landing page loads this
+   stylesheet instead, so it needs its own copy. */
+html, body {
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'Public Sans', -apple-system, sans-serif;
   background: var(--grey);

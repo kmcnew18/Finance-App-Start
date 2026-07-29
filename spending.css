@@ -322,4 +322,19 @@
 @media (max-width: 600px) {
   .spend-section-head-row { flex-direction: column; align-items: stretch; }
   .spend-txn-search { width: 100%; }
+
+  /* "Map to budget" and the category-edit pencil are revealed via
+     :hover on desktop — :hover never fires on a touchscreen, so
+     without this override these are permanently invisible and
+     untappable on mobile, not just small. */
+  .spend-txn-map-btn,
+  .spend-txn-edit-btn {
+    opacity: 1;
+  }
+
+  /* Fixed 280px width didn't shrink for narrow phones (~320-360px
+     wide), so the picker could run past the edge of the screen. */
+  .spend-month-picker {
+    width: min(280px, calc(100vw - 32px));
+  }
 }

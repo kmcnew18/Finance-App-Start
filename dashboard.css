@@ -1961,13 +1961,22 @@ input[type="number"]::-webkit-outer-spin-button {
   /* Premium Tools + Settings dropdowns — cap width against actual
      viewport space rather than assuming 302px/220px always fits.
      Shrinks gracefully on narrow phones, stays full-size everywhere
-     the room already exists. */
+     the room already exists. Also caps height and scrolls internally
+     — previously these had no height limit at all, so on a short
+     viewport (a landscape phone, a phone with the keyboard up, or
+     just a long Settings list) the bottom of the menu extended past
+     the edge of the screen with no way to reach it, since the menu is
+     positioned off the sticky header rather than the scrollable page. */
   .ledger-dropdown {
     width: min(302px, calc(100vw - 32px));
+    max-height: calc(100vh - 90px);
+    overflow-y: auto;
   }
   .settings-dropdown {
     min-width: 0;
     width: min(220px, calc(100vw - 32px));
+    max-height: calc(100vh - 90px);
+    overflow-y: auto;
   }
 
   /* Detected Activity section was keeping its full desktop padding on
@@ -1988,6 +1997,19 @@ input[type="number"]::-webkit-outer-spin-button {
   .envelope-picker-quick-row { flex-direction: column; align-items: stretch; }
   .envelope-picker-custom-add { margin-left: 0; }
   .envelope-picker-add-input { flex: 1; width: auto; }
+
+  /* Color-change swatch, the rename/delete kebab menu on custom
+     category cards, and the "Adjust set-aside" / "from Connections"
+     hint line are all revealed via :hover in the desktop rules above
+     — :hover never fires on a touchscreen, so without this override
+     these are permanently invisible and untappable on mobile, not
+     just small. Forced visible here instead. */
+  .card-color-btn,
+  .card-menu-btn,
+  .sync-hint {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
 }
 
 /* ==========================================================================
