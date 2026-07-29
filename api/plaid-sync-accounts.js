@@ -2,8 +2,14 @@
 //
 // Re-fetches current balances for every Plaid item a user has connected,
 // and updates the matching rows in linked_accounts. Called by the
-// "Sync all accounts" button in Settings, and safe to also run on a
-// schedule (cron) later if you want balances to refresh automatically.
+// "Sync all accounts" button in Settings, and by the background
+// refresh on Connections page load.
+//
+// Each item is only actually re-fetched from Plaid once every 24 hours
+// (see isSyncDue in lib/plaid-helpers.js) — this is a shared budget
+// with transaction/subscription syncing, so if either of those already
+// ran for this item today, this skips it too rather than calling Plaid
+// again.
 //
 // Requires: npm install plaid @supabase/supabase-js
 // Same environment variables as plaid-exchange-token.js.
@@ -11,6 +17,7 @@
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 const { createClient } = require('@supabase/supabase-js');
 const { decryptToken } = require('../lib/crypto-helpers');
+const { isSyncDue, nextSyncAt, markItemSynced } = require('../lib/plaid-helpers');
 
 const plaidClient = new PlaidApi(new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -119,6 +126,8 @@ module.exports = async (req, res) => {
     let flaggedCount = 0;
     let orphansCleaned = 0;
     let holdingsCount = 0;
+    let skippedCount = 0;
+    let earliestNextSyncAt = null;
 
     for (const item of items || []) {
       // Same cleanup as plaid-sync-recurring.js — a plaid_items row with
@@ -139,8 +148,20 @@ module.exports = async (req, res) => {
         continue;
       }
 
+      // Shared once-a-day budget with transaction/subscription syncing
+      // (see isSyncDue in lib/plaid-helpers.js) — if this item already
+      // had a live Plaid call today via any path, skip it here too
+      // rather than calling Plaid again just for balances.
+      if (!isSyncDue(item)) {
+        skippedCount++;
+        const itemNextSync = nextSyncAt(item);
+        if (itemNextSync && (!earliestNextSyncAt || itemNextSync < earliestNextSyncAt)) earliestNextSyncAt = itemNextSync;
+        continue;
+      }
+
       try {
         const balancesRes = await plaidClient.accountsBalanceGet({ access_token: decryptToken(item.access_token) });
+        await markItemSynced(item.item_id);
         const plaidAccounts = balancesRes.data.accounts || [];
 
         for (const a of plaidAccounts) {
@@ -182,8 +203,8 @@ module.exports = async (req, res) => {
 
     if (holdingsCount > 0) await recordPortfolioSnapshot(userId);
 
-    console.log('plaid-sync-accounts result:', { userId, updatedCount, flaggedCount, orphansCleaned, holdingsCount });
-    res.status(200).json({ success: true, updatedCount, flaggedCount, orphansCleaned, holdingsCount });
+    console.log('plaid-sync-accounts result:', { userId, updatedCount, flaggedCount, orphansCleaned, holdingsCount, skippedCount });
+    res.status(200).json({ success: true, updatedCount, flaggedCount, orphansCleaned, holdingsCount, skippedCount, nextSyncAt: earliestNextSyncAt });
   } catch (err) {
     console.error('plaid-sync-accounts error:', err?.response?.data || err);
     res.status(500).json({ error: 'Could not sync accounts' });

@@ -14,6 +14,14 @@
 // there's no reason for this button to spend a Plaid
 // /transactions/recurring/get call on every click.
 //
+// Every one of these paths goes through refreshTransactionsForItem /
+// refreshSubscriptionsForItem / processItemUpdate in lib/plaid-helpers.js,
+// which are all gated by the same shared once-a-day-per-item sync budget
+// (see isSyncDue there) — so no matter which button triggered this,
+// Plaid only actually gets called once every 24 hours per item. When an
+// item is skipped for that reason, its result carries skipped: true and
+// the response below rolls that up into alreadySyncedToday/nextSyncAt.
+//
 // Requires: npm install plaid @supabase/supabase-js
 
 const { supabaseAdmin, processItemUpdate, refreshTransactionsForItem, refreshSubscriptionsForItem, backfillDashboardReviews, dedupeDashboardReviews, reclassifyPendingReviews, reclassifyStoredTransactions } = require('../lib/plaid-helpers');
@@ -76,6 +84,9 @@ module.exports = async (req, res) => {
     let totalAdded = 0;
     let totalQueued = 0;
     let orphansCleaned = 0;
+    let itemsConsidered = 0;
+    let itemsSkipped = 0;
+    let earliestNextSyncAt = null;
 
     for (const item of items || []) {
       // A plaid_items row with no linked_accounts pointing at it is a
@@ -101,12 +112,15 @@ module.exports = async (req, res) => {
         continue;
       }
 
+      itemsConsidered++;
+
       try {
+        let result;
         if (mode === 'transactions') {
-          const result = await refreshTransactionsForItem(item);
+          result = await refreshTransactionsForItem(item);
           totalAdded += result.addedCount;
         } else if (mode === 'subscriptions') {
-          const result = await refreshSubscriptionsForItem(item);
+          result = await refreshSubscriptionsForItem(item);
           totalQueued += result.queuedCount;
         } else if (mode === 'deep-refresh') {
           // Dashboard's "Refresh detected activity" is the only caller
@@ -121,7 +135,7 @@ module.exports = async (req, res) => {
           // The backfill/dedupe/reclassify passes below — the actual
           // point of deep-refresh — are pure DB work, never touched
           // Plaid to begin with, and are unaffected by this change.
-          const result = await refreshTransactionsForItem(item);
+          result = await refreshTransactionsForItem(item);
           totalAdded += result.addedCount;
         } else {
           // No mode = the old fully-combined behavior. Still used by
@@ -129,9 +143,16 @@ module.exports = async (req, res) => {
           // subscriptions alongside transactions is the actual point —
           // Spendings reads recurring_streams, so that page's full sync
           // genuinely needs both halves.
-          const result = await processItemUpdate(item);
+          result = await processItemUpdate(item);
           totalAdded += result.addedCount;
           totalQueued += result.queuedCount;
+        }
+
+        if (result && result.skipped) {
+          itemsSkipped++;
+          if (result.nextSyncAt && (!earliestNextSyncAt || result.nextSyncAt < earliestNextSyncAt)) {
+            earliestNextSyncAt = result.nextSyncAt;
+          }
         }
       } catch (perItemErr) {
         console.error('Sync failed for item', item.item_id, mode || 'combined', perItemErr?.response?.data || perItemErr);
@@ -153,8 +174,14 @@ module.exports = async (req, res) => {
       }
     }
 
-    console.log('plaid-sync-recurring result:', { userId, mode: mode || 'combined', totalAdded, totalQueued, orphansCleaned, reclassifiedCount, txnReclassifiedCount, backfilledCount, dedupedCount });
-    res.status(200).json({ success: true, totalAdded, totalQueued, orphansCleaned, reclassifiedCount, txnReclassifiedCount, backfilledCount, dedupedCount });
+    // True only when every item that was actually eligible to sync
+    // (i.e. not orphaned/cleaned-up) was skipped by the once-a-day
+    // gate — lets the client show a friendly "already synced today"
+    // message instead of treating this like a no-op error.
+    const alreadySyncedToday = itemsConsidered > 0 && itemsSkipped === itemsConsidered;
+
+    console.log('plaid-sync-recurring result:', { userId, mode: mode || 'combined', totalAdded, totalQueued, orphansCleaned, itemsConsidered, itemsSkipped, reclassifiedCount, txnReclassifiedCount, backfilledCount, dedupedCount });
+    res.status(200).json({ success: true, totalAdded, totalQueued, orphansCleaned, alreadySyncedToday, nextSyncAt: earliestNextSyncAt, reclassifiedCount, txnReclassifiedCount, backfilledCount, dedupedCount });
   } catch (err) {
     console.error('plaid-sync-recurring error:', err?.response?.data || err);
     res.status(500).json({ error: 'Could not sync recurring transactions' });

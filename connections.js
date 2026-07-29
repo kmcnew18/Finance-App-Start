@@ -355,9 +355,14 @@ async function init() {
 // How often the background balance refresh is allowed to actually call
 // Plaid. Every page load used to trigger a real API call regardless of
 // how recently one had already happened — harmless in Sandbox, but in
-// Production each of those calls has a real cost. Set to 12 hours (2
-// times a day) per updated direction — was 6 hours before.
-const BACKGROUND_SYNC_THROTTLE_MS = 12 * 60 * 60 * 1000;
+// Production each of those calls has a real cost. Set to 24 hours (once
+// a day) to match the server-side once-a-day sync gate in
+// lib/plaid-helpers.js — that gate is the real enforcement now (it
+// covers every path: this background refresh, the manual buttons, and
+// Plaid's own webhook), so this client-side check is just a fast local
+// pre-filter to avoid pinging the endpoint pointlessly, not the source
+// of truth.
+const BACKGROUND_SYNC_THROTTLE_MS = 24 * 60 * 60 * 1000;
 
 function shouldRunBackgroundSync() {
   const plaidAccounts = accounts.filter(a => a.source === 'plaid' && a.last_synced_at);

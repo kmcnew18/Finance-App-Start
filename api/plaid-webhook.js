@@ -7,6 +7,12 @@
 // Supabase auth — Plaid isn't a logged-in user, it's authenticated via a
 // signed JWT in the Plaid-Verification header instead, verified below.
 //
+// processItemUpdate (in lib/plaid-helpers.js) is gated by the same
+// shared once-a-day-per-item sync budget as every other sync path — so
+// even though Plaid can send this webhook at any time, it only actually
+// results in a live Plaid call once every 24 hours per item. Other than
+// that, this file is unchanged: Plaid still gets a fast 200 either way.
+//
 // Requires: npm install plaid @supabase/supabase-js jsonwebtoken jwk-to-pem
 //
 // Same environment variables as the other Plaid functions, no new ones.
@@ -83,7 +89,11 @@ module.exports = async (req, res) => {
       }
 
       const result = await processItemUpdate(itemRow);
-      console.log(`Processed webhook for item ${item_id}:`, result);
+      if (result.skipped) {
+        console.log(`Webhook for item ${item_id} arrived, but this item already synced within the last 24h — skipped (next eligible: ${result.nextSyncAt || 'n/a'})`);
+      } else {
+        console.log(`Processed webhook for item ${item_id}:`, result);
+      }
     } else if (
       webhook_type === 'ITEM' &&
       ['ITEM_LOGIN_REQUIRED', 'PENDING_EXPIRATION', 'PENDING_DISCONNECT'].includes(webhook_code)
