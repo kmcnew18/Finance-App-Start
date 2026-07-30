@@ -1892,7 +1892,19 @@ input[type="number"]::-webkit-outer-spin-button {
 
   .nav { gap: 8px; flex-wrap: wrap; }
   .wordmark { font-size: 1rem; }
-  .nav-auth { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  /* width: 100% is the fix here, not just cosmetic — .nav-auth wraps
+     onto its own line below the wordmark on narrow phones, but as a
+     single flex item with no explicit width it only ever takes up as
+     much space as its own content needs, sitting at the LEFT of that
+     line (justify-content: flex-end has nothing to push against with
+     just one item on the line). That leaves the Premium Tools button
+     sitting near the middle of the screen instead of the top-right,
+     which in turn means .ledger-dropdown (anchored right:0 to that
+     button) opens mostly off-screen to the left — this is what was
+     making the whole menu look sliced off on the left edge. Forcing
+     nav-auth to span the full wrapped row lets flex-end actually push
+     its buttons to the real right edge, same as desktop. */
+  .nav-auth { width: 100%; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .user-email { display: none; } /* saves space on small screens */
 
   .btn-logout, .btn-ghost {
@@ -1998,17 +2010,32 @@ input[type="number"]::-webkit-outer-spin-button {
   .envelope-picker-custom-add { margin-left: 0; }
   .envelope-picker-add-input { flex: 1; width: auto; }
 
-  /* Color-change swatch, the rename/delete kebab menu on custom
-     category cards, and the "Adjust set-aside" / "from Connections"
-     hint line are all revealed via :hover in the desktop rules above
+  /* Color-change swatch and the rename/delete kebab menu on custom
+     category cards are revealed via :hover in the desktop rules above
      — :hover never fires on a touchscreen, so without this override
      these are permanently invisible and untappable on mobile, not
      just small. Forced visible here instead. */
   .card-color-btn,
-  .card-menu-btn,
+  .card-menu-btn {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  /* .sync-hint is the same story ("+$X from Connections" / "Adjust
+     set-aside") — hidden until :hover on desktop, so forced visible
+     here too. But on desktop it's also absolutely positioned to
+     overlay the bottom of the card, which only ever worked because it
+     appeared transiently on hover; permanently visible on mobile, it
+     was sitting directly on top of the dollar amount instead of
+     making room for itself. Switching it to normal document flow
+     (the card is already a flex column) makes it push the layout
+     instead of overlapping it, regardless of how many lines of text
+     it ends up needing. */
   .sync-hint {
     opacity: 1 !important;
     pointer-events: auto !important;
+    position: static;
+    margin-top: 2px;
   }
 }
 
