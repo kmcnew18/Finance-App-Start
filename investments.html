@@ -122,6 +122,7 @@
       <section class="overview-section">
         <div class="overview-section-head">
           <span class="overview-section-title inv-title" style="font-size:1.1rem;">Holdings</span>
+          <span class="overview-section-sub inv-holdings-sub">Toggle a holding off to exclude it from the chart above</span>
         </div>
         <div class="inv-holdings-list" id="inv-holdings-list"></div>
       </section>
@@ -292,9 +293,15 @@
     // palette: stable, readable segments rather than random hash colors.
     const RING_COLORS = ['#6EC496', '#A88FD8', '#E0806A', '#6E8FA3', '#D8BC7A', '#63D9AA', '#E08B7D', '#8F7AA8', '#6EC4B8', '#C97B4A'];
 
-    let currentHoldings = []; // [{ name, ticker, value, logoUrl, color }]
+    let currentHoldings = []; // [{ securityId, name, ticker, value, logoUrl, color }]
     let currentPeriod = 'all';
     let snapshots = []; // [{ snapshot_date, total_value }]
+
+    // Securities the user has toggled OFF the ring chart. Persisted in
+    // Supabase (investment_hidden_holdings) so it's remembered across
+    // logins/devices. Presence in this set = excluded from the ring only —
+    // the holdings list below always shows every holding regardless.
+    let hiddenSecurityIds = new Set();
 
     async function init() {
       const { data: { session } } = await supabaseClient.auth.getSession();
@@ -310,6 +317,7 @@
 
       setupLedgerMenu();
       setupSettingsGear();
+      setupHoldingsToggles();
       document.getElementById('logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.href = 'login.html'; });
       document.getElementById('manage-sub-close').addEventListener('click', () => {
         document.getElementById('manage-sub-overlay').classList.remove('open');
@@ -320,6 +328,12 @@
       document.getElementById('view-log-button').addEventListener('click', () => { window.location.href = 'dashboard.html'; });
       document.getElementById('inv-go-connections-btn').addEventListener('click', () => { window.location.href = 'connections.html'; });
       setupPeriodPicker();
+
+      const { data: hiddenRows } = await supabaseClient
+        .from('investment_hidden_holdings')
+        .select('security_id')
+        .eq('user_id', currentUserId);
+      hiddenSecurityIds = new Set((hiddenRows || []).map(r => r.security_id));
 
       await loadPortfolio();
 
@@ -362,7 +376,7 @@
           const fallbackLogoUrl = sec.ticker_symbol
             ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(sec.ticker_symbol)}?format=png`
             : null;
-          combinedBySecurityId[key] = { name: sec.name || 'Unknown security', ticker: sec.ticker_symbol || '—', logoUrl: sec.logo_url || fallbackLogoUrl, value: 0, costBasis: 0, hasCostBasis: false };
+          combinedBySecurityId[key] = { securityId: key, name: sec.name || 'Unknown security', ticker: sec.ticker_symbol || '—', logoUrl: sec.logo_url || fallbackLogoUrl, value: 0, costBasis: 0, hasCostBasis: false };
         }
         combinedBySecurityId[key].value += Number(h.institution_value) || 0;
         // cost_basis can be null for a position if the brokerage/Plaid
@@ -396,7 +410,11 @@
     }
 
     function renderRing() {
-      const total = round2(currentHoldings.reduce((s, h) => s + h.value, 0));
+      // Ring reflects only the holdings the user hasn't toggled off —
+      // the total dollar figure in the center and every arc/percentage
+      // are computed from this visible subset, not the full portfolio.
+      const visibleHoldings = currentHoldings.filter(h => !hiddenSecurityIds.has(h.securityId));
+      const total = round2(visibleHoldings.reduce((s, h) => s + h.value, 0));
       document.getElementById('inv-ring-total').textContent = money(total);
 
       const svg = document.getElementById('inv-ring-svg');
@@ -409,7 +427,7 @@
       let arcsHtml = '';
       let badgesHtml = '';
 
-      currentHoldings.forEach(h => {
+      visibleHoldings.forEach(h => {
         const pct = total > 0 ? (h.value / total) : 0;
         const sweepDeg = Math.max(0, pct * 360 - gapDeg);
         const startDeg = cursorDeg;
@@ -448,6 +466,9 @@
     }
 
     function renderHoldingsList() {
+      // The list always uses ALL holdings for its total/percentages and
+      // always shows every holding — the toggle only ever affects the
+      // ring above via renderRing().
       const total = round2(currentHoldings.reduce((s, h) => s + h.value, 0));
       const list = document.getElementById('inv-holdings-list');
       list.innerHTML = currentHoldings.map(h => {
@@ -456,6 +477,7 @@
         const logoHtml = h.logoUrl
           ? `<img src="${h.logoUrl}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class="inv-row-icon-fallback" style="display:none; background:${h.color}22; color:${h.color};">${initials}</span>`
           : `<span class="inv-row-icon-fallback" style="background:${h.color}22; color:${h.color};">${initials}</span>`;
+        const isVisible = !hiddenSecurityIds.has(h.securityId);
         return `
         <div class="inv-holding-row">
           <span class="inv-row-icon">${logoHtml}</span>
@@ -467,8 +489,52 @@
             <span class="inv-row-value">${money(h.value)}</span>
             <span class="inv-row-pct">${pct}%</span>
           </div>
+          <label class="switch inv-holding-switch" title="${isVisible ? 'Showing in chart above — click to hide' : 'Hidden from chart above — click to show'}">
+            <input type="checkbox" class="inv-holding-toggle" data-security-id="${h.securityId}" ${isVisible ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+          </label>
         </div>`;
       }).join('');
+    }
+
+    // Wires the holdings list once via event delegation, so it keeps
+    // working after renderHoldingsList() re-renders the rows on every
+    // portfolio refresh — no need to re-attach per row.
+    function setupHoldingsToggles() {
+      document.getElementById('inv-holdings-list').addEventListener('change', async (e) => {
+        const cb = e.target.closest('.inv-holding-toggle');
+        if (!cb) return;
+        const securityId = cb.dataset.securityId;
+        const nowVisible = cb.checked;
+
+        if (nowVisible) {
+          hiddenSecurityIds.delete(securityId);
+        } else {
+          hiddenSecurityIds.add(securityId);
+        }
+        cb.closest('.inv-holding-switch').title = nowVisible
+          ? 'Showing in chart above — click to hide'
+          : 'Hidden from chart above — click to show';
+        renderRing();
+
+        try {
+          if (nowVisible) {
+            await supabaseClient
+              .from('investment_hidden_holdings')
+              .delete()
+              .eq('user_id', currentUserId)
+              .eq('security_id', securityId);
+          } else {
+            await supabaseClient
+              .from('investment_hidden_holdings')
+              .upsert({ user_id: currentUserId, security_id: securityId });
+          }
+        } catch (err) {
+          // If the save fails, don't silently leave the UI out of sync
+          // with what's actually persisted.
+          console.error('Failed to save holding visibility:', err);
+        }
+      });
     }
 
     // Snapshots only exist from whenever this feature started recording

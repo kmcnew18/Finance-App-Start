@@ -16,6 +16,9 @@
 .overview-section-title.inv-title {
   text-shadow: 0 0 24px rgba(168,143,216,0.35);
 }
+.inv-holdings-sub {
+  font-size: 0.72rem;
+}
 
 /* ---------- EMPTY STATE ---------- */
 .inv-empty-state {
@@ -229,6 +232,31 @@
 .inv-row-value { font-size: 0.92rem; font-weight: 700; color: var(--tan); font-family: 'Fraunces', serif; }
 .inv-row-pct { font-size: 0.74rem; color: var(--violet-bright); font-weight: 600; }
 
+/* ---------- PER-HOLDING VISIBILITY TOGGLE ----------
+   Reuses the same .switch/.switch-slider structure already defined
+   in dashboard.css (Settings dropdown toggle), so it feels like a
+   native control rather than a one-off — just re-tinted violet to
+   match this page's own accent instead of vintage blue. Scoped to
+   .inv-holding-switch specifically so it never touches the Settings
+   toggle's own styling elsewhere in the app. */
+.inv-holding-switch {
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+.inv-holding-switch .switch-slider {
+  border-color: rgba(168,143,216,0.4);
+}
+.inv-holding-switch input:checked + .switch-slider {
+  background: var(--violet-bright);
+  border-color: var(--violet-bright);
+}
+.inv-holding-switch input:checked + .switch-slider::before {
+  background: #171422;
+}
+.inv-holding-row:hover .inv-holding-switch .switch-slider {
+  border-color: rgba(168,143,216,0.7);
+}
+
 /* ---------- LEDGER MENU ICON (matches the pattern for each page's own tinted icon) ---------- */
 .ledger-tool-icon.icon-investments {
   background: linear-gradient(155deg, rgba(168,143,216,0.24), rgba(168,143,216,0.05));
@@ -247,4 +275,5 @@
   .inv-badge-pct { font-size: 0.7rem; }
   .inv-ring-badge { padding: 3px 8px 3px 3px; }
   .inv-badge-icon { width: 18px; height: 18px; }
+  .inv-holding-row { gap: 10px; }
 }
