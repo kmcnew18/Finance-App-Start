@@ -288,10 +288,13 @@
     }
 
 
-    // Distinct, high-contrast ring colors — cycles if there are more
-    // holdings than colors, same reasoning as Spendings' category
-    // palette: stable, readable segments rather than random hash colors.
-    const RING_COLORS = ['#6EC496', '#A88FD8', '#E0806A', '#6E8FA3', '#D8BC7A', '#63D9AA', '#E08B7D', '#8F7AA8', '#6EC4B8', '#C97B4A'];
+    // Ring colors, chosen to sit at evenly-spaced points around the
+    // hue wheel (roughly 36° apart) rather than picking similar-looking
+    // greens/teals or blues/violets next to each other — every segment
+    // reads as a genuinely different color, not just a different shade
+    // of a color already used elsewhere on the ring. Cycles if there
+    // are more holdings than colors.
+    const RING_COLORS = ['#E4572E', '#F3A712', '#B4C43A', '#4CAF50', '#17A398', '#2E86AB', '#6A4C93', '#A64CA6', '#E0559F', '#8C5E33'];
 
     let currentHoldings = []; // [{ securityId, name, ticker, value, logoUrl, color }]
     let currentPeriod = 'all';
@@ -453,7 +456,7 @@
         const logoHtml = h.logoUrl
           ? `<img src="${h.logoUrl}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class="inv-badge-fallback" style="display:none;">${initials}</span>`
           : `<span class="inv-badge-fallback">${initials}</span>`;
-        badgesHtml += `<div class="inv-ring-badge" style="left:${bxPct}%; top:${byPct}%;" title="${h.name.replace(/"/g,'&quot;')}">
+        badgesHtml += `<div class="inv-ring-badge" style="left:${bxPct}%; top:${byPct}%; --badge-accent:${h.color};" title="${h.name.replace(/"/g,'&quot;')}">
           <span class="inv-badge-icon">${logoHtml}</span>
           <span class="inv-badge-pct">${displayPctLabel}%</span>
         </div>`;

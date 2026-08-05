@@ -158,8 +158,27 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.35);
   white-space: nowrap;
   pointer-events: auto;
+  cursor: default;
+  z-index: 1;
   animation: invBadgeIn 0.4s cubic-bezier(.2,.8,.3,1) backwards;
+  transition: transform 0.28s cubic-bezier(.2,.9,.25,1.4), box-shadow 0.25s ease, background 0.25s ease, border-color 0.25s ease, z-index 0s;
 }
+/* On hover, the badge jumps above every other badge (z-index) and pops
+   toward the viewer — scaled up, lifted, and outlined/glowing in its
+   own segment color (set inline as --badge-accent per badge) so it's
+   unmistakably readable even where badges sit close together around
+   the ring. */
+.inv-ring-badge:hover {
+  transform: translate(-50%, -50%) scale(1.45);
+  z-index: 50;
+  background: #1E2731;
+  border-color: var(--badge-accent, rgba(255,255,255,0.4));
+  box-shadow:
+    0 12px 30px rgba(0,0,0,0.55),
+    0 0 0 1.5px var(--badge-accent, rgba(255,255,255,0.4)),
+    0 0 22px var(--badge-accent, rgba(255,255,255,0.35));
+}
+.inv-ring-badge:hover .inv-badge-pct { color: #fff; }
 @keyframes invBadgeIn {
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
   to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
