@@ -300,31 +300,22 @@
     }
 
 
-    // Ring colors — pulled from and extending the app's own muted vintage
-    // palette (the sage/coral/gold/plum/slate tones already used across
-    // Dashboard's panels and the Premium Tools menu) rather than a bright
-    // hue-wheel spread, so a crowded ring still reads as one cohesive
-    // aesthetic instead of a rainbow. A larger set than before so repeats
-    // are rare even with a lot of holdings. Cycles if there are more
-    // holdings than colors.
-    const RING_COLORS = [
-      '#6EC496', // sage green
-      '#E0806A', // dusty coral
-      '#D8BC7A', // antique gold
-      '#8F7AA8', // muted plum
-      '#6E8FA3', // slate blue
-      '#A88FD8', // soft violet
-      '#C97B4A', // copper
-      '#6EC4B8', // muted teal
-      '#C97B8F', // dusty rose
-      '#9AA85C', // olive moss
-      '#8FA3C4', // dusty periwinkle
-      '#B88F6E', // warm taupe
-      '#7FA88F', // eucalyptus
-      '#A8768F', // mauve
-      '#7B8FA8', // steel blue-grey
-      '#C4A05C', // honey gold
-    ];
+    // Ring colors are generated rather than picked from a fixed list, so
+    // there's effectively no limit on how many distinct holdings can each
+    // get their own color. Hue steps by the golden angle (~137.508°) each
+    // time — the same trick used for evenly-spaced points on a circle —
+    // so consecutive holdings never land on similar hues even with a lot
+    // of them. Saturation and lightness stay locked into a narrow, muted
+    // range (never neon, never washed out) matching the app's own
+    // sage/coral/gold/plum vintage palette, so hundreds of generated
+    // colors still read as one cohesive set rather than a rainbow.
+    const GOLDEN_ANGLE = 137.508;
+    function ringColorForIndex(i) {
+      const hue = (i * GOLDEN_ANGLE) % 360;
+      const sat = 32 + (i % 5) * 5;   // 32%–52%, cycling so nearby hues still vary a touch in intensity
+      const light = 55 + (i % 4) * 4; // 55%–67%, cycling so nearby hues still vary a touch in depth
+      return `hsl(${hue.toFixed(1)}, ${sat}%, ${light}%)`;
+    }
 
     let currentHoldings = []; // [{ securityId, name, ticker, value, logoUrl, color }]
     let currentPeriod = 'all';
@@ -432,7 +423,7 @@
       currentHoldings = Object.values(combinedBySecurityId)
         .filter(h => h.value > 0)
         .sort((a, b) => b.value - a.value)
-        .map((h, i) => ({ ...h, value: round2(h.value), color: RING_COLORS[i % RING_COLORS.length] }));
+        .map((h, i) => ({ ...h, value: round2(h.value), color: ringColorForIndex(i) }));
 
       const { data: snapData } = await supabaseClient
         .from('investment_portfolio_snapshots')
