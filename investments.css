@@ -287,6 +287,106 @@
   transform: scale(1.08);
 }
 
+/* ---------- GROUPED "OTHER" BADGE + LOWER TAB ---------- */
+.inv-badge-other-dots {
+  font-size: 0.7rem;
+  letter-spacing: -0.5px;
+  color: #C7CCD3;
+}
+.inv-ring-badge-other { cursor: pointer; }
+.inv-ring-badge-other .inv-badge-icon {
+  background: rgba(155,147,130,0.16);
+}
+
+.inv-other-panel {
+  width: 100%;
+  max-width: 340px;
+  margin-top: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(155,147,130,0.28);
+  background: linear-gradient(155deg, rgba(155,147,130,0.08), rgba(255,255,255,0.02));
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.32s cubic-bezier(.2,.9,.25,1.1), opacity 0.24s ease, margin-top 0.32s ease, border-color 0.24s ease;
+}
+.inv-other-panel.open {
+  max-height: 320px;
+  opacity: 1;
+}
+.inv-other-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(155,147,130,0.2);
+}
+.inv-other-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--silver);
+  letter-spacing: 0.01em;
+}
+.inv-other-panel-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #9B9382;
+  flex-shrink: 0;
+}
+.inv-other-panel-close {
+  border: none;
+  background: none;
+  color: var(--silver-dim);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: color 0.15s ease;
+}
+.inv-other-panel-close:hover { color: var(--tan); }
+.inv-other-panel-list {
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px 14px 8px;
+}
+.inv-other-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.78rem;
+}
+.inv-other-row:last-child { border-bottom: none; }
+.inv-other-row-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.inv-other-row-ticker {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  color: var(--tan);
+  flex-shrink: 0;
+}
+.inv-other-row-name {
+  color: var(--silver-dim);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inv-other-row-value {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  color: var(--tan);
+  flex-shrink: 0;
+}
+
 @media (max-width: 600px) {
   .inv-ring-wrap { max-width: 260px; margin: 26px auto 32px; }
   .inv-ring-total { font-size: 1.5rem; }

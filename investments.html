@@ -117,6 +117,18 @@
         <button type="button" class="inv-return-pill" id="inv-return-pill">
           <span id="inv-return-text">Tracking since today</span>
         </button>
+
+        <!-- ================= GROUPED "OTHER" TAB ================= -->
+        <div class="inv-other-panel" id="inv-other-panel">
+          <div class="inv-other-panel-head">
+            <span class="inv-other-panel-title">
+              <span class="inv-other-panel-dot"></span>
+              Grouped under 5% <span id="inv-other-panel-count"></span>
+            </span>
+            <button type="button" class="inv-other-panel-close" id="inv-other-panel-close" aria-label="Close">×</button>
+          </div>
+          <div class="inv-other-panel-list" id="inv-other-panel-list"></div>
+        </div>
       </div>
 
       <section class="overview-section">
@@ -288,13 +300,31 @@
     }
 
 
-    // Ring colors, chosen to sit at evenly-spaced points around the
-    // hue wheel (roughly 36° apart) rather than picking similar-looking
-    // greens/teals or blues/violets next to each other — every segment
-    // reads as a genuinely different color, not just a different shade
-    // of a color already used elsewhere on the ring. Cycles if there
-    // are more holdings than colors.
-    const RING_COLORS = ['#E4572E', '#F3A712', '#B4C43A', '#4CAF50', '#17A398', '#2E86AB', '#6A4C93', '#A64CA6', '#E0559F', '#8C5E33'];
+    // Ring colors — pulled from and extending the app's own muted vintage
+    // palette (the sage/coral/gold/plum/slate tones already used across
+    // Dashboard's panels and the Premium Tools menu) rather than a bright
+    // hue-wheel spread, so a crowded ring still reads as one cohesive
+    // aesthetic instead of a rainbow. A larger set than before so repeats
+    // are rare even with a lot of holdings. Cycles if there are more
+    // holdings than colors.
+    const RING_COLORS = [
+      '#6EC496', // sage green
+      '#E0806A', // dusty coral
+      '#D8BC7A', // antique gold
+      '#8F7AA8', // muted plum
+      '#6E8FA3', // slate blue
+      '#A88FD8', // soft violet
+      '#C97B4A', // copper
+      '#6EC4B8', // muted teal
+      '#C97B8F', // dusty rose
+      '#9AA85C', // olive moss
+      '#8FA3C4', // dusty periwinkle
+      '#B88F6E', // warm taupe
+      '#7FA88F', // eucalyptus
+      '#A8768F', // mauve
+      '#7B8FA8', // steel blue-grey
+      '#C4A05C', // honey gold
+    ];
 
     let currentHoldings = []; // [{ securityId, name, ticker, value, logoUrl, color }]
     let currentPeriod = 'all';
@@ -305,6 +335,11 @@
     // logins/devices. Presence in this set = excluded from the ring only —
     // the holdings list below always shows every holding regardless.
     let hiddenSecurityIds = new Set();
+
+    // Whichever visible holdings are currently folded into the ring's
+    // "Other" slice (each under 5% of the visible total) — populated by
+    // renderRing() and read by the panel toggle to build its breakdown list.
+    let currentOtherBreakdown = [];
 
     async function init() {
       const { data: { session } } = await supabaseClient.auth.getSession();
@@ -321,6 +356,7 @@
       setupLedgerMenu();
       setupSettingsGear();
       setupHoldingsToggles();
+      setupOtherPanel();
       document.getElementById('logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.href = 'login.html'; });
       document.getElementById('manage-sub-close').addEventListener('click', () => {
         document.getElementById('manage-sub-overlay').classList.remove('open');
@@ -420,6 +456,40 @@
       const total = round2(visibleHoldings.reduce((s, h) => s + h.value, 0));
       document.getElementById('inv-ring-total').textContent = money(total);
 
+      // Slices under 5% of the visible total get folded into one grey
+      // "Other" segment instead of each claiming their own badge — with
+      // several small holdings, tiny slivers crowd the ring and their
+      // badges start overlapping. There's also a hard cap on individually
+      // labeled badges: if several holdings happen to sit right around
+      // the 5% line (some just over, some just under), the threshold
+      // alone can leave most of them ungrouped and the ring still
+      // crowded — so beyond the 6 largest holdings, everything else
+      // folds into Other regardless of its exact percentage.
+      const OTHER_THRESHOLD = 0.05;
+      const MAX_INDIVIDUAL_BADGES = 6;
+      const sortedByValue = visibleHoldings.slice().sort((a, b) => b.value - a.value);
+      const major = [];
+      const minor = [];
+      sortedByValue.forEach((h, i) => {
+        const pct = total > 0 ? h.value / total : 0;
+        const underThreshold = pct > 0 && pct < OTHER_THRESHOLD;
+        const overCap = i >= MAX_INDIVIDUAL_BADGES;
+        (underThreshold || overCap ? minor : major).push(h);
+      });
+
+      let ringSlices = visibleHoldings;
+      currentOtherBreakdown = [];
+      if (minor.length > 1) {
+        const otherValue = round2(minor.reduce((s, h) => s + h.value, 0));
+        ringSlices = [...major, { securityId: '__other__', name: 'Other', ticker: 'Other', value: otherValue, color: '#9B9382', isOther: true }];
+        currentOtherBreakdown = minor.slice().sort((a, b) => b.value - a.value);
+      }
+
+      // The panel reflects whatever's currently grouped, so close it on
+      // every re-render rather than risk it showing stale holdings after
+      // a toggle changes what's grouped.
+      document.getElementById('inv-other-panel').classList.remove('open');
+
       const svg = document.getElementById('inv-ring-svg');
       const badgesWrap = document.getElementById('inv-ring-badges');
       const cx = 150, cy = 150, r = 118, strokeWidth = 34;
@@ -430,7 +500,7 @@
       let arcsHtml = '';
       let badgesHtml = '';
 
-      visibleHoldings.forEach(h => {
+      ringSlices.forEach(h => {
         const pct = total > 0 ? (h.value / total) : 0;
         const sweepDeg = Math.max(0, pct * 360 - gapDeg);
         const startDeg = cursorDeg;
@@ -452,11 +522,22 @@
 
         const pctLabel = Math.round(pct * 100);
         const displayPctLabel = pctLabel > 0 ? pctLabel : (pct > 0 ? '<1' : '0');
-        const initials = (h.ticker || h.name || '?').slice(0, 4);
-        const logoHtml = h.logoUrl
-          ? `<img src="${h.logoUrl}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class="inv-badge-fallback" style="display:none;">${initials}</span>`
-          : `<span class="inv-badge-fallback">${initials}</span>`;
-        badgesHtml += `<div class="inv-ring-badge" style="left:${bxPct}%; top:${byPct}%; --badge-accent:${h.color};" title="${h.name.replace(/"/g,'&quot;')}">
+
+        let logoHtml;
+        if (h.isOther) {
+          logoHtml = `<span class="inv-badge-fallback inv-badge-other-dots">•••</span>`;
+        } else {
+          const initials = (h.ticker || h.name || '?').slice(0, 4);
+          logoHtml = h.logoUrl
+            ? `<img src="${h.logoUrl}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class="inv-badge-fallback" style="display:none;">${initials}</span>`
+            : `<span class="inv-badge-fallback">${initials}</span>`;
+        }
+
+        const badgeTitle = h.isOther
+          ? `Other — ${currentOtherBreakdown.length} holdings under 5%, click to see them`
+          : h.name.replace(/"/g,'&quot;');
+        const badgeClass = h.isOther ? 'inv-ring-badge inv-ring-badge-other' : 'inv-ring-badge';
+        badgesHtml += `<div class="${badgeClass}" style="left:${bxPct}%; top:${byPct}%; --badge-accent:${h.color};" title="${badgeTitle}" ${h.isOther ? 'data-other="1"' : ''}>
           <span class="inv-badge-icon">${logoHtml}</span>
           <span class="inv-badge-pct">${displayPctLabel}%</span>
         </div>`;
@@ -466,6 +547,37 @@
 
       svg.innerHTML = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="${strokeWidth}"></circle>` + arcsHtml;
       badgesWrap.innerHTML = badgesHtml;
+    }
+
+    function renderOtherBreakdown() {
+      const list = document.getElementById('inv-other-panel-list');
+      const count = document.getElementById('inv-other-panel-count');
+      const total = round2(currentOtherBreakdown.reduce((s, h) => s + h.value, 0));
+      count.textContent = `(${currentOtherBreakdown.length})`;
+      list.innerHTML = currentOtherBreakdown.map(h => {
+        const pct = total > 0 ? round2((h.value / total) * 100) : 0;
+        return `
+        <div class="inv-other-row">
+          <span class="inv-other-row-dot" style="background:${h.color};"></span>
+          <span class="inv-other-row-ticker">${(h.ticker || '—').replace(/</g,'&lt;')}</span>
+          <span class="inv-other-row-name">${h.name.replace(/</g,'&lt;')}</span>
+          <span class="inv-other-row-value">${money(h.value)}</span>
+        </div>`;
+      }).join('');
+    }
+
+    function setupOtherPanel() {
+      const badgesWrap = document.getElementById('inv-ring-badges');
+      const panel = document.getElementById('inv-other-panel');
+      badgesWrap.addEventListener('click', (e) => {
+        const badge = e.target.closest('.inv-ring-badge-other');
+        if (!badge) return;
+        renderOtherBreakdown();
+        panel.classList.toggle('open');
+      });
+      document.getElementById('inv-other-panel-close').addEventListener('click', () => {
+        panel.classList.remove('open');
+      });
     }
 
     function renderHoldingsList() {
