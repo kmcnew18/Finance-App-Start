@@ -364,9 +364,28 @@
       return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     }
 
-    function isFirstOfMonth(d) {
-      const day = d.split('-')[2];
-      return day === '01';
+    // Highlights the actual earliest-dated log entry within each
+    // calendar month, not literally whatever's dated the 1st — most
+    // months' first entry isn't logged exactly on the 1st, so the old
+    // day==='01' check rarely highlighted anything. Computed off the
+    // full unfiltered log (not whatever's currently filtered/visible)
+    // so the highlighted row is always the true first entry of that
+    // month regardless of which type/search filters happen to be
+    // active — it just won't be visible on screen if filtered out.
+    function computeFirstOfMonthIds() {
+      const minDateByMonth = {};
+      allLogRows.forEach(r => {
+        const monthKey = r.entry_date.slice(0, 7);
+        if (!minDateByMonth[monthKey] || r.entry_date < minDateByMonth[monthKey]) {
+          minDateByMonth[monthKey] = r.entry_date;
+        }
+      });
+      const ids = new Set();
+      allLogRows.forEach(r => {
+        const monthKey = r.entry_date.slice(0, 7);
+        if (r.entry_date === minDateByMonth[monthKey]) ids.add(r.id);
+      });
+      return ids;
     }
 
     const rowClassByType = {
@@ -497,6 +516,7 @@
       }
 
       let prevActionType = null;
+      const firstOfMonthIds = computeFirstOfMonthIds();
       tbody.innerHTML = rows.map(r => {
         const isGroupStart = r.action_type !== prevActionType;
         prevActionType = r.action_type;
@@ -516,7 +536,7 @@
         return `
         <tr class="${rowClassByType[r.action_type] || ''}${isGroupStart ? ' log-group-start' : ''}">
           <td><label class="log-check"><input type="checkbox" class="row-select" data-id="${r.id}" /><span class="check-box"></span></label></td>
-          <td class="${isFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${formatDate(r.entry_date)}</td>
+          <td class="${firstOfMonthIds.has(r.id) ? 'log-date-firstofmonth' : ''}">${formatDate(r.entry_date)}</td>
           <td class="num-cell log-amount-cell">${money(r.amount)}</td>
           ${categoryCellsHtml}
           <td class="notes-cell">${r.notes ? r.notes.replace(/</g,'&lt;') : ''}</td>

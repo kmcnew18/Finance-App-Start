@@ -1726,6 +1726,7 @@ input[type="number"]::-webkit-outer-spin-button {
   border-bottom: 1px solid var(--dark-vintage);
   border-right: 1px solid rgba(255,255,255,0.06);
   white-space: nowrap;
+  vertical-align: middle;
 }
 .log-table th:last-child, .log-table td:last-child { border-right: none; }
 .log-table th {
@@ -1756,12 +1757,26 @@ input[type="number"]::-webkit-outer-spin-button {
   color: #F4EEDE;
   text-shadow: 0 0 8px rgba(244,238,222,0.45), 0 0 18px rgba(244,238,222,0.18);
 }
+/* Notes gets real width (rather than the auto-layout letting it stretch
+   as wide as whatever's typed) and wraps onto multiple lines once a
+   note is longer than that — much easier to actually read a longer
+   note than following one long line off the edge of a horizontally
+   scrolling table. vertical-align: top here specifically (overriding
+   the table's default middle) so a wrapped multi-line note lines up
+   with the top of the row instead of floating in the vertical center
+   of a now-taller row. */
 .log-table td.notes-cell {
   font-family: 'Fraunces', serif;
   font-style: italic;
   font-weight: 300;
   color: var(--silver);
   white-space: normal;
+  overflow-wrap: break-word;
+  min-width: 220px;
+  max-width: 360px;
+  line-height: 1.5;
+  vertical-align: top;
+  padding-top: 15px;
 }
 .log-custom-category-badge {
   display: inline-block;
@@ -1959,7 +1974,11 @@ input[type="number"]::-webkit-outer-spin-button {
     padding: 9px 10px;
     font-size: 0.78rem;
   }
-  .log-table td.notes-cell { font-size: 0.8rem; }
+  .log-table td.notes-cell {
+    font-size: 0.8rem;
+    min-width: 140px;
+    max-width: 220px;
+  }
 
   /* Transaction review queue and budget preset prompt */
   .txn-review-head { flex-direction: column; align-items: stretch; }
