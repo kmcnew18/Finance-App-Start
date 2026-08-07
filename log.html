@@ -159,14 +159,10 @@
     <div class="log-table-wrap">
       <table class="log-table" id="log-table">
         <thead>
-          <tr>
+          <tr id="log-table-header-row">
             <th></th>
             <th>Date</th>
             <th>Amount</th>
-            <th>Savings</th>
-            <th>Investment</th>
-            <th>Expenses</th>
-            <th>Checking</th>
             <th>Notes</th>
           </tr>
         </thead>
@@ -384,17 +380,60 @@
 
     let categoryNameById = {}; // resolves custom_category_id to a readable name for display
 
+    // ================= DYNAMIC PER-CATEGORY COLUMNS =================
+    // Every category column (the four built-in ones and any custom
+    // ones) is derived from budget_categories, not hardcoded — so a
+    // category that gets renamed, added, or deleted on Dashboard shows
+    // up (or disappears) here automatically on the next load of this
+    // page, the same way for a default category as for a custom one.
+    // Order follows the same sort_order Dashboard's cards use, so the
+    // column order here matches the card order there.
+    const DEFAULT_CATEGORY_LABELS = { savings: 'Savings', investment: 'Investment', expenses: 'Expenses', checking: 'Checking' };
+    let logColumns = [];
+
+    function buildLogColumns(cats) {
+      return (cats || [])
+        .slice()
+        .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
+        .map(cat => {
+          const key = cat.name.toLowerCase();
+          if (DEFAULT_CATEGORY_LABELS[key]) {
+            return { type: 'default', key, id: cat.id, label: DEFAULT_CATEGORY_LABELS[key] };
+          }
+          return { type: 'custom', key: null, id: cat.id, label: cat.name };
+        });
+    }
+
+    function renderLogTableHeader() {
+      const headerRow = document.getElementById('log-table-header-row');
+      const categoryHeaderHtml = logColumns.map(col => `<th>${col.label.replace(/</g,'&lt;')}</th>`).join('');
+      headerRow.innerHTML = `
+        <th></th>
+        <th>Date</th>
+        <th>Amount</th>
+        ${categoryHeaderHtml}
+        <th>Notes</th>
+      `;
+    }
+
+    // Fixed columns besides the category ones: checkbox, date, amount,
+    // notes — used to size the "no entries"/"loading" placeholder rows
+    // correctly regardless of how many category columns exist.
+    function logFixedColumnCount() { return 4; }
+
     async function loadLog() {
       const tbody = document.getElementById('log-body');
       const [{ data: rows, error }, { data: cats }] = await Promise.all([
         supabaseClient.from('finance_log').select('*').eq('user_id', currentUserId).order('entry_date', { ascending: false }),
-        supabaseClient.from('budget_categories').select('id, name').eq('user_id', currentUserId),
+        supabaseClient.from('budget_categories').select('id, name, sort_order').eq('user_id', currentUserId),
       ]);
       categoryNameById = Object.fromEntries((cats || []).map(c => [c.id, c.name]));
+      logColumns = buildLogColumns(cats);
+      renderLogTableHeader();
 
       if (error) {
         console.error(error);
-        tbody.innerHTML = '<tr><td colspan="8">Could not load your log.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${logFixedColumnCount() + logColumns.length}">Could not load your log.</td></tr>`;
         return;
       }
 
@@ -435,9 +474,10 @@
       const f = getActiveFilters();
       const anyFilterActive = !!(f.search || f.monthKey || f.type);
       clearBtn.style.display = anyFilterActive ? 'inline-block' : 'none';
+      const totalCols = logFixedColumnCount() + logColumns.length;
 
       if (!allLogRows.length) {
-        tbody.innerHTML = '<tr><td colspan="8">No entries yet.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${totalCols}">No entries yet.</td></tr>`;
         countEl.textContent = '';
         return;
       }
@@ -452,7 +492,7 @@
       countEl.textContent = anyFilterActive ? `${rows.length} of ${allLogRows.length} shown` : '';
 
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="8">No entries match your filters.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${totalCols}">No entries match your filters.</td></tr>`;
         return;
       }
 
@@ -460,19 +500,26 @@
       tbody.innerHTML = rows.map(r => {
         const isGroupStart = r.action_type !== prevActionType;
         prevActionType = r.action_type;
-        const customBadge = r.custom_category_id
-          ? `<span class="log-custom-category-badge">${(categoryNameById[r.custom_category_id] || 'Category').replace(/</g,'&lt;')}: ${money(r.custom_category_amount || 0)}</span> `
-          : '';
+
+        // Each category's cell: default categories read straight off
+        // their own finance_log column; a custom category only ever
+        // shows a value on the one row it was actually logged against
+        // (finance_log has room for a single custom_category_id per
+        // row), same as the badge this replaces used to indicate.
+        const categoryCellsHtml = logColumns.map(col => {
+          const val = col.type === 'default'
+            ? Number(r[col.key] || 0)
+            : (r.custom_category_id === col.id ? Number(r.custom_category_amount || 0) : 0);
+          return `<td class="num-cell">${money(val)}</td>`;
+        }).join('');
+
         return `
         <tr class="${rowClassByType[r.action_type] || ''}${isGroupStart ? ' log-group-start' : ''}">
           <td><label class="log-check"><input type="checkbox" class="row-select" data-id="${r.id}" /><span class="check-box"></span></label></td>
           <td class="${isFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${formatDate(r.entry_date)}</td>
           <td class="num-cell log-amount-cell">${money(r.amount)}</td>
-          <td class="num-cell">${money(r.savings)}</td>
-          <td class="num-cell">${money(r.investment)}</td>
-          <td class="num-cell">${money(r.expenses)}</td>
-          <td class="num-cell">${money(r.checking)}</td>
-          <td class="notes-cell">${customBadge}${r.notes ? r.notes.replace(/</g,'&lt;') : ''}</td>
+          ${categoryCellsHtml}
+          <td class="notes-cell">${r.notes ? r.notes.replace(/</g,'&lt;') : ''}</td>
         </tr>
       `;
       }).join('');

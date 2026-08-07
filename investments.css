@@ -82,7 +82,6 @@
 .inv-ring-arc {
   filter: drop-shadow(0 0 8px currentColor);
   transition: stroke-width 0.2s ease;
-  transform-origin: 150px 150px;
   animation: invArcIn 0.7s cubic-bezier(.22,.85,.25,1) backwards;
 }
 /* Each arc grows in from a hairline instead of just appearing — staggered
