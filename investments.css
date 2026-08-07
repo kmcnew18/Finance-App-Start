@@ -19,6 +19,13 @@
 .inv-holdings-sub {
   font-size: 0.72rem;
 }
+#inv-content.inv-fade-in {
+  animation: invContentIn 0.5s cubic-bezier(.2,.85,.25,1) both;
+}
+@keyframes invContentIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 /* ---------- EMPTY STATE ---------- */
 .inv-empty-state {
@@ -28,7 +35,7 @@
   text-align: center;
   padding: 60px 24px;
   border: 1.5px dashed rgba(168,143,216,0.3);
-  border-radius: 16px;
+  border-radius: 22px;
   background: linear-gradient(155deg, rgba(168,143,216,0.06), rgba(255,255,255,0.02));
 }
 .inv-empty-icon {
@@ -45,18 +52,23 @@
 
 /* ---------- RING CARD ---------- */
 .inv-ring-card {
-  background: linear-gradient(155deg, rgba(168,143,216,0.09), rgba(255,255,255,0.02) 55%, rgba(168,143,216,0.05));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(168,143,216,0.22);
-  border-radius: 20px;
-  padding: 34px 24px 26px;
+  background: linear-gradient(155deg, rgba(168,143,216,0.1), rgba(255,255,255,0.02) 55%, rgba(168,143,216,0.06));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(168,143,216,0.24);
+  border-radius: 26px;
+  padding: 38px 26px 30px;
   margin-bottom: 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04);
+  box-shadow: 0 10px 36px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
   position: relative;
+  animation: invCardIn 0.5s cubic-bezier(.2,.85,.25,1.05) backwards;
+}
+@keyframes invCardIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .inv-ring-wrap {
@@ -68,8 +80,17 @@
 }
 .inv-ring-svg { width: 100%; height: 100%; overflow: visible; }
 .inv-ring-arc {
-  filter: drop-shadow(0 0 6px currentColor);
+  filter: drop-shadow(0 0 8px currentColor);
   transition: stroke-width 0.2s ease;
+  transform-origin: 150px 150px;
+  animation: invArcIn 0.7s cubic-bezier(.22,.85,.25,1) backwards;
+}
+/* Each arc grows in from a hairline instead of just appearing — staggered
+   per-segment via an inline animation-delay set in JS, so the ring reads
+   as drawing itself in rather than popping into place all at once. */
+@keyframes invArcIn {
+  from { opacity: 0; stroke-width: 4; }
+  to { opacity: 1; stroke-width: 36; }
 }
 
 .inv-ring-center {
@@ -84,10 +105,12 @@
 }
 .inv-ring-total {
   font-family: 'Fraunces', serif;
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 600;
   color: var(--tan);
-  text-shadow: 0 0 20px rgba(168,143,216,0.3);
+  text-shadow: 0 0 22px rgba(168,143,216,0.32);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 .inv-period-select {
   pointer-events: auto;
@@ -184,21 +207,28 @@
   to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 .inv-badge-icon {
-  width: 22px; height: 22px;
+  width: 26px; height: 26px;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.06);
+  border: 1.5px solid var(--badge-accent, rgba(255,255,255,0.14));
+  transition: border-color 0.25s ease;
 }
-.inv-badge-icon img { width: 100%; height: 100%; object-fit: cover; }
+.inv-badge-icon img {
+  width: 100%; height: 100%; object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.inv-badge-icon img.inv-logo-loaded { opacity: 1; }
 .inv-badge-fallback {
-  font-size: 0.55rem;
+  font-size: 0.58rem;
   font-weight: 700;
   color: var(--violet-bright);
   font-family: 'IBM Plex Mono', monospace;
 }
-.inv-badge-pct { font-size: 0.76rem; font-weight: 700; color: var(--tan); }
+.inv-badge-pct { font-size: 0.78rem; font-weight: 600; color: var(--tan); letter-spacing: 0.01em; }
 
 /* ---------- RETURN PILL ---------- */
 .inv-return-pill {
@@ -217,39 +247,59 @@
 .inv-return-negative { border-color: rgba(224,128,106,0.35); background: rgba(224,128,106,0.08); color: var(--subtract-accent-hover); }
 
 /* ---------- HOLDINGS LIST ---------- */
-.inv-holdings-list { display: flex; flex-direction: column; gap: 2px; }
+.inv-holdings-list { display: flex; flex-direction: column; gap: 4px; }
 .inv-holding-row {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 4px;
-  border-bottom: 1px solid var(--panel-border);
-  transition: background 0.15s ease;
+  padding: 13px 10px;
+  margin: 0 -10px;
+  border-radius: 14px;
+  transition: background 0.2s ease, transform 0.2s ease;
+  animation: invRowIn 0.4s cubic-bezier(.2,.85,.28,1) backwards;
 }
-.inv-holding-row:hover { background: rgba(255,255,255,0.02); }
-.inv-holding-row:last-child { border-bottom: none; }
+.inv-holding-row:hover { background: rgba(255,255,255,0.035); transform: translateY(-1px); }
+.inv-holding-row:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.045); }
+.inv-holding-row:hover:not(:last-child) { border-bottom-color: transparent; }
+@keyframes invRowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .inv-row-icon {
-  width: 38px; height: 38px;
+  width: 44px; height: 44px;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.04);
+  border: 2px solid var(--row-accent, rgba(255,255,255,0.14));
+  box-shadow: 0 0 0 3px var(--row-accent-glow, transparent);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.inv-row-icon img { width: 100%; height: 100%; object-fit: cover; }
+.inv-holding-row:hover .inv-row-icon {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 4px var(--row-accent-glow, transparent), 0 4px 14px rgba(0,0,0,0.3);
+}
+.inv-row-icon img {
+  width: 100%; height: 100%; object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.inv-row-icon img.inv-logo-loaded { opacity: 1; }
 .inv-row-icon-fallback {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
   border-radius: 50%;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 700;
   font-family: 'IBM Plex Mono', monospace;
 }
 .inv-row-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.inv-row-ticker { font-size: 0.92rem; font-weight: 700; color: var(--tan); font-family: 'IBM Plex Mono', monospace; }
-.inv-row-name { font-size: 0.76rem; color: var(--silver-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-row-ticker { font-size: 0.94rem; font-weight: 600; color: var(--tan); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.01em; }
+.inv-row-name { font-size: 0.78rem; color: var(--silver-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-row-values { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
-.inv-row-value { font-size: 0.92rem; font-weight: 700; color: var(--tan); font-family: 'Fraunces', serif; }
-.inv-row-pct { font-size: 0.74rem; color: var(--violet-bright); font-weight: 600; }
+.inv-row-value { font-size: 0.94rem; font-weight: 600; color: var(--tan); font-family: 'Fraunces', serif; font-variant-numeric: tabular-nums; }
+.inv-row-pct { font-size: 0.76rem; color: var(--violet-bright); font-weight: 600; }
 
 /* ---------- PER-HOLDING VISIBILITY TOGGLE ----------
    Reuses the same .switch/.switch-slider structure already defined
@@ -389,10 +439,11 @@
 
 @media (max-width: 600px) {
   .inv-ring-wrap { max-width: 260px; margin: 26px auto 32px; }
-  .inv-ring-total { font-size: 1.5rem; }
-  .inv-ring-card { padding: 24px 16px 20px; }
-  .inv-badge-pct { font-size: 0.7rem; }
-  .inv-ring-badge { padding: 3px 8px 3px 3px; }
-  .inv-badge-icon { width: 18px; height: 18px; }
+  .inv-ring-total { font-size: 1.65rem; }
+  .inv-ring-card { padding: 26px 18px 22px; border-radius: 22px; }
+  .inv-badge-pct { font-size: 0.72rem; }
+  .inv-ring-badge { padding: 3px 9px 3px 3px; }
+  .inv-badge-icon { width: 22px; height: 22px; }
   .inv-holding-row { gap: 10px; }
+  .inv-row-icon { width: 38px; height: 38px; }
 }
