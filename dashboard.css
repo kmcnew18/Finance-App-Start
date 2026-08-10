@@ -816,6 +816,13 @@ h1, h2, h3 {
 .txn-review-row:has(.txn-action-select option[value="add"]:checked)::before,
 .txn-review-row[data-suggested="add"]::before { background: var(--emerald-bright, #63D9AA); }
 .txn-review-row[data-suggested="subtract"]::before { background: var(--coral, #E0806A); }
+/* Transfers get the same gold used everywhere else in the app for
+   money moving between your own categories/accounts (the Transfer
+   panel, its glow) — not red, since a transfer isn't spending, and
+   not green, since it isn't income either. Placed after the add/
+   subtract rules so it wins regardless of which suggested_action a
+   detected transfer happened to land on. */
+.txn-review-row[data-transfer="true"]::before { background: var(--transfer-glow, #E0B96E); }
 .txn-review-row:hover { background: rgba(255,255,255,0.045); border-color: rgba(232,225,211,0.18); }
 
 .txn-review-info { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; gap: 10px; }
