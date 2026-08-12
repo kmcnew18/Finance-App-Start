@@ -813,15 +813,19 @@ h1, h2, h3 {
   background: var(--emerald-bright, #63D9AA);
   opacity: 0.75;
 }
-.txn-review-row:has(.txn-action-select option[value="add"]:checked)::before,
+.txn-review-row:not([data-transfer="true"]):has(.txn-action-select option[value="add"]:checked)::before,
 .txn-review-row[data-suggested="add"]::before { background: var(--emerald-bright, #63D9AA); }
 .txn-review-row[data-suggested="subtract"]::before { background: var(--coral, #E0806A); }
 /* Transfers get the same gold used everywhere else in the app for
    money moving between your own categories/accounts (the Transfer
    panel, its glow) — not red, since a transfer isn't spending, and
-   not green, since it isn't income either. Placed after the add/
-   subtract rules so it wins regardless of which suggested_action a
-   detected transfer happened to land on. */
+   not green, since it isn't income either. The :has() rule above is
+   explicitly excluded from matching transfers (:not([data-transfer=
+   "true"])) — without that, its specificity (calculated from what's
+   inside the parentheses: a class + attribute + pseudo-class + an
+   element) beats this plain attribute selector regardless of source
+   order, so a transfer whose suggested_action happens to be "add"
+   would still render green no matter where this rule sits in the file. */
 .txn-review-row[data-transfer="true"]::before { background: var(--transfer-glow, #E0B96E); }
 .txn-review-row:hover { background: rgba(255,255,255,0.045); border-color: rgba(232,225,211,0.18); }
 
