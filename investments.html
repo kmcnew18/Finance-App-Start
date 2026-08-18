@@ -407,7 +407,39 @@
         return;
       }
 
-      const securityIds = [...new Set(holdings.map(h => h.security_id))];
+      // A holding's row persists in the table even after the position is
+      // sold — the sync job upserts whatever Plaid currently reports for
+      // an account, but nothing deletes the row for a security Plaid
+      // stops reporting, so a sold-off holding just sits there forever
+      // with its last-known (real, nonzero) value from before the sale.
+      // Every security actually still held gets a fresh `updated_at` on
+      // every sync; a sold one keeps whatever `updated_at` it had at the
+      // last sync before it disappeared. So: find each account's most
+      // recent `updated_at` among its holdings (that sync's batch time),
+      // and only keep rows that were actually touched in that same
+      // batch — anything older wasn't reconfirmed by the latest sync,
+      // meaning Plaid no longer lists it as held.
+      const latestUpdateByAccount = {};
+      holdings.forEach(h => {
+        const t = new Date(h.updated_at).getTime();
+        if (!latestUpdateByAccount[h.linked_account_id] || t > latestUpdateByAccount[h.linked_account_id]) {
+          latestUpdateByAccount[h.linked_account_id] = t;
+        }
+      });
+      const SYNC_BATCH_TOLERANCE_MS = 5 * 60 * 1000; // upserts within one sync run should all land within a few minutes of each other
+      const currentHoldingRows = holdings.filter(h => {
+        const t = new Date(h.updated_at).getTime();
+        const latest = latestUpdateByAccount[h.linked_account_id];
+        return latest - t <= SYNC_BATCH_TOLERANCE_MS;
+      });
+
+      if (!currentHoldingRows.length) {
+        document.getElementById('inv-empty-state').style.display = 'flex';
+        document.getElementById('inv-content').style.display = 'none';
+        return;
+      }
+
+      const securityIds = [...new Set(currentHoldingRows.map(h => h.security_id))];
       const { data: securities } = await supabaseClient.from('investment_securities').select('*').in('security_id', securityIds);
       const securityById = Object.fromEntries((securities || []).map(s => [s.security_id, s]));
 
@@ -416,7 +448,7 @@
       // retirement account showing the same ticker twice would just be
       // confusing, not more informative.
       const combinedBySecurityId = {};
-      holdings.forEach(h => {
+      currentHoldingRows.forEach(h => {
         const sec = securityById[h.security_id] || {};
         const key = h.security_id;
         if (!combinedBySecurityId[key]) {
