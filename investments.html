@@ -70,6 +70,20 @@
     </div>
   </div>
 
+  <!-- ================= TAG ACCOUNTS: TAXABLE / ROTH ================= -->
+  <div class="mfa-overlay" id="account-types-overlay">
+    <div class="mfa-modal" style="max-width: 440px;">
+      <div class="mfa-modal-head">
+        <h2>Account types</h2>
+        <button type="button" class="mfa-modal-close" id="account-types-close">×</button>
+      </div>
+      <div class="mfa-modal-body">
+        <p class="mfa-modal-sub" style="margin-bottom:14px;">Tag each connected investment account as taxable or Roth — this is what the Taxable/Roth tabs above the chart use to split things out.</p>
+        <div class="inv-account-type-list" id="account-types-list"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="wip-banner">Early development · some features may not be live</div>
 
   <main class="dash-main" id="inv-main" style="display:none; max-width: 640px;">
@@ -93,6 +107,16 @@
 
     <!-- ================= DONUT + LIST ================= -->
     <div id="inv-content" style="display:none;">
+
+      <div class="inv-scope-row">
+        <div class="inv-scope-tabs" id="inv-scope-tabs">
+          <button type="button" class="inv-scope-tab active" data-scope="all">All</button>
+          <button type="button" class="inv-scope-tab" data-scope="taxable">Taxable</button>
+          <button type="button" class="inv-scope-tab" data-scope="roth">Roth</button>
+        </div>
+        <button type="button" class="inv-scope-manage-btn" id="inv-manage-account-types-btn">Tag accounts</button>
+      </div>
+
       <div class="inv-ring-card">
         <div class="inv-ring-wrap" id="inv-ring-wrap">
           <svg viewBox="0 0 300 300" class="inv-ring-svg" id="inv-ring-svg"></svg>
@@ -131,7 +155,15 @@
         </div>
       </div>
 
-      <section class="overview-section">
+      <!-- Shown instead of the ring/holdings when the selected scope
+           (Taxable or Roth) has nothing in it, even though the
+           portfolio overall isn't empty. -->
+      <div class="inv-scope-empty" id="inv-scope-empty" style="display:none;">
+        <span id="inv-scope-empty-text"></span>
+        <button type="button" class="inv-scope-empty-tag-btn" id="inv-scope-empty-tag-btn">Tag accounts</button>
+      </div>
+
+      <section class="overview-section" id="inv-holdings-section">
         <div class="overview-section-head">
           <span class="overview-section-title inv-title" style="font-size:1.1rem;">Holdings</span>
           <span class="overview-section-sub inv-holdings-sub">Tap the switch on any holding to leave it in or out of the chart above</span>
@@ -305,21 +337,21 @@
     // get their own color. Hue steps by the golden angle (~137.508°) each
     // time — the same trick used for evenly-spaced points on a circle —
     // so consecutive holdings never land on similar hues even with a lot
-    // of them. Saturation and lightness stay locked into a narrow, muted
-    // range (never neon, never washed out) matching the app's own
-    // sage/coral/gold/plum vintage palette, so hundreds of generated
-    // colors still read as one cohesive set rather than a rainbow.
+    // of them. Saturation and lightness are pushed high (vivid, glowing)
+    // rather than muted, so the ring reads like a neon sign instead of
+    // pale/washed-out — paired with the stronger multi-layer glow on the
+    // arcs themselves (see .inv-ring-arc).
     const GOLDEN_ANGLE = 137.508;
     function ringColorForIndex(i) {
       const hue = (i * GOLDEN_ANGLE) % 360;
-      const sat = 32 + (i % 5) * 5;   // 32%–52%, cycling so nearby hues still vary a touch in intensity
-      const light = 55 + (i % 4) * 4; // 55%–67%, cycling so nearby hues still vary a touch in depth
+      const sat = 78 + (i % 4) * 5;   // 78%–93%, vivid across the board
+      const light = 56 + (i % 3) * 6; // 56%–68%, bright enough to actually glow on a dark background
       return {
         solid: `hsl(${hue.toFixed(1)} ${sat}% ${light}%)`,
         // A translucent version of the same color, used for the soft glow
         // ring behind each holding's logo — ties every logo visually back
         // to its own slice of the donut without needing a second palette.
-        glow: `hsl(${hue.toFixed(1)} ${sat}% ${light}% / 45%)`,
+        glow: `hsl(${hue.toFixed(1)} ${sat}% ${light}% / 55%)`,
       };
     }
 
@@ -344,6 +376,22 @@
     let currentHoldings = []; // [{ securityId, name, ticker, value, logoUrl, color }]
     let currentPeriod = 'all';
     let snapshots = []; // [{ snapshot_date, total_value }]
+
+    // Every current (non-stale) holding row and the security lookup,
+    // kept around after the initial load so switching between the
+    // All/Taxable/Roth tabs just re-filters and re-combines in memory
+    // instead of re-querying Supabase on every tab click.
+    let rawHoldingRows = [];
+    let securityById = {};
+
+    // linked_account_id -> 'taxable' | 'roth' | null, and the raw list
+    // behind it (for the "Tag accounts" modal) — built from whichever
+    // accounts actually show up in rawHoldingRows, since those are the
+    // only ones relevant to this page.
+    let accountTaxTypeById = {};
+    let investmentAccounts = []; // [{ id, label, taxType }]
+
+    let selectedScope = 'all'; // 'all' | 'taxable' | 'roth'
 
     // Securities the user has toggled OFF the ring chart. Persisted in
     // Supabase (investment_hidden_holdings) so it's remembered across
@@ -372,6 +420,8 @@
       setupSettingsGear();
       setupHoldingsToggles();
       setupOtherPanel();
+      setupScopeTabs();
+      setupAccountTypesModal();
       document.getElementById('logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.href = 'login.html'; });
       document.getElementById('manage-sub-close').addEventListener('click', () => {
         document.getElementById('manage-sub-overlay').classList.remove('open');
@@ -398,7 +448,7 @@
     async function loadPortfolio() {
       const { data: holdings } = await supabaseClient
         .from('investment_holdings')
-        .select('*, linked_accounts(nickname, institution_name)')
+        .select('*, linked_accounts(nickname, institution_name, investment_tax_type)')
         .eq('user_id', currentUserId);
 
       if (!holdings || !holdings.length) {
@@ -427,62 +477,37 @@
         }
       });
       const SYNC_BATCH_TOLERANCE_MS = 5 * 60 * 1000; // upserts within one sync run should all land within a few minutes of each other
-      const currentHoldingRows = holdings.filter(h => {
+      rawHoldingRows = holdings.filter(h => {
         const t = new Date(h.updated_at).getTime();
         const latest = latestUpdateByAccount[h.linked_account_id];
         return latest - t <= SYNC_BATCH_TOLERANCE_MS;
       });
 
-      if (!currentHoldingRows.length) {
+      if (!rawHoldingRows.length) {
         document.getElementById('inv-empty-state').style.display = 'flex';
         document.getElementById('inv-content').style.display = 'none';
         return;
       }
 
-      const securityIds = [...new Set(currentHoldingRows.map(h => h.security_id))];
+      const securityIds = [...new Set(rawHoldingRows.map(h => h.security_id))];
       const { data: securities } = await supabaseClient.from('investment_securities').select('*').in('security_id', securityIds);
-      const securityById = Object.fromEntries((securities || []).map(s => [s.security_id, s]));
+      securityById = Object.fromEntries((securities || []).map(s => [s.security_id, s]));
 
-      // Combine holdings of the same security across multiple accounts
-      // into one line — a brokerage split across a taxable and a
-      // retirement account showing the same ticker twice would just be
-      // confusing, not more informative.
-      const combinedBySecurityId = {};
-      currentHoldingRows.forEach(h => {
-        const sec = securityById[h.security_id] || {};
-        const key = h.security_id;
-        if (!combinedBySecurityId[key]) {
-          // Plaid's own security logos are inconsistent, especially for
-          // ETFs/funds (VOO, VTI, SPY and similar routinely come back
-          // with no logo_url at all, even though individual stocks
-          // often do). This fills that gap with a second, ticker-keyed
-          // public logo source, tried only when Plaid has nothing —
-          // the styled-initials badge is still the final fallback if
-          // this one 404s too, so nothing ever renders broken.
-          const fallbackLogoUrl = sec.ticker_symbol
-            ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(sec.ticker_symbol)}?format=png`
-            : null;
-          combinedBySecurityId[key] = { securityId: key, name: sec.name || 'Unknown security', ticker: sec.ticker_symbol || '—', logoUrl: sec.logo_url || fallbackLogoUrl, value: 0, costBasis: 0, hasCostBasis: false };
-        }
-        combinedBySecurityId[key].value += Number(h.institution_value) || 0;
-        // cost_basis can be null for a position if the brokerage/Plaid
-        // doesn't report it (common for some account types) — tracked
-        // separately from the numeric total so "all time" can tell the
-        // difference between "this position has zero gain" and "this
-        // position's cost basis just isn't available."
-        if (h.cost_basis != null) {
-          combinedBySecurityId[key].costBasis += Number(h.cost_basis) || 0;
-          combinedBySecurityId[key].hasCostBasis = true;
-        }
+      // The account list behind the "Tag accounts" modal and the
+      // Taxable/Roth filtering — one entry per account that actually
+      // has a current holding, not every linked account in general.
+      const accountsById = {};
+      rawHoldingRows.forEach(h => {
+        if (accountsById[h.linked_account_id]) return;
+        const acct = h.linked_accounts || {};
+        accountsById[h.linked_account_id] = {
+          id: h.linked_account_id,
+          label: acct.nickname || acct.institution_name || 'Account',
+          taxType: acct.investment_tax_type || null,
+        };
       });
-
-      currentHoldings = Object.values(combinedBySecurityId)
-        .filter(h => h.value > 0)
-        .sort((a, b) => b.value - a.value)
-        .map((h, i) => {
-          const c = ringColorForIndex(i);
-          return { ...h, value: round2(h.value), color: c.solid, glowColor: c.glow };
-        });
+      investmentAccounts = Object.values(accountsById);
+      accountTaxTypeById = Object.fromEntries(investmentAccounts.map(a => [a.id, a.taxType]));
 
       const { data: snapData } = await supabaseClient
         .from('investment_portfolio_snapshots')
@@ -494,9 +519,161 @@
       document.getElementById('inv-empty-state').style.display = 'none';
       document.getElementById('inv-content').style.display = 'block';
       document.getElementById('inv-content').classList.add('inv-fade-in');
+      renderScope(selectedScope);
+    }
+
+    // Filters the cached raw holding rows down to one account-type
+    // scope and re-runs the same per-security combine that used to
+    // happen once in loadPortfolio() — colors are reassigned fresh
+    // each time too, since which holdings are even in the running
+    // (and therefore their sort order) changes per scope.
+    function combineHoldingsForScope(scope) {
+      const rows = scope === 'all'
+        ? rawHoldingRows
+        : rawHoldingRows.filter(h => accountTaxTypeById[h.linked_account_id] === scope);
+
+      const combinedBySecurityId = {};
+      rows.forEach(h => {
+        const sec = securityById[h.security_id] || {};
+        const key = h.security_id;
+        if (!combinedBySecurityId[key]) {
+          const fallbackLogoUrl = sec.ticker_symbol
+            ? `https://assets.parqet.com/logos/symbol/${encodeURIComponent(sec.ticker_symbol)}?format=png`
+            : null;
+          combinedBySecurityId[key] = { securityId: key, name: sec.name || 'Unknown security', ticker: sec.ticker_symbol || '—', logoUrl: sec.logo_url || fallbackLogoUrl, value: 0, costBasis: 0, hasCostBasis: false };
+        }
+        combinedBySecurityId[key].value += Number(h.institution_value) || 0;
+        if (h.cost_basis != null) {
+          combinedBySecurityId[key].costBasis += Number(h.cost_basis) || 0;
+          combinedBySecurityId[key].hasCostBasis = true;
+        }
+      });
+
+      return Object.values(combinedBySecurityId)
+        .filter(h => h.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .map((h, i) => {
+          const c = ringColorForIndex(i);
+          return { ...h, value: round2(h.value), color: c.solid, glowColor: c.glow };
+        });
+    }
+
+    // Snapshot history (used for the 1w/1m/3m/1y return pill) tracks
+    // the whole portfolio's value over time, not split by account tax
+    // type — there's no way to know what portion of a snapshot from
+    // three months ago was taxable vs. Roth. So a scoped view (Taxable
+    // or Roth alone) only ever gets the cost-basis-based "All time"
+    // return, which is computed per-holding and scopes correctly on
+    // its own; the period picker is disabled rather than showing a
+    // number that would silently be wrong.
+    function updatePeriodPickerAvailability() {
+      const btn = document.getElementById('inv-period-select');
+      const scoped = selectedScope !== 'all';
+      if (scoped) {
+        currentPeriod = 'all';
+        document.getElementById('inv-period-label').textContent = 'All time';
+        document.querySelectorAll('.inv-period-option').forEach(o => o.classList.toggle('active', o.dataset.period === 'all'));
+      }
+      btn.classList.toggle('inv-period-select-disabled', scoped);
+      btn.disabled = scoped;
+      btn.title = scoped ? 'Period tracking only covers the whole portfolio, not a single account type' : '';
+    }
+
+    function renderScope(scope) {
+      selectedScope = scope;
+      document.querySelectorAll('.inv-scope-tab').forEach(t => t.classList.toggle('active', t.dataset.scope === scope));
+      updatePeriodPickerAvailability();
+
+      const rows = combineHoldingsForScope(scope);
+      currentHoldings = rows;
+
+      const ringCard = document.querySelector('.inv-ring-card');
+      const holdingsSection = document.getElementById('inv-holdings-section');
+      const scopeEmpty = document.getElementById('inv-scope-empty');
+
+      if (!rows.length && scope !== 'all') {
+        ringCard.style.display = 'none';
+        holdingsSection.style.display = 'none';
+        scopeEmpty.style.display = 'flex';
+        document.getElementById('inv-scope-empty-text').textContent =
+          `No ${scope === 'taxable' ? 'taxable' : 'Roth'} holdings — either nothing's tagged that way yet, or this account type just isn't in your portfolio.`;
+        return;
+      }
+
+      ringCard.style.display = 'flex';
+      holdingsSection.style.display = 'block';
+      scopeEmpty.style.display = 'none';
+
       renderRing();
       renderHoldingsList();
       updateReturnPill();
+    }
+
+    function setupScopeTabs() {
+      document.getElementById('inv-scope-tabs').addEventListener('click', (e) => {
+        const btn = e.target.closest('.inv-scope-tab');
+        if (!btn) return;
+        renderScope(btn.dataset.scope);
+      });
+      document.getElementById('inv-manage-account-types-btn').addEventListener('click', openAccountTypesModal);
+      document.getElementById('inv-scope-empty-tag-btn').addEventListener('click', openAccountTypesModal);
+    }
+
+    // ================= TAG ACCOUNTS: TAXABLE / ROTH =================
+    function renderAccountTypesList() {
+      const list = document.getElementById('account-types-list');
+      if (!investmentAccounts.length) {
+        list.innerHTML = `<p class="mfa-modal-sub">No connected investment accounts found.</p>`;
+        return;
+      }
+      list.innerHTML = investmentAccounts.map(a => `
+        <div class="inv-account-type-row" data-account-id="${a.id}">
+          <span class="inv-account-type-label">${a.label.replace(/</g,'&lt;')}</span>
+          <div class="inv-account-type-choice">
+            <button type="button" class="inv-account-type-btn ${a.taxType === 'taxable' ? 'active' : ''}" data-tax-type="taxable">Taxable</button>
+            <button type="button" class="inv-account-type-btn ${a.taxType === 'roth' ? 'active' : ''}" data-tax-type="roth">Roth</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openAccountTypesModal() {
+      renderAccountTypesList();
+      document.getElementById('account-types-overlay').classList.add('open');
+    }
+
+    function setupAccountTypesModal() {
+      document.getElementById('account-types-close').addEventListener('click', () => {
+        document.getElementById('account-types-overlay').classList.remove('open');
+      });
+      document.getElementById('account-types-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'account-types-overlay') document.getElementById('account-types-overlay').classList.remove('open');
+      });
+
+      document.getElementById('account-types-list').addEventListener('click', async (e) => {
+        const btn = e.target.closest('.inv-account-type-btn');
+        if (!btn) return;
+        const row = btn.closest('.inv-account-type-row');
+        const accountId = row.dataset.accountId;
+        const newTaxType = btn.dataset.taxType;
+        const account = investmentAccounts.find(a => a.id === accountId);
+        // Clicking an already-active choice clears the tag back to
+        // unset, rather than being a no-op — the only way to untag an
+        // account otherwise would be leaving the modal and never
+        // seeing that state again.
+        const settingTo = account && account.taxType === newTaxType ? null : newTaxType;
+
+        const { error } = await supabaseClient
+          .from('linked_accounts')
+          .update({ investment_tax_type: settingTo })
+          .eq('id', accountId);
+        if (error) { await arkoAlert('Could not save: ' + error.message); return; }
+
+        if (account) account.taxType = settingTo;
+        accountTaxTypeById[accountId] = settingTo;
+        renderAccountTypesList();
+        renderScope(selectedScope);
+      });
     }
 
     function renderRing() {

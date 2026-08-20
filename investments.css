@@ -50,6 +50,126 @@
 .inv-empty-title { font-family: 'Fraunces', serif; font-size: 1.15rem; color: var(--tan); margin-bottom: 8px; }
 .inv-empty-sub { font-size: 0.85rem; color: var(--silver-dim); max-width: 420px; line-height: 1.55; }
 
+/* ---------- SCOPE TABS (All / Taxable / Roth) ---------- */
+.inv-scope-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.inv-scope-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(168,143,216,0.22);
+  background: rgba(255,255,255,0.02);
+}
+.inv-scope-tab {
+  padding: 7px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--silver-dim);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.inv-scope-tab:hover { color: var(--tan); }
+.inv-scope-tab.active {
+  background: rgba(168,143,216,0.18);
+  color: var(--violet-bright);
+  box-shadow: 0 0 10px rgba(168,143,216,0.28);
+}
+.inv-scope-manage-btn {
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,0.02);
+  color: var(--silver-dim);
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.inv-scope-manage-btn:hover { background: rgba(168,143,216,0.1); border-color: rgba(168,143,216,0.35); color: var(--violet-bright); }
+
+.inv-scope-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 48px 24px;
+  border: 1.5px dashed rgba(168,143,216,0.3);
+  border-radius: 22px;
+  background: linear-gradient(155deg, rgba(168,143,216,0.06), rgba(255,255,255,0.02));
+  color: var(--silver-dim);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.inv-scope-empty-tag-btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  background: var(--violet-bright);
+  color: #171422;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.inv-scope-empty-tag-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(168,143,216,0.3); }
+
+/* Period picker disabled state — Taxable/Roth scopes can't show
+   period-based returns since snapshot history isn't split by account
+   type (see updatePeriodPickerAvailability in the script). */
+.inv-period-select-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.inv-period-select-disabled:hover { background: rgba(168,143,216,0.08); border-color: rgba(168,143,216,0.3); }
+
+/* ---------- TAG ACCOUNTS MODAL ---------- */
+.inv-account-type-list { display: flex; flex-direction: column; gap: 10px; }
+.inv-account-type-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255,255,255,0.02);
+}
+.inv-account-type-label { font-size: 0.85rem; font-weight: 600; color: var(--tan); }
+.inv-account-type-choice { display: flex; gap: 6px; flex-shrink: 0; }
+.inv-account-type-btn {
+  padding: 7px 13px;
+  border-radius: 20px;
+  border: 1px solid rgba(168,143,216,0.3);
+  background: rgba(168,143,216,0.05);
+  color: var(--silver-dim);
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-family: 'Public Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.inv-account-type-btn:hover { border-color: rgba(168,143,216,0.55); color: var(--tan); }
+.inv-account-type-btn.active {
+  background: var(--violet-bright);
+  border-color: var(--violet-bright);
+  color: #171422;
+}
+
 /* ---------- RING CARD ---------- */
 .inv-ring-card {
   background: linear-gradient(155deg, rgba(168,143,216,0.1), rgba(255,255,255,0.02) 55%, rgba(168,143,216,0.06));
@@ -80,9 +200,16 @@
 }
 .inv-ring-svg { width: 100%; height: 100%; overflow: visible; }
 .inv-ring-arc {
-  filter: drop-shadow(0 0 8px currentColor);
+  /* Three stacked layers instead of one soft shadow — a tight bright
+     core, a mid-range bloom, and a wide, faint halo — the same
+     construction that makes an actual neon tube read as "lit" rather
+     than just colored: a hard line with light visibly spilling off it. */
+  filter:
+    drop-shadow(0 0 3px currentColor)
+    drop-shadow(0 0 10px currentColor)
+    drop-shadow(0 0 22px currentColor);
   transition: stroke-width 0.2s ease;
-  animation: invArcIn 0.7s cubic-bezier(.22,.85,.25,1) backwards;
+  animation: invArcIn 0.7s cubic-bezier(.22,.85,.25,1) backwards, invArcGlowPulse 3.6s ease-in-out infinite;
 }
 /* Each arc grows in from a hairline instead of just appearing — staggered
    per-segment via an inline animation-delay set in JS, so the ring reads
@@ -90,6 +217,13 @@
 @keyframes invArcIn {
   from { opacity: 0; stroke-width: 4; }
   to { opacity: 1; stroke-width: 36; }
+}
+/* A slow, subtle brightness breathing — like a neon sign's tube current
+   never being perfectly steady. Kept gentle (0.9–1 opacity) so it reads
+   as ambient life rather than a distracting flicker. */
+@keyframes invArcGlowPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.9; }
 }
 
 .inv-ring-center {
@@ -213,7 +347,8 @@
   display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.06);
   border: 1.5px solid var(--badge-accent, rgba(255,255,255,0.14));
-  transition: border-color 0.25s ease;
+  box-shadow: 0 0 8px 0 var(--badge-accent, transparent);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 .inv-badge-icon img {
   width: 100%; height: 100%; object-fit: cover;
@@ -272,12 +407,12 @@
   display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.04);
   border: 2px solid var(--row-accent, rgba(255,255,255,0.14));
-  box-shadow: 0 0 0 3px var(--row-accent-glow, transparent);
+  box-shadow: 0 0 10px 1px var(--row-accent-glow, transparent);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .inv-holding-row:hover .inv-row-icon {
   transform: scale(1.06);
-  box-shadow: 0 0 0 4px var(--row-accent-glow, transparent), 0 4px 14px rgba(0,0,0,0.3);
+  box-shadow: 0 0 16px 2px var(--row-accent-glow, transparent), 0 4px 14px rgba(0,0,0,0.3);
 }
 .inv-row-icon img {
   width: 100%; height: 100%; object-fit: cover;
