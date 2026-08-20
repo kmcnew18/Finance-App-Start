@@ -118,18 +118,16 @@
       </div>
 
       <div class="inv-ring-card">
-        <div class="inv-ring-body">
-          <div class="inv-ring-wrap" id="inv-ring-wrap">
-            <svg viewBox="0 0 300 300" class="inv-ring-svg" id="inv-ring-svg"></svg>
-            <div class="inv-ring-center">
-              <span class="inv-ring-total" id="inv-ring-total">$0.00</span>
-              <button type="button" class="inv-period-select" id="inv-period-select">
-                <span id="inv-period-label">All time</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              </button>
-            </div>
+        <div class="inv-ring-wrap" id="inv-ring-wrap">
+          <svg viewBox="0 0 300 300" class="inv-ring-svg" id="inv-ring-svg"></svg>
+          <div class="inv-ring-center">
+            <span class="inv-ring-total" id="inv-ring-total">$0.00</span>
+            <button type="button" class="inv-period-select" id="inv-period-select">
+              <span id="inv-period-label">All time</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
           </div>
-          <div class="inv-ring-legend" id="inv-ring-legend"></div>
+          <div class="inv-ring-badges" id="inv-ring-badges"></div>
         </div>
 
         <div class="inv-period-dropdown" id="inv-period-dropdown">
@@ -687,23 +685,23 @@
       animateNumber(document.getElementById('inv-ring-total'), total, money);
 
       // Slices under 5% of the visible total get folded into one grey
-      // "Other" segment instead of each claiming their own legend row —
-      // with several small holdings, the legend would otherwise turn
-      // into a long tail of slivers. There's also a hard cap on
-      // individually listed rows: if several holdings happen to sit
-      // right around the 5% line (some just over, some just under), the
-      // threshold alone can leave most of them ungrouped and the legend
-      // still cluttered — so beyond the 6 largest holdings, everything
-      // else folds into Other regardless of its exact percentage.
+      // "Other" segment instead of each claiming their own badge — with
+      // several small holdings, tiny slivers crowd the ring and their
+      // badges start overlapping. There's also a hard cap on individually
+      // labeled badges: if several holdings happen to sit right around
+      // the 5% line (some just over, some just under), the threshold
+      // alone can leave most of them ungrouped and the ring still
+      // crowded — so beyond the 6 largest holdings, everything else
+      // folds into Other regardless of its exact percentage.
       const OTHER_THRESHOLD = 0.05;
-      const MAX_LEGEND_ROWS = 6;
+      const MAX_INDIVIDUAL_BADGES = 6;
       const sortedByValue = visibleHoldings.slice().sort((a, b) => b.value - a.value);
       const major = [];
       const minor = [];
       sortedByValue.forEach((h, i) => {
         const pct = total > 0 ? h.value / total : 0;
         const underThreshold = pct > 0 && pct < OTHER_THRESHOLD;
-        const overCap = i >= MAX_LEGEND_ROWS;
+        const overCap = i >= MAX_INDIVIDUAL_BADGES;
         (underThreshold || overCap ? minor : major).push(h);
       });
 
@@ -721,19 +719,20 @@
       document.getElementById('inv-other-panel').classList.remove('open');
 
       const svg = document.getElementById('inv-ring-svg');
-      const legendWrap = document.getElementById('inv-ring-legend');
+      const badgesWrap = document.getElementById('inv-ring-badges');
       const cx = 150, cy = 150, r = 116, strokeWidth = 36;
       const circumference = 2 * Math.PI * r;
-      const gapDeg = 2.2; // small visual gap between segments, matching Dashboard's card-style separation
+      const gapDeg = 10; // wider gap so each holding reads as its own distinct, separated sector
 
       let cursorDeg = -90; // start at 12 o'clock
       let arcsHtml = '';
-      let legendHtml = '';
+      let badgesHtml = '';
 
       ringSlices.forEach((h, idx) => {
         const pct = total > 0 ? (h.value / total) : 0;
         const sweepDeg = Math.max(0, pct * 360 - gapDeg);
         const startDeg = cursorDeg;
+        const endDeg = startDeg + sweepDeg;
 
         const dashLen = (sweepDeg / 360) * circumference;
         const rotation = startDeg;
@@ -741,24 +740,41 @@
           stroke-dasharray="${dashLen} ${circumference - dashLen}" stroke-dashoffset="0"
           transform="rotate(${rotation} ${cx} ${cy})" stroke-linecap="round" class="inv-ring-arc" style="animation-delay:${idx * 60}ms"></circle>`;
 
+        const midDeg = startDeg + sweepDeg / 2;
+        const midRad = (midDeg * Math.PI) / 180;
+        const badgeR = r + strokeWidth / 2 + 26;
+        const bx = cx + badgeR * Math.cos(midRad);
+        const by = cy + badgeR * Math.sin(midRad);
+        const bxPct = (bx / 300) * 100;
+        const byPct = (by / 300) * 100;
+
         const pctLabel = Math.round(pct * 100);
         const displayPctLabel = pctLabel > 0 ? pctLabel : (pct > 0 ? '<1' : '0');
-        const label = h.isOther
-          ? `Other <span class="inv-ring-legend-count">(${currentOtherBreakdown.length})</span>`
-          : (h.ticker && h.ticker !== '—' ? h.ticker : h.name).replace(/</g,'&lt;');
-        const rowClass = h.isOther ? 'inv-ring-legend-row inv-ring-legend-row-other' : 'inv-ring-legend-row';
 
-        legendHtml += `<div class="${rowClass}" style="animation-delay:${idx * 45}ms" ${h.isOther ? 'data-other="1"' : ''} title="${h.isOther ? 'Click to see what\'s grouped here' : h.name.replace(/"/g,'&quot;')}">
-          <span class="inv-ring-legend-dot" style="background:${h.color};"></span>
-          <span class="inv-ring-legend-label">${label}</span>
-          <span class="inv-ring-legend-pct">${displayPctLabel}%</span>
+        let logoHtml;
+        if (h.isOther) {
+          logoHtml = `<span class="inv-badge-fallback inv-badge-other-dots">•••</span>`;
+        } else {
+          const initials = (h.ticker || h.name || '?').slice(0, 4);
+          logoHtml = h.logoUrl
+            ? `<img src="${h.logoUrl}" alt="" onload="this.classList.add('inv-logo-loaded')" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><span class="inv-badge-fallback" style="display:none;">${initials}</span>`
+            : `<span class="inv-badge-fallback">${initials}</span>`;
+        }
+
+        const badgeTitle = h.isOther
+          ? `Other — ${currentOtherBreakdown.length} holdings under 5%, click to see them`
+          : h.name.replace(/"/g,'&quot;');
+        const badgeClass = h.isOther ? 'inv-ring-badge inv-ring-badge-other' : 'inv-ring-badge';
+        badgesHtml += `<div class="${badgeClass}" style="left:${bxPct}%; top:${byPct}%; --badge-accent:${h.color};" title="${badgeTitle}" ${h.isOther ? 'data-other="1"' : ''}>
+          <span class="inv-badge-icon">${logoHtml}</span>
+          <span class="inv-badge-pct">${displayPctLabel}%</span>
         </div>`;
 
         cursorDeg = startDeg + pct * 360;
       });
 
-      svg.innerHTML = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="${strokeWidth}"></circle>` + arcsHtml;
-      legendWrap.innerHTML = legendHtml;
+      svg.innerHTML = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="${strokeWidth}"></circle>` + arcsHtml;
+      badgesWrap.innerHTML = badgesHtml;
     }
 
     function renderOtherBreakdown() {
@@ -779,11 +795,11 @@
     }
 
     function setupOtherPanel() {
-      const legendWrap = document.getElementById('inv-ring-legend');
+      const badgesWrap = document.getElementById('inv-ring-badges');
       const panel = document.getElementById('inv-other-panel');
-      legendWrap.addEventListener('click', (e) => {
-        const row = e.target.closest('.inv-ring-legend-row-other');
-        if (!row) return;
+      badgesWrap.addEventListener('click', (e) => {
+        const badge = e.target.closest('.inv-ring-badge-other');
+        if (!badge) return;
         renderOtherBreakdown();
         panel.classList.toggle('open');
       });
