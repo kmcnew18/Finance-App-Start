@@ -1679,7 +1679,7 @@
           ? `Looks like a transfer — ${money(r.amount)} ${verb === 'to' ? 'into' : 'out of'} <strong>${safeCategoryName}</strong>, not new spending.`
           : `We think this is ${money(r.amount)} ${verb} <strong>${safeCategoryName}</strong>.`);
       return `
-        <div class="txn-review-row" data-id="${r.id}" data-suggested="${r.suggested_action}">
+        <div class="txn-review-row" data-id="${r.id}" data-suggested="${r.suggested_action}" data-transfer="${r.is_transfer ? 'true' : 'false'}">
           <div class="txn-review-info">
             <span class="txn-review-merchant">${(r.merchant_name || 'Transaction').replace(/</g,'&lt;')}${transferBadge}</span>
             <span class="txn-review-meta">${when} · ${money(r.amount)}</span>

@@ -539,10 +539,78 @@
           <td class="${firstOfMonthIds.has(r.id) ? 'log-date-firstofmonth' : ''}">${formatDate(r.entry_date)}</td>
           <td class="num-cell log-amount-cell">${money(r.amount)}</td>
           ${categoryCellsHtml}
-          <td class="notes-cell">${r.notes ? r.notes.replace(/</g,'&lt;') : ''}</td>
+          <td class="notes-cell log-note-cell" data-id="${r.id}" title="Click to edit">
+            <span class="log-note-display">${r.notes ? r.notes.replace(/</g,'&lt;') : ''}</span>
+            <input type="text" class="log-note-input" data-id="${r.id}" value="${(r.notes || '').replace(/"/g,'&quot;')}" placeholder="Add a note" style="display:none;" />
+          </td>
         </tr>
       `;
       }).join('');
+    }
+
+    // Log entries used to be write-once — no way to fix a typo or add
+    // context to a note after the fact without deleting and re-logging
+    // the whole entry. Wired via delegation on #log-body (not per-row,
+    // like the checkboxes) because renderLogTable() replaces the tbody's
+    // innerHTML on every filter/sort/reload, which would silently drop
+    // any listeners attached directly to the old row elements.
+    function setupLogNoteEditing() {
+      const tbody = document.getElementById('log-body');
+
+      tbody.addEventListener('click', (e) => {
+        const cell = e.target.closest('.log-note-cell');
+        if (!cell || e.target.classList.contains('log-note-input')) return;
+        const display = cell.querySelector('.log-note-display');
+        const input = cell.querySelector('.log-note-input');
+        display.style.display = 'none';
+        input.style.display = 'block';
+        input.focus();
+        input.select();
+      });
+
+      tbody.addEventListener('keydown', (e) => {
+        if (!e.target.classList.contains('log-note-input')) return;
+        if (e.key === 'Enter') e.target.blur();
+        if (e.key === 'Escape') {
+          const cell = e.target.closest('.log-note-cell');
+          const row = allLogRows.find(r => String(r.id) === cell.dataset.id);
+          e.target.value = (row && row.notes) || ''; // discard the in-progress edit
+          e.target.blur();
+        }
+      });
+
+      // 'focusout' (not 'blur') so it bubbles up to this one delegated
+      // listener instead of needing to be attached per-input.
+      tbody.addEventListener('focusout', async (e) => {
+        if (!e.target.classList.contains('log-note-input')) return;
+        await saveLogNote(e.target);
+      });
+    }
+
+    async function saveLogNote(input) {
+      const id = input.dataset.id;
+      const cell = input.closest('.log-note-cell');
+      const display = cell.querySelector('.log-note-display');
+      const newValue = input.value.trim();
+      const row = allLogRows.find(r => String(r.id) === id);
+      const oldValue = (row && row.notes) || '';
+
+      input.style.display = 'none';
+      display.style.display = '';
+
+      if (newValue === oldValue) return; // nothing actually changed — skip the write
+
+      display.textContent = newValue; // optimistic — matches the rest of Log's save pattern
+      if (row) row.notes = newValue;
+
+      const { error } = await supabaseClient.from('finance_log').update({ notes: newValue || null }).eq('id', id);
+      if (error) {
+        console.error('Failed to save note:', error);
+        display.textContent = oldValue;
+        input.value = oldValue;
+        if (row) row.notes = oldValue;
+        await arkoAlert('Could not save that note — try again.');
+      }
     }
 
     function shiftLogMonth(delta) {
@@ -675,6 +743,7 @@
       setupIdleTimeout();
       setupFeedback();
       setupLogFilters();
+      setupLogNoteEditing();
 
       await loadLog();
     }

@@ -1789,6 +1789,28 @@ input[type="number"]::-webkit-outer-spin-button {
   vertical-align: top;
   padding-top: 15px;
 }
+.log-table td.log-note-cell {
+  cursor: text;
+  transition: background 0.15s ease;
+  border-radius: 6px;
+}
+.log-table td.log-note-cell:hover { background: rgba(255,255,255,0.03); }
+.log-note-display:empty::after {
+  content: 'Add a note';
+  opacity: 0.4;
+}
+.log-note-input {
+  width: 100%;
+  font: inherit;
+  font-style: italic;
+  color: var(--tan);
+  background: rgba(110,143,163,0.08);
+  border: 1px solid var(--vintage-blue-light);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+}
+.log-note-input:focus { outline: none; background: rgba(110,143,163,0.12); }
 .log-custom-category-badge {
   display: inline-block;
   padding: 2px 8px;
