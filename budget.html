@@ -635,6 +635,8 @@
         if (current) periods.unshift(current);
       }
 
+      await syncLogEntryNotes();
+
       unlocked = false;
       document.getElementById('loading-message').style.display = 'none';
       document.getElementById('budget-shell').style.display = 'flex';
@@ -1142,6 +1144,44 @@
         .update({ categories: current.categories, start_date: current.start_date, end_date: current.end_date, updated_at: new Date().toISOString() })
         .eq('id', current.id);
       if (error) console.error('Save error:', error);
+    }
+
+    // An entry pulled in via "+ From log" (addSelectedLogRowsToTargetLine)
+    // used to copy the note as a one-time snapshot with no way back to
+    // where it came from — editing the original note in Log afterward had
+    // nowhere to propagate to, so Budget just kept showing the stale
+    // text forever. Entries now carry sourceLogId (the finance_log row
+    // they were pulled from); this re-reads the current note for every
+    // one of those on each load and corrects any that drifted, so Budget
+    // never shows an out-of-date note for something still linked to Log.
+    // Entries pulled in before this existed have no sourceLogId to match
+    // on, so they're unaffected — nothing to safely reconnect them to.
+    async function syncLogEntryNotes() {
+      if (!current) return;
+      const entriesBySourceId = {};
+      CATS.forEach(c => {
+        (current.categories[c.key] || []).forEach(line => {
+          (line.entries || []).forEach(e => {
+            if (e.sourceLogId) (entriesBySourceId[e.sourceLogId] ||= []).push(e);
+          });
+        });
+      });
+      const sourceIds = Object.keys(entriesBySourceId);
+      if (!sourceIds.length) return;
+
+      const { data: logRows, error } = await supabaseClient
+        .from('finance_log').select('id, notes').in('id', sourceIds);
+      if (error) { console.error('syncLogEntryNotes failed:', error); return; }
+
+      let changed = false;
+      (logRows || []).forEach(row => {
+        const freshNote = row.notes ? row.notes.trim() : '';
+        (entriesBySourceId[row.id] || []).forEach(e => {
+          if (e.note !== freshNote) { e.note = freshNote; changed = true; }
+        });
+      });
+
+      if (changed) queueSave();
     }
 
     // ================= DETECTED RECURRING REVIEW =================
@@ -2082,7 +2122,7 @@
         if (!row) return;
         const amount = logMirrorRowAmount(row, cat);
         if (amount <= 0) return;
-        line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date, action_type: row.action_type });
+        line.entries.push({ id: uid(), amount, note: row.notes ? row.notes.trim() : '', date: row.entry_date, action_type: row.action_type, sourceLogId: row.id });
         line.entries.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
         line.actual = round2((Number(line.actual) || 0) + amount);
         addedCount++;

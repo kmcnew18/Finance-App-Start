@@ -827,13 +827,24 @@
     }
 
     async function loadSubscriptions() {
-      const { data, error } = await supabaseClient
-        .from('recurring_streams')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .eq('direction', 'outflow')
-        .eq('ignored', false)
-        .order('average_amount', { ascending: false });
+      const [{ data, error }, { data: linkedAccounts }] = await Promise.all([
+        supabaseClient
+          .from('recurring_streams')
+          .select('*')
+          .eq('user_id', currentUserId)
+          .eq('direction', 'outflow')
+          .eq('ignored', false)
+          .order('average_amount', { ascending: false }),
+        supabaseClient
+          .from('linked_accounts')
+          .select('plaid_account_id, account_type')
+          .eq('user_id', currentUserId)
+          .eq('account_type', 'credit_card'),
+      ]);
+      // Only credit-card accounts are fetched here — that's the only
+      // type this list needs to distinguish, so there's no reason to
+      // pull every linked account just to check one type per stream.
+      const creditCardPlaidIds = new Set((linkedAccounts || []).map(a => a.plaid_account_id));
 
       // recurring_streams comes from a separate Plaid endpoint that has
       // no transfer classification of its own — a recurring self-
@@ -856,16 +867,25 @@
       }
       empty.style.display = 'none';
 
-      list.innerHTML = filtered.map(s => `
+      list.innerHTML = filtered.map(s => {
+        // plaid_account_id on the stream is what makes this possible —
+        // added specifically so a subscription billed to a credit card
+        // (as opposed to pulled straight from checking) is visibly
+        // flagged as one, rather than looking identical to any other
+        // recurring charge.
+        const onCreditCard = s.plaid_account_id && creditCardPlaidIds.has(s.plaid_account_id);
+        const cardBadge = onCreditCard ? '<span class="txn-cardpayment-badge">Card</span>' : '';
+        return `
         <div class="spend-sub-row">
-          <span class="spend-sub-name">${(s.description || s.merchant_name || 'Recurring charge').replace(/</g,'&lt;')}</span>
+          <span class="spend-sub-name">${(s.description || s.merchant_name || 'Recurring charge').replace(/</g,'&lt;')}${cardBadge}</span>
           <span class="spend-sub-freq">${s.frequency ? s.frequency.toLowerCase() : ''}</span>
           <span class="spend-sub-amt">${money(s.last_amount || s.average_amount || 0)}</span>
           <button type="button" class="spend-sub-map-btn" data-stream-id="${s.id}" data-stream-name="${(s.description || s.merchant_name || 'Recurring charge').replace(/"/g,'&quot;')}">
             ${s.mapped_line_name ? `→ ${s.mapped_line_name.replace(/</g,'&lt;')}` : 'Map to budget'}
           </button>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     let mfaEnrollFactorId = null;
