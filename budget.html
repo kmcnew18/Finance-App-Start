@@ -1159,19 +1159,28 @@
     async function syncLogEntryNotes() {
       if (!current) return;
       const entriesBySourceId = {};
+      let totalEntries = 0, linkedEntries = 0;
       CATS.forEach(c => {
         (current.categories[c.key] || []).forEach(line => {
           (line.entries || []).forEach(e => {
-            if (e.sourceLogId) (entriesBySourceId[e.sourceLogId] ||= []).push(e);
+            totalEntries++;
+            if (e.sourceLogId) { linkedEntries++; (entriesBySourceId[e.sourceLogId] ||= []).push(e); }
           });
         });
       });
       const sourceIds = Object.keys(entriesBySourceId);
+      // Temporary visibility while diagnosing why a specific entry isn't
+      // picking up a note change — an entry pulled in before sourceLogId
+      // existed shows up here as part of totalEntries but not
+      // linkedEntries, which is the actual signature of "too old to
+      // reconnect" versus every other possible failure mode.
+      console.log('syncLogEntryNotes:', { totalEntries, linkedEntries, sourceIds });
       if (!sourceIds.length) return;
 
       const { data: logRows, error } = await supabaseClient
         .from('finance_log').select('id, notes').in('id', sourceIds);
       if (error) { console.error('syncLogEntryNotes failed:', error); return; }
+      console.log('syncLogEntryNotes fetched rows:', logRows);
 
       let changed = false;
       (logRows || []).forEach(row => {
@@ -1181,6 +1190,7 @@
         });
       });
 
+      console.log('syncLogEntryNotes result:', { changed });
       if (changed) queueSave();
     }
 
