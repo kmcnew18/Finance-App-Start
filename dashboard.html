@@ -1568,16 +1568,21 @@
     }
 
     async function loadRecentActivityPanel() {
+      // Built from todayISO() (APP_TIMEZONE-based), not new Date() +
+      // toISOString() — the latter converts to UTC, which can silently
+      // land on the wrong calendar day near midnight depending on how
+      // far the visitor's clock sits from UTC. txn_date is a plain
+      // calendar date with no time component, so it has to be compared
+      // against a date computed the same timezone-aware way, not UTC.
       const DAYS = 7;
-      const today = new Date();
+      const todayStr = todayISO();
       const days = [];
       for (let i = DAYS - 1; i >= 0; i--) {
-        const d = new Date(today);
+        const d = new Date(todayStr + 'T12:00:00'); // noon avoids any DST-edge date-shifting from setDate
         d.setDate(d.getDate() - i);
-        days.push(d.toISOString().slice(0, 10));
+        days.push(d.toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE }));
       }
       const startDate = days[0];
-      const todayStr = today.toISOString().slice(0, 10);
 
       const [{ data: txnRows }, { data: streamRows }] = await Promise.all([
         supabaseClient
