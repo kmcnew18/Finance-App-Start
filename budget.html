@@ -635,6 +635,7 @@
         if (current) periods.unshift(current);
       }
 
+      await backfillSourceLogIds();
       await syncLogEntryNotes();
 
       unlocked = false;
@@ -1144,6 +1145,58 @@
         .update({ categories: current.categories, start_date: current.start_date, end_date: current.end_date, updated_at: new Date().toISOString() })
         .eq('id', current.id);
       if (error) console.error('Save error:', error);
+    }
+
+    // One-time reconnection pass for entries pulled in via "+ From log"
+    // *before* sourceLogId existed — without this, every entry imported
+    // before that fix shipped would be permanently stuck unsynced, and
+    // the only way to fix any of them would be manually deleting and
+    // re-pulling each one from Log. Matches purely on content already
+    // visible on both sides (same date, same add/subtract/transfer
+    // direction, and identical note text) rather than a database id —
+    // deliberately conservative: if more than one finance_log row on
+    // that date matches, it's ambiguous and skipped rather than risking
+    // linking to the wrong transaction. Runs on every load, but is a
+    // no-op past the first successful pass since already-linked entries
+    // are excluded from the search entirely.
+    async function backfillSourceLogIds() {
+      if (!current) return;
+      const unlinked = [];
+      CATS.forEach(c => {
+        (current.categories[c.key] || []).forEach(line => {
+          (line.entries || []).forEach(e => {
+            // action_type only exists on entries that came from Log in
+            // the first place — manual entries and subscription pulls
+            // never had one, so this alone rules those out.
+            if (!e.sourceLogId && e.action_type && e.date) unlinked.push(e);
+          });
+        });
+      });
+      if (!unlinked.length) return;
+
+      const dates = [...new Set(unlinked.map(e => e.date))];
+      const { data: logRows, error } = await supabaseClient
+        .from('finance_log')
+        .select('id, entry_date, amount, notes, action_type')
+        .eq('user_id', currentUserId)
+        .in('entry_date', dates);
+      if (error) { console.error('backfillSourceLogIds failed:', error); return; }
+
+      let linkedCount = 0;
+      unlinked.forEach(e => {
+        const sameDayAndDirection = (logRows || []).filter(r =>
+          r.entry_date === e.date && r.action_type === e.action_type && (r.notes || '').trim() === (e.note || '').trim());
+        // Prefer also matching on amount when it lines up — it won't
+        // for a split transaction (the entry's amount is one category's
+        // slice, not the log row's full amount), which is exactly why
+        // amount isn't required on its own, only preferred when present.
+        const withAmount = sameDayAndDirection.filter(r => Math.abs(Number(r.amount)) === Math.abs(Number(e.amount)));
+        const candidates = withAmount.length ? withAmount : sameDayAndDirection;
+        if (candidates.length === 1) { e.sourceLogId = candidates[0].id; linkedCount++; }
+      });
+
+      console.log('backfillSourceLogIds:', { unlinkedCount: unlinked.length, linkedCount });
+      if (linkedCount) queueSave();
     }
 
     // An entry pulled in via "+ From log" (addSelectedLogRowsToTargetLine)
