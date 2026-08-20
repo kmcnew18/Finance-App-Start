@@ -1429,6 +1429,18 @@
       // otherwise keeping these current beyond the moment of connecting
       // or an explicit manual sync in Connections.
       refreshConnectedBalancesInBackground();
+
+      // Detected activity used to only ever update from the "Refresh"
+      // button or Plaid's webhook — opening/logging into Dashboard never
+      // checked for anything new on its own. This runs the exact same
+      // deep-refresh the button does, just silently and automatically,
+      // gated by the same shouldRunBackgroundSync() throttle as the
+      // balance refresh above (and, underneath that, the shared
+      // once-a-day-per-item Plaid budget enforced server-side in
+      // lib/plaid-helpers.js) — so this adds zero Plaid calls beyond
+      // what already happens today, it just removes the need to click
+      // Refresh to get them.
+      refreshDetectedActivityInBackground();
     }
 
     // Same throttle as Connections — each background sync call costs
@@ -1457,6 +1469,30 @@
         }
       } catch (err) {
         console.error('Background balance refresh failed:', err);
+      }
+    }
+
+    // Silent counterpart to refreshDetectedActivity() (the manual button)
+    // — same endpoint, same 'deep-refresh' mode, just no button-disabled/
+    // spinner state since nothing here was clicked. Reuses
+    // shouldRunBackgroundSync() rather than a separate check: that
+    // function already reflects the most recent sync across every kind
+    // (balance, transactions, subscriptions all touch the same
+    // last_synced_at), so a balance sync that already ran today also
+    // holds this one off, and vice versa — one shared local pre-filter
+    // for every background sync this page runs, on top of the real
+    // per-item gate the server enforces regardless.
+    async function refreshDetectedActivityInBackground() {
+      if (!shouldRunBackgroundSync()) return;
+      try {
+        const res = await fetch('/api/plaid-sync-recurring', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+          body: JSON.stringify({ userId: currentUserId, mode: 'deep-refresh' })
+        });
+        if (res.ok) await loadPendingReviews();
+      } catch (err) {
+        console.error('Background detected-activity refresh failed:', err);
       }
     }
 
