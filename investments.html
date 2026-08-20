@@ -722,7 +722,7 @@
       const badgesWrap = document.getElementById('inv-ring-badges');
       const cx = 150, cy = 150, r = 116, strokeWidth = 36;
       const circumference = 2 * Math.PI * r;
-      const gapDeg = 10; // wider gap so each holding reads as its own distinct, separated sector
+      const gapDeg = 14; // wider gap so each holding reads as its own distinct, separated sector
 
       let cursorDeg = -90; // start at 12 o'clock
       let arcsHtml = '';
@@ -738,7 +738,7 @@
         const rotation = startDeg;
         arcsHtml += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${h.color}" stroke-width="${strokeWidth}"
           stroke-dasharray="${dashLen} ${circumference - dashLen}" stroke-dashoffset="0"
-          transform="rotate(${rotation} ${cx} ${cy})" stroke-linecap="round" class="inv-ring-arc" style="animation-delay:${idx * 60}ms"></circle>`;
+          transform="rotate(${rotation} ${cx} ${cy})" stroke-linecap="round" class="inv-ring-arc" style="animation-delay:${idx * 60}ms; color:${h.color};"></circle>`;
 
         const midDeg = startDeg + sweepDeg / 2;
         const midRad = (midDeg * Math.PI) / 180;

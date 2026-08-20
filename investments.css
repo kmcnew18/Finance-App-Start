@@ -203,7 +203,16 @@
   /* Three stacked layers instead of one soft shadow — a tight bright
      core, a mid-range bloom, and a wide, faint halo — the same
      construction that makes an actual neon tube read as "lit" rather
-     than just colored: a hard line with light visibly spilling off it. */
+     than just colored: a hard line with light visibly spilling off it.
+     currentColor here reads the element's CSS `color`, not its SVG
+     `stroke` attribute — the two are unrelated. Nothing was ever
+     setting `color` on these circles, so every segment's glow was
+     silently falling back to the ambient page text color (a light
+     cream) regardless of the segment's own hue, which is what actually
+     made the whole ring read as "too white" — not the badges, which
+     is where an earlier pass mistakenly looked instead. Fixed at the
+     source: the JS now sets `color:` inline per circle alongside
+     `stroke:`, so this correctly glows in each segment's own color. */
   filter:
     drop-shadow(0 0 3px currentColor)
     drop-shadow(0 0 10px currentColor)
