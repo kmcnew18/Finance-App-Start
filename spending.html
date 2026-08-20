@@ -1114,12 +1114,21 @@
           // "nothing changed" result is often entirely correct, not a
           // sign the refresh failed. Making that explicit here so it
           // doesn't read as the button silently doing nothing.
+          //
+          // alreadySyncedToday specifically means the shared once-a-day
+          // Plaid budget (lib/plaid-helpers.js isSyncDue) already had a
+          // real call for every connected item today — this click
+          // didn't reach Plaid at all, not even to find nothing. Worth
+          // saying explicitly rather than looking identical to "checked
+          // and there's genuinely nothing new."
           if (after > before) {
             btn.textContent = `Found ${after - before} new`;
+          } else if (result.alreadySyncedToday) {
+            btn.textContent = 'Already synced today';
           } else {
             btn.textContent = 'Up to date';
           }
-          setTimeout(() => { btn.textContent = originalText; }, 2000);
+          setTimeout(() => { btn.textContent = originalText; }, 2500);
         } catch (err) {
           console.error(err);
           await arkoAlert(err.message || 'Could not refresh subscriptions right now.');
@@ -1149,9 +1158,12 @@
             body: JSON.stringify({ userId: currentUserId, mode: 'transactions' })
           });
           if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
+          const result = await res.json().catch(() => ({}));
           await loadSpendingData();
-          btn.textContent = 'Up to date';
-          setTimeout(() => { btn.textContent = originalText; }, 2000);
+          // Same distinction as Refresh subscriptions — see that handler's
+          // comment for why alreadySyncedToday isn't just "Up to date".
+          btn.textContent = result.alreadySyncedToday ? 'Already synced today' : 'Up to date';
+          setTimeout(() => { btn.textContent = originalText; }, 2500);
         } catch (err) {
           console.error(err);
           await arkoAlert(err.message || 'Could not refresh transactions right now.');

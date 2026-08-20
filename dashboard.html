@@ -86,6 +86,23 @@
     </nav>
   </header>
 
+  <!-- ================= RECENT ACTIVITY SLIDE-OUT ================= -->
+  <button type="button" class="activity-peek-tab" id="activity-peek-tab" aria-label="Recent activity">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"></path><path d="M3 6h18"></path><path d="M3 18h18"></path></svg>
+  </button>
+  <div class="activity-panel-overlay" id="activity-panel-overlay"></div>
+  <aside class="activity-panel" id="activity-panel">
+    <button type="button" class="activity-panel-close" id="activity-panel-close" aria-label="Close">×</button>
+    <div class="activity-panel-head">
+      <span class="activity-panel-title">Spent last 7 days</span>
+    </div>
+    <div class="activity-panel-total" id="activity-panel-total">$0.00</div>
+    <div class="activity-day-strip" id="activity-day-strip"></div>
+    <div class="activity-panel-subhead">Recent transactions</div>
+    <div class="activity-panel-list" id="activity-panel-list"></div>
+    <p class="activity-panel-empty" id="activity-panel-empty" style="display:none;">No recent activity.</p>
+  </aside>
+
   <div class="wip-banner">Early development · some features may not be live</div>
 
   <main class="dash-main" id="dash-main" style="display:none;">
@@ -1372,6 +1389,7 @@
       setupEnvelopePicker();
       setupSkippedActivity();
       setupMissingLogsOverlay();
+      setupRecentActivityPanel();
       setupManageSubscription();
       setupFeaturePreview();
       document.getElementById('refresh-detected-btn').addEventListener('click', refreshDetectedActivity);
@@ -1494,6 +1512,157 @@
       } catch (err) {
         console.error('Background detected-activity refresh failed:', err);
       }
+    }
+
+    // ================= RECENT ACTIVITY SLIDE-OUT =================
+    // Tucked-away peek at the last 7 days — a day-by-day spend strip and
+    // the most recent transactions, without needing a permanent spot in
+    // Dashboard's own layout. Loaded lazily on first open rather than on
+    // every page load, since this is a "check when curious" panel, not
+    // something that needs to be ready before the user asks for it.
+    const RECURRING_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 22l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>';
+    const ICON_BASKET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.5 11a2 2 0 0 1-2 1.8H8.5a2 2 0 0 1-2-1.8L5 8Z"></path><path d="M9 8V6a3 3 0 0 1 6 0v2"></path></svg>';
+    const ICON_BAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l1 12H5L6 8Z"></path><path d="M9 8V6a3 3 0 0 1 6 0v2"></path></svg>';
+    const ICON_TAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 12.3 12.3 20.6a2 2 0 0 1-2.83 0l-7.07-7.07a2 2 0 0 1 0-2.83l8.3-8.3A2 2 0 0 1 12.1 2H19a2 2 0 0 1 2 2v6.9a2 2 0 0 1-.4 1.4Z"></path><circle cx="16" cy="7" r="1.5"></circle></svg>';
+    const ICON_DOT = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"></circle></svg>';
+    // Kept deliberately small (a handful of buckets, not a full category
+    // set) — enough visual variety to be useful at a glance without this
+    // small a panel turning into its own busy icon legend.
+    const ACTIVITY_CATEGORY_ICONS = {
+      FOOD_AND_DRINK: { icon: ICON_BASKET, tint: 'rgba(110,196,184,0.16)', accent: '#6EC4B8' },
+      GENERAL_MERCHANDISE: { icon: ICON_BAG, tint: 'rgba(224,128,106,0.16)', accent: '#E0806A' },
+      TRANSPORTATION: { icon: ICON_BAG, tint: 'rgba(224,128,106,0.16)', accent: '#E0806A' },
+      ENTERTAINMENT: { icon: ICON_BAG, tint: 'rgba(168,143,216,0.16)', accent: '#A88FD8' },
+      LOAN_PAYMENTS: { icon: ICON_TAG, tint: 'rgba(231,199,102,0.16)', accent: '#E7C766' },
+      RENT_AND_UTILITIES: { icon: ICON_TAG, tint: 'rgba(231,199,102,0.16)', accent: '#E7C766' },
+      GENERAL_SERVICES: { icon: ICON_TAG, tint: 'rgba(231,199,102,0.16)', accent: '#E7C766' },
+      __default__: { icon: ICON_DOT, tint: 'rgba(110,143,163,0.16)', accent: '#6E8FA3' },
+    };
+
+    let activityPanelLoaded = false;
+
+    function setupRecentActivityPanel() {
+      const tab = document.getElementById('activity-peek-tab');
+      const panel = document.getElementById('activity-panel');
+      const overlay = document.getElementById('activity-panel-overlay');
+      const closeBtn = document.getElementById('activity-panel-close');
+
+      const openPanel = async () => {
+        panel.classList.add('open');
+        overlay.classList.add('open');
+        tab.classList.add('panel-open');
+        if (!activityPanelLoaded) {
+          activityPanelLoaded = true;
+          await loadRecentActivityPanel();
+        }
+      };
+      const closePanel = () => {
+        panel.classList.remove('open');
+        overlay.classList.remove('open');
+        tab.classList.remove('panel-open');
+      };
+
+      tab.addEventListener('click', openPanel);
+      closeBtn.addEventListener('click', closePanel);
+      overlay.addEventListener('click', closePanel);
+    }
+
+    async function loadRecentActivityPanel() {
+      const DAYS = 7;
+      const today = new Date();
+      const days = [];
+      for (let i = DAYS - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        days.push(d.toISOString().slice(0, 10));
+      }
+      const startDate = days[0];
+      const todayStr = today.toISOString().slice(0, 10);
+
+      const [{ data: txnRows }, { data: streamRows }] = await Promise.all([
+        supabaseClient
+          .from('transactions')
+          .select('amount, txn_date, merchant_name, plaid_category, is_pending, txn_type')
+          .eq('user_id', currentUserId)
+          .eq('is_removed', false)
+          .neq('txn_type', 'transfer')
+          .gte('txn_date', startDate)
+          .order('txn_date', { ascending: false }),
+        supabaseClient
+          .from('recurring_streams')
+          .select('merchant_name, description')
+          .eq('user_id', currentUserId)
+          .eq('ignored', false),
+      ]);
+
+      const rows = txnRows || [];
+      // recurring_streams has no per-transaction link back to the
+      // transactions that make it up (see lib/plaid-helpers.js) — matching
+      // by merchant name is an approximation, good enough for a "here's
+      // roughly what repeats" glance, not something anything downstream
+      // depends on for accuracy.
+      const recurringMerchants = new Set(
+        (streamRows || []).map(s => (s.merchant_name || s.description || '').toLowerCase()).filter(Boolean)
+      );
+
+      // Plaid convention: positive = money left the account. Only actual
+      // spend counts toward "Spent last 7 days" — a refund/credit showing
+      // up in this window shouldn't read as if it reduced how much was
+      // spent that day.
+      const totalsByDay = {};
+      days.forEach(d => { totalsByDay[d] = 0; });
+      rows.forEach(t => {
+        const amt = Number(t.amount) || 0;
+        if (amt > 0 && totalsByDay[t.txn_date] !== undefined) {
+          totalsByDay[t.txn_date] = round2(totalsByDay[t.txn_date] + amt);
+        }
+      });
+      const weekTotal = round2(Object.values(totalsByDay).reduce((s, v) => s + v, 0));
+      const maxDay = Math.max(1, ...Object.values(totalsByDay));
+
+      document.getElementById('activity-panel-total').textContent = money(weekTotal);
+
+      document.getElementById('activity-day-strip').innerHTML = days.map(d => {
+        const amt = totalsByDay[d];
+        const intensity = amt > 0 ? Math.max(0.18, amt / maxDay) : 0.06;
+        const dayNum = Number(d.slice(8, 10));
+        return `
+          <div class="activity-day-cell${d === todayStr ? ' is-today' : ''}" style="background: rgba(110,143,163,${intensity.toFixed(2)});">
+            <span class="activity-day-num">${dayNum}</span>
+            <span class="activity-day-amt">$${Math.round(amt)}</span>
+          </div>`;
+      }).join('');
+
+      const list = document.getElementById('activity-panel-list');
+      const empty = document.getElementById('activity-panel-empty');
+      const recent = rows.slice(0, 6);
+
+      if (!recent.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      list.innerHTML = recent.map((t, idx) => {
+        const isRecurring = recurringMerchants.has((t.merchant_name || '').toLowerCase());
+        const cat = ACTIVITY_CATEGORY_ICONS[t.plaid_category] || ACTIVITY_CATEGORY_ICONS.__default__;
+        const when = new Date(t.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const amt = Number(t.amount) || 0;
+        const amtDisplay = (amt > 0 ? '' : '+') + money(Math.abs(amt));
+        return `
+          <div class="activity-row" style="animation-delay:${idx * 40}ms">
+            <span class="activity-row-icon" style="--row-tint:${cat.tint}; --row-accent:${cat.accent};">${cat.icon}</span>
+            <div class="activity-row-text">
+              <div class="activity-row-name">${(t.merchant_name || 'Transaction').replace(/</g,'&lt;')}</div>
+              <div class="activity-row-meta">${when}${t.is_pending ? ' <span class="activity-row-pending">• Pending</span>' : ''}</div>
+            </div>
+            <div class="activity-row-right">
+              ${isRecurring ? `<span class="activity-row-recurring" title="Recurring">${RECURRING_ICON_SVG}</span>` : ''}
+              <span class="activity-row-amt">${amtDisplay}</span>
+            </div>
+          </div>`;
+      }).join('');
     }
 
     // ================= TRANSACTION REVIEW QUEUE =================

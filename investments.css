@@ -191,12 +191,21 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+.inv-ring-body {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  width: 100%;
+  margin: 20px 0 28px;
+}
+
 .inv-ring-wrap {
   position: relative;
   width: 100%;
-  max-width: 300px;
+  max-width: 210px;
+  flex-shrink: 0;
   aspect-ratio: 1;
-  margin: 34px auto 40px;
+  margin: 0;
 }
 .inv-ring-svg { width: 100%; height: 100%; overflow: visible; }
 .inv-ring-arc {
@@ -299,70 +308,58 @@
 .inv-period-option:hover { background: rgba(168,143,216,0.14); }
 .inv-period-option.active { color: var(--violet-bright); background: rgba(168,143,216,0.1); }
 
-/* ---------- FLOATING ICON BADGES AROUND THE RING ---------- */
-.inv-ring-badges { position: absolute; inset: 0; pointer-events: none; }
-.inv-ring-badge {
-  position: absolute;
-  transform: translate(-50%, -50%);
+/* ---------- SIDE LEGEND (replaces the old floating badges) ----------
+   A plain colored dot + name + percentage per row, next to the ring
+   instead of orbiting labels crowding its edge — reads cleanly at any
+   holding count and matches the rest of the app's list-row language
+   (Holdings below, Dashboard's own category rows) rather than being
+   its own one-off widget. */
+.inv-ring-legend {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.inv-ring-legend-row {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 10px 4px 4px;
-  border-radius: 20px;
-  background: #171D24;
-  border: 1px solid rgba(255,255,255,0.1);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-  white-space: nowrap;
-  pointer-events: auto;
-  cursor: default;
-  z-index: 1;
-  animation: invBadgeIn 0.4s cubic-bezier(.2,.8,.3,1) backwards;
-  transition: transform 0.28s cubic-bezier(.2,.9,.25,1.4), box-shadow 0.25s ease, background 0.25s ease, border-color 0.25s ease, z-index 0s;
-}
-/* On hover, the badge jumps above every other badge (z-index) and pops
-   toward the viewer — scaled up, lifted, and outlined/glowing in its
-   own segment color (set inline as --badge-accent per badge) so it's
-   unmistakably readable even where badges sit close together around
-   the ring. */
-.inv-ring-badge:hover {
-  transform: translate(-50%, -50%) scale(1.45);
-  z-index: 50;
-  background: #1E2731;
-  border-color: var(--badge-accent, rgba(255,255,255,0.4));
-  box-shadow:
-    0 12px 30px rgba(0,0,0,0.55),
-    0 0 0 1.5px var(--badge-accent, rgba(255,255,255,0.4)),
-    0 0 22px var(--badge-accent, rgba(255,255,255,0.35));
-}
-.inv-ring-badge:hover .inv-badge-pct { color: #fff; }
-@keyframes invBadgeIn {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-}
-.inv-badge-icon {
-  width: 26px; height: 26px;
-  border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.06);
-  border: 1.5px solid var(--badge-accent, rgba(255,255,255,0.14));
-  box-shadow: 0 0 8px 0 var(--badge-accent, transparent);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
-}
-.inv-badge-icon img {
-  width: 100%; height: 100%; object-fit: cover;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: 8px;
   opacity: 0;
-  transition: opacity 0.35s ease;
+  transform: translateX(6px);
+  animation: invLegendIn 0.35s cubic-bezier(.2,.8,.3,1) forwards;
+  transition: background 0.15s ease;
 }
-.inv-badge-icon img.inv-logo-loaded { opacity: 1; }
-.inv-badge-fallback {
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: var(--violet-bright);
-  font-family: 'IBM Plex Mono', monospace;
+@keyframes invLegendIn { to { opacity: 1; transform: translateX(0); } }
+.inv-ring-legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
-.inv-badge-pct { font-size: 0.78rem; font-weight: 600; color: var(--tan); letter-spacing: 0.01em; }
+.inv-ring-legend-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--tan);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'Public Sans', sans-serif;
+}
+.inv-ring-legend-count { font-size: 0.72rem; font-weight: 500; color: var(--silver-dim); }
+.inv-ring-legend-pct {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--silver);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  font-family: 'Public Sans', sans-serif;
+}
+.inv-ring-legend-row-other { cursor: pointer; }
+.inv-ring-legend-row-other:hover { background: rgba(255,255,255,0.045); }
 
 /* ---------- RETURN PILL ---------- */
 .inv-return-pill {
@@ -471,17 +468,7 @@
   transform: scale(1.08);
 }
 
-/* ---------- GROUPED "OTHER" BADGE + LOWER TAB ---------- */
-.inv-badge-other-dots {
-  font-size: 0.7rem;
-  letter-spacing: -0.5px;
-  color: #C7CCD3;
-}
-.inv-ring-badge-other { cursor: pointer; }
-.inv-ring-badge-other .inv-badge-icon {
-  background: rgba(155,147,130,0.16);
-}
-
+/* ---------- GROUPED "OTHER" LOWER TAB ---------- */
 .inv-other-panel {
   width: 100%;
   max-width: 340px;
@@ -572,12 +559,11 @@
 }
 
 @media (max-width: 600px) {
-  .inv-ring-wrap { max-width: 260px; margin: 26px auto 32px; }
+  .inv-ring-body { flex-direction: column; gap: 18px; }
+  .inv-ring-wrap { max-width: 210px; margin: 6px auto 0; }
   .inv-ring-total { font-size: 1.65rem; }
   .inv-ring-card { padding: 26px 18px 22px; border-radius: 22px; }
-  .inv-badge-pct { font-size: 0.72rem; }
-  .inv-ring-badge { padding: 3px 9px 3px 3px; }
-  .inv-badge-icon { width: 22px; height: 22px; }
+  .inv-ring-legend { width: 100%; }
   .inv-holding-row { gap: 10px; }
   .inv-row-icon { width: 38px; height: 38px; }
 }

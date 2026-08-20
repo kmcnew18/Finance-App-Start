@@ -1426,8 +1426,13 @@ function setupSettingsGear() {
         body: JSON.stringify({ userId: currentUserId, mode: 'transactions' })
       });
       if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
-      btn.textContent = 'Up to date';
-      setTimeout(() => { btn.textContent = originalText; }, 2000);
+      const result = await res.json().catch(() => ({}));
+      // alreadySyncedToday means the shared once-a-day Plaid budget
+      // (lib/plaid-helpers.js isSyncDue) already had a real call for
+      // every connected item today — this click never reached Plaid at
+      // all, distinct from "checked and there's genuinely nothing new."
+      btn.textContent = result.alreadySyncedToday ? 'Already synced today' : 'Up to date';
+      setTimeout(() => { btn.textContent = originalText; }, 2500);
     } catch (err) {
       console.error(err);
       await arkoAlert(err.message || 'Could not refresh transactions right now.');
@@ -1450,8 +1455,9 @@ function setupSettingsGear() {
         body: JSON.stringify({ userId: currentUserId, mode: 'subscriptions' })
       });
       if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
-      btn.textContent = 'Up to date';
-      setTimeout(() => { btn.textContent = originalText; }, 2000);
+      const result = await res.json().catch(() => ({}));
+      btn.textContent = result.alreadySyncedToday ? 'Already synced today' : 'Up to date';
+      setTimeout(() => { btn.textContent = originalText; }, 2500);
     } catch (err) {
       console.error(err);
       await arkoAlert(err.message || 'Could not refresh subscriptions right now.');
