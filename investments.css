@@ -212,11 +212,14 @@
      made the whole ring read as "too white" — not the badges, which
      is where an earlier pass mistakenly looked instead. Fixed at the
      source: the JS now sets `color:` inline per circle alongside
-     `stroke:`, so this correctly glows in each segment's own color. */
+     `stroke:`, so this correctly glows in each segment's own color.
+     Toned down from the original (3/10/22px) now that it's glowing the
+     right color at all — the correct-color version still read as a bit
+     much at full strength. */
   filter:
-    drop-shadow(0 0 3px currentColor)
-    drop-shadow(0 0 10px currentColor)
-    drop-shadow(0 0 22px currentColor);
+    drop-shadow(0 0 2px currentColor)
+    drop-shadow(0 0 6px currentColor)
+    drop-shadow(0 0 13px currentColor);
   transition: stroke-width 0.2s ease;
   animation: invArcIn 0.7s cubic-bezier(.22,.85,.25,1) backwards, invArcGlowPulse 3.6s ease-in-out infinite;
 }
@@ -225,7 +228,7 @@
    as drawing itself in rather than popping into place all at once. */
 @keyframes invArcIn {
   from { opacity: 0; stroke-width: 4; }
-  to { opacity: 1; stroke-width: 36; }
+  to { opacity: 1; stroke-width: 26; }
 }
 /* A slow, subtle brightness breathing — like a neon sign's tube current
    never being perfectly steady. Kept gentle (0.9–1 opacity) so it reads
