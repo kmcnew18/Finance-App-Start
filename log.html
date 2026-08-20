@@ -621,12 +621,20 @@
         .select('id');
 
       if (error || !updatedRows || !updatedRows.length) {
-        if (error) console.error('Failed to save note:', error);
-        else console.error('Note update matched 0 rows — likely a missing UPDATE policy on finance_log.');
         display.textContent = oldValue;
         input.value = oldValue;
         if (row) row.notes = oldValue;
-        await arkoAlert('Could not save that note — try again.');
+
+        if (error) {
+          console.error('Failed to save note:', error);
+          await arkoAlert('Could not save that note — try again.');
+        } else {
+          // Distinct from a real error/network failure — this is a
+          // permissions issue, not something a retry will fix, so
+          // saying "try again" would be actively misleading.
+          console.error('Note update matched 0 rows — finance_log has no UPDATE policy for the logged-in user yet.');
+          await arkoAlert('Notes can\'t be saved yet — this account is missing a database permission (an UPDATE policy on finance_log). Retrying won\'t help; this needs to be added in Supabase first.');
+        }
       }
     }
 
