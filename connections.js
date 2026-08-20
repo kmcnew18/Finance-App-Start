@@ -270,6 +270,11 @@ async function changeSubscription(action) {
   }
 }
 
+async function authHeader() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  return session ? { 'Authorization': `Bearer ${session.access_token}` } : {};
+}
+
 function logAuditEvent(eventType, detail) {
   supabaseClient.from('audit_log').insert({ user_id: currentUserId, event_type: eventType, detail: detail || {} })
     .then(({ error }) => { if (error) console.error('Audit log write failed:', error); });
@@ -1366,7 +1371,7 @@ async function syncAllPlaidAccounts() {
     try {
       await fetch('/api/plaid-sync-recurring', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ userId: currentUserId })
       });
     } catch (recurringErr) {
@@ -1417,7 +1422,7 @@ function setupSettingsGear() {
     try {
       const res = await fetch('/api/plaid-sync-recurring', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ userId: currentUserId, mode: 'transactions' })
       });
       if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');
@@ -1441,7 +1446,7 @@ function setupSettingsGear() {
     try {
       const res = await fetch('/api/plaid-sync-recurring', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ userId: currentUserId, mode: 'subscriptions' })
       });
       if (!res.ok) throw new Error('Refresh failed (' + res.status + ')');

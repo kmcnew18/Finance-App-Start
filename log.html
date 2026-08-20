@@ -603,9 +603,26 @@
       display.textContent = newValue; // optimistic — matches the rest of Log's save pattern
       if (row) row.notes = newValue;
 
-      const { error } = await supabaseClient.from('finance_log').update({ notes: newValue || null }).eq('id', id);
-      if (error) {
-        console.error('Failed to save note:', error);
+      // .select() here isn't just for the returned row — without it,
+      // Supabase's default update() doesn't report how many rows
+      // actually matched. That mattered in practice: finance_log had
+      // never been updated from the client before this feature (only
+      // ever inserted/selected/deleted), and its row-level security
+      // turned out to have no UPDATE policy — so this call was
+      // returning success with zero rows changed instead of an error,
+      // which is exactly why the edit looked like it saved but reverted
+      // on refresh. Checking the returned rows catches that failure
+      // mode explicitly instead of trusting a lack of `error` to mean
+      // the write actually happened.
+      const { data: updatedRows, error } = await supabaseClient
+        .from('finance_log')
+        .update({ notes: newValue || null })
+        .eq('id', id)
+        .select('id');
+
+      if (error || !updatedRows || !updatedRows.length) {
+        if (error) console.error('Failed to save note:', error);
+        else console.error('Note update matched 0 rows — likely a missing UPDATE policy on finance_log.');
         display.textContent = oldValue;
         input.value = oldValue;
         if (row) row.notes = oldValue;
