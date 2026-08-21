@@ -822,6 +822,18 @@
       document.getElementById('goal-detail-overlay').addEventListener('click', (e) => { if (e.target.id === 'goal-detail-overlay') document.getElementById('goal-detail-overlay').classList.remove('open'); });
     }
 
+    // Re-renders each theme's illustration from scratch on a loop so the
+    // full entrance sequence (settle -> grow -> flourish) actually plays
+    // out for whoever's browsing themes, rather than showing up already
+    // finished. A fresh DOM node is what makes the backwards-filled
+    // entrance keyframes replay at all — a live pct change on a
+    // persisted node wouldn't retrigger them, same reasoning as the
+    // per-goal re-render already relies on elsewhere in this file.
+    let themePreviewLoopId = null;
+    function stopThemePreviewLoop() {
+      if (themePreviewLoopId) { clearInterval(themePreviewLoopId); themePreviewLoopId = null; }
+    }
+
     function renderThemePicker() {
       const body = document.getElementById('new-goal-body');
       body.innerHTML = `
@@ -829,15 +841,23 @@
         <div class="sav-theme-grid">
           ${Object.entries(THEMES).map(([key, t]) => `
             <button type="button" class="sav-theme-option" data-theme="${key}" style="--goal-glow:${t.glowRgb};">
-              <div class="sav-theme-illust">${goalIllustrationSvg(key, 55, t.accent, t.accentBright)}</div>
+              <div class="sav-theme-illust" id="sav-theme-illust-${key}">${goalIllustrationSvg(key, 55, t.accent, t.accentBright)}</div>
               <span style="color:${t.accentBright};">${t.label}</span>
             </button>
           `).join('')}
         </div>
       `;
       body.querySelectorAll('.sav-theme-option').forEach(btn => {
-        btn.addEventListener('click', () => renderNewGoalForm(btn.dataset.theme));
+        btn.addEventListener('click', () => { stopThemePreviewLoop(); renderNewGoalForm(btn.dataset.theme); });
       });
+
+      stopThemePreviewLoop();
+      themePreviewLoopId = setInterval(() => {
+        Object.entries(THEMES).forEach(([key, t]) => {
+          const wrap = document.getElementById(`sav-theme-illust-${key}`);
+          if (wrap) wrap.innerHTML = goalIllustrationSvg(key, 55, t.accent, t.accentBright);
+        });
+      }, 3400);
     }
 
     function renderNewGoalForm(theme) {
@@ -876,8 +896,8 @@
         renderThemePicker();
         document.getElementById('new-goal-overlay').classList.add('open');
       });
-      document.getElementById('new-goal-close').addEventListener('click', () => document.getElementById('new-goal-overlay').classList.remove('open'));
-      document.getElementById('new-goal-overlay').addEventListener('click', (e) => { if (e.target.id === 'new-goal-overlay') document.getElementById('new-goal-overlay').classList.remove('open'); });
+      document.getElementById('new-goal-close').addEventListener('click', () => { stopThemePreviewLoop(); document.getElementById('new-goal-overlay').classList.remove('open'); });
+      document.getElementById('new-goal-overlay').addEventListener('click', (e) => { if (e.target.id === 'new-goal-overlay') { stopThemePreviewLoop(); document.getElementById('new-goal-overlay').classList.remove('open'); } });
     }
 
 
