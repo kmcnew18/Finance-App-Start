@@ -332,8 +332,14 @@
       container.innerHTML = '';
       document.getElementById('paywall-checkout-view').style.display = 'block';
 
+      // createEmbeddedCheckoutPage (not initEmbeddedCheckout) as of the
+      // same Stripe API update that renamed ui_mode server-side —
+      // fetchClientSecret is the current param; a bare clientSecret is
+      // deprecated but still accepted. Already have the secret from our
+      // own fetch above, so this just hands it back rather than making
+      // Stripe re-fetch it.
       const stripe = Stripe(publishableKey);
-      activeEmbeddedCheckout = await stripe.initEmbeddedCheckout({ clientSecret });
+      activeEmbeddedCheckout = await stripe.createEmbeddedCheckoutPage({ fetchClientSecret: async () => clientSecret });
       activeEmbeddedCheckout.mount('#embedded-checkout-container');
     }
 

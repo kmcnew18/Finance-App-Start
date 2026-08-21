@@ -48,18 +48,23 @@ async function handleCheckout(req, res) {
     const isMonthly = billingPeriod === 'monthly';
     const amount = isMonthly ? pricing.monthly : pricing.lifetime;
 
-    // ui_mode: 'embedded' keeps the whole payment form on arkofinance.com
-    // (mounted in an iframe via Stripe.js) instead of redirecting to a
-    // checkout.stripe.com page — Stripe still fully owns and hosts the
-    // actual card entry/PCI compliance, this only changes where it's
-    // *displayed*. Embedded sessions use return_url instead of
-    // success_url/cancel_url — passing either of those is rejected by
-    // Stripe for this mode. There's no cancel_url to redirect to
-    // because there's no separate Stripe page to back out of anymore:
-    // "cancelling" is just the user clicking Paywall's own back button,
-    // which unmounts the embedded form locally with no Stripe involved.
+    // ui_mode: 'embedded_page' keeps the whole payment form on
+    // arkofinance.com (mounted in an iframe via Stripe.js) instead of
+    // redirecting to a checkout.stripe.com page — Stripe still fully
+    // owns and hosts the actual card entry/PCI compliance, this only
+    // changes where it's *displayed*. Named 'embedded_page' (not the
+    // older 'embedded') as of the 2026-03-25 "dahlia" API version —
+    // Stripe renamed ui_mode's enum values (hosted->hosted_page,
+    // custom->elements) and hard-removed the old ones, so the old name
+    // fails outright rather than just warning. Embedded sessions use
+    // return_url instead of success_url/cancel_url — passing either of
+    // those is rejected by Stripe for this mode. There's no cancel_url
+    // to redirect to because there's no separate Stripe page to back
+    // out of anymore: "cancelling" is just the user clicking Paywall's
+    // own back button, which unmounts the embedded form locally with
+    // no Stripe involved.
     const session = await stripe.checkout.sessions.create({
-      ui_mode: 'embedded',
+      ui_mode: 'embedded_page',
       mode: isMonthly ? 'subscription' : 'payment',
       payment_method_types: ['card'],
       customer_email: email,
@@ -187,7 +192,7 @@ async function handleUpgrade(req, res) {
       const upgradeAmount = TIER_PRICING[3].lifetime - TIER_PRICING[2].lifetime;
 
       const session = await stripe.checkout.sessions.create({
-        ui_mode: 'embedded',
+        ui_mode: 'embedded_page',
         mode: 'payment',
         payment_method_types: ['card'],
         customer_email: email,
