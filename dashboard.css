@@ -2116,6 +2116,21 @@ input[type="number"]::-webkit-outer-spin-button {
    feels like unlocking a distinct, premium space rather than a menu.
    ========================================================================== */
 
+/* Resting state now carries real tier-colored presence on the button
+   chrome itself, not just the icon stroke — same recipe as the
+   pricing cards on the marketing page (crisp color-mix ring + tinted
+   wash at rest, brighter ring + soft bloom on hover), so the trigger
+   reads as "alive" even before the dropdown ever opens. */
+.btn-icon.btn-ledger {
+  border-color: rgba(var(--ledger-accent-rgb), 0.32);
+  background: rgba(var(--ledger-accent-rgb), 0.05);
+  box-shadow: 0 0 0 1px rgba(var(--ledger-accent-rgb), 0.1);
+}
+.btn-icon.btn-ledger:hover {
+  border-color: rgba(var(--ledger-accent-rgb), 0.55);
+  background: rgba(var(--ledger-accent-rgb), 0.09);
+  box-shadow: 0 0 0 1px rgba(var(--ledger-accent-rgb), 0.16), 0 0 16px rgba(var(--ledger-accent-rgb), 0.3);
+}
 .btn-icon.btn-ledger svg { stroke: var(--ledger-accent); filter: drop-shadow(0 0 4px rgba(var(--ledger-accent-rgb), 0.35)); transition: stroke 0.25s ease, filter 0.2s ease; }
 .btn-icon.btn-ledger:hover svg { filter: drop-shadow(0 0 7px rgba(var(--ledger-accent-rgb), 0.6)) brightness(1.25); }
 
@@ -2290,7 +2305,7 @@ input[type="number"]::-webkit-outer-spin-button {
   border-color: rgba(201,162,39,0.32);
   box-shadow: 0 0 8px rgba(201,162,39,0.18);
 }
-.ledger-tool-icon.icon-ledger svg { stroke: #E7C766; }
+.ledger-tool-icon.icon-ledger svg { stroke: #E7C766; filter: drop-shadow(0 0 3px rgba(201,162,39,0.55)); }
 .ledger-tool-item:hover .ledger-tool-icon.icon-ledger {
   background: linear-gradient(155deg, rgba(201,162,39,0.36), rgba(201,162,39,0.08));
   box-shadow: 0 0 14px rgba(201,162,39,0.4);
@@ -2304,7 +2319,7 @@ input[type="number"]::-webkit-outer-spin-button {
   border-color: rgba(110,143,163,0.32);
   box-shadow: 0 0 8px rgba(110,143,163,0.18);
 }
-.ledger-tool-icon.icon-dashboard svg { stroke: #9FC1D6; }
+.ledger-tool-icon.icon-dashboard svg { stroke: #9FC1D6; filter: drop-shadow(0 0 3px rgba(110,143,163,0.55)); }
 .ledger-tool-item:hover .ledger-tool-icon.icon-dashboard {
   background: linear-gradient(155deg, rgba(110,143,163,0.36), rgba(110,143,163,0.08));
   box-shadow: 0 0 14px rgba(110,143,163,0.4);
@@ -2323,7 +2338,7 @@ input[type="number"]::-webkit-outer-spin-button {
   border-color: rgba(63,174,133,0.32);
   box-shadow: 0 0 8px rgba(63,174,133,0.18);
 }
-.ledger-tool-icon.icon-connections svg { stroke: #7FE0BB; }
+.ledger-tool-icon.icon-connections svg { stroke: #7FE0BB; filter: drop-shadow(0 0 3px rgba(63,174,133,0.55)); }
 .ledger-tool-item:hover .ledger-tool-icon.icon-connections {
   background: linear-gradient(155deg, rgba(63,174,133,0.36), rgba(63,174,133,0.08));
   box-shadow: 0 0 14px rgba(63,174,133,0.4);
@@ -2342,7 +2357,7 @@ input[type="number"]::-webkit-outer-spin-button {
   border-color: rgba(224,128,106,0.32);
   box-shadow: 0 0 8px rgba(224,128,106,0.18);
 }
-.ledger-tool-icon.icon-spending svg { stroke: #E0806A; }
+.ledger-tool-icon.icon-spending svg { stroke: #E0806A; filter: drop-shadow(0 0 3px rgba(224,128,106,0.55)); }
 .ledger-tool-item:hover .ledger-tool-icon.icon-spending {
   background: linear-gradient(155deg, rgba(224,128,106,0.36), rgba(224,128,106,0.08));
   box-shadow: 0 0 14px rgba(224,128,106,0.4);
@@ -2356,7 +2371,7 @@ input[type="number"]::-webkit-outer-spin-button {
   border-color: rgba(168,143,216,0.32);
   box-shadow: 0 0 8px rgba(168,143,216,0.18);
 }
-.ledger-tool-icon.icon-investments svg { stroke: #A88FD8; }
+.ledger-tool-icon.icon-investments svg { stroke: #A88FD8; filter: drop-shadow(0 0 3px rgba(168,143,216,0.55)); }
 .ledger-tool-item:hover .ledger-tool-icon.icon-investments {
   background: linear-gradient(155deg, rgba(168,143,216,0.36), rgba(168,143,216,0.08));
   box-shadow: 0 0 14px rgba(168,143,216,0.4);
@@ -2371,7 +2386,7 @@ input[type="number"]::-webkit-outer-spin-button {
   border-color: rgba(110,196,184,0.32);
   box-shadow: 0 0 8px rgba(110,196,184,0.18);
 }
-.ledger-tool-icon.icon-savings svg { stroke: #6EC4B8; }
+.ledger-tool-icon.icon-savings svg { stroke: #6EC4B8; filter: drop-shadow(0 0 3px rgba(110,196,184,0.55)); }
 .ledger-tool-item:hover .ledger-tool-icon.icon-savings {
   background: linear-gradient(155deg, rgba(110,196,184,0.36), rgba(110,196,184,0.08));
   box-shadow: 0 0 14px rgba(110,196,184,0.4);
@@ -2392,6 +2407,7 @@ input[type="number"]::-webkit-outer-spin-button {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ledger-accent);
+  background: rgba(var(--ledger-accent-rgb), 0.15);
   border: 1px solid rgba(var(--ledger-accent-rgb), 0.4);
   padding: 1px 6px;
   border-radius: 20px;
