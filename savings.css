@@ -378,7 +378,7 @@
   border-color: rgba(var(--goal-glow), 0.55);
   box-shadow: 0 0 14px rgba(var(--goal-glow), 0.3);
 }
-.sav-theme-illust { width: 100%; max-width: 76px; }
+.sav-theme-illust { width: 100%; max-width: 76px; transition: opacity 0.4s ease; }
 
 /* ---------- GOAL DETAIL MODAL ---------- */
 .sav-detail-illust { width: 100%; max-width: 170px; margin: 0 auto 12px; }

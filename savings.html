@@ -914,10 +914,24 @@
       themePreviewLoopId = setInterval(() => {
         themePreviewStepIdx = (themePreviewStepIdx + 1) % THEME_PREVIEW_STEPS.length;
         const stepPct = THEME_PREVIEW_STEPS[themePreviewStepIdx];
-        Object.entries(THEMES).forEach(([key, t]) => {
+        // Swapping the SVG straight away is what read as a "flash" —
+        // the old stage vanishes and the new one's entrance pops in
+        // instantly. Fading the wrapper out first, swapping while it's
+        // invisible, then fading back in turns that hard cut into a
+        // dissolve, with the new stage's own entrance already playing
+        // underneath the fade-in.
+        Object.keys(THEMES).forEach(key => {
           const wrap = document.getElementById(`sav-theme-illust-${key}`);
-          if (wrap) wrap.innerHTML = goalIllustrationSvg(key, stepPct, t.accent, t.accentBright);
+          if (wrap) wrap.style.opacity = '0';
         });
+        setTimeout(() => {
+          Object.entries(THEMES).forEach(([key, t]) => {
+            const wrap = document.getElementById(`sav-theme-illust-${key}`);
+            if (!wrap) return;
+            wrap.innerHTML = goalIllustrationSvg(key, stepPct, t.accent, t.accentBright);
+            wrap.style.opacity = '1';
+          });
+        }, 400);
       }, 2200);
     }
 
