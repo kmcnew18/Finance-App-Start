@@ -88,6 +88,14 @@ h1, h2, h3 {
 
 .dash-header {
   padding: 20px 24px;
+  /* env() resolves to 0 anywhere without a notch/rounded-corner safe
+     area (every desktop browser, most phones) — this only ever adds
+     real space on a notched device running installed as a standalone
+     PWA (see manifest.json), where there's no browser chrome left to
+     naturally push a sticky-top header clear of the notch. max() keeps
+     the original 20px as a floor so the header never gets thinner than
+     before on devices that do report an inset smaller than that. */
+  padding-top: max(20px, env(safe-area-inset-top));
   border-bottom: 1px solid #222C3A;
   position: sticky;
   top: 0;
@@ -2899,7 +2907,7 @@ textarea:focus-visible,
 .activity-peek-tab {
   position: fixed;
   top: 50%;
-  right: 0;
+  right: max(0px, env(safe-area-inset-right)); /* stays flush on ordinary devices, clears a notch/rounded-corner safe area in landscape on ones that have it */
   transform: translateY(-50%);
   z-index: 45;
   width: 32px;
@@ -2946,6 +2954,13 @@ textarea:focus-visible,
   box-shadow: -18px 0 46px rgba(0,0,0,0.5);
   z-index: 47;
   padding: 26px 22px 22px;
+  /* Same reasoning as .dash-header — inert everywhere except a notched
+     device with no browser chrome to fall back on (installed PWA). This
+     panel is full-height and pinned to the right edge, so it's the one
+     place on Dashboard where top, right, AND bottom insets all matter. */
+  padding-top: max(26px, env(safe-area-inset-top));
+  padding-right: max(22px, env(safe-area-inset-right));
+  padding-bottom: max(22px, env(safe-area-inset-bottom));
   transform: translateX(100%);
   transition: transform 0.4s cubic-bezier(.22,.9,.22,1.05);
   overflow-y: auto;
