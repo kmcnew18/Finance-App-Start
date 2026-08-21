@@ -717,13 +717,14 @@
       recalcSummary();
     }
 
-    function rowTemplate(cat, line, locked) {
+    function rowTemplate(cat, line, locked, idx) {
       const c = CATS.find(x => x.key === cat);
       const checkboxCell = c.checkbox
         ? `<label class="log-check"><input type="checkbox" class="row-input" data-field="done" ${line.done ? 'checked' : ''} ${locked ? 'disabled' : ''} /><span class="check-box"></span></label>`
         : '';
+      const rowDelay = Math.min(idx || 0, 12) * 30;
       const rowHtml = `
-        <div class="ledger-row" data-id="${line.id}">
+        <div class="ledger-row ledger-row-in" data-id="${line.id}" style="animation-delay:${rowDelay}ms;">
           <input type="text" class="row-input" data-field="name" value="${line.name.replace(/"/g,'&quot;')}" placeholder="Name" ${locked ? 'disabled' : ''} />
           <input type="number" class="row-input" data-field="budget" value="${line.budget ? line.budget : ''}" placeholder="0.00" step="0.01" ${locked ? 'disabled' : ''} />
           <input type="number" class="row-input" data-field="actual" value="${line.actual ? line.actual : ''}" placeholder="0.00" step="0.01" ${locked ? 'disabled' : ''} />
@@ -783,7 +784,7 @@
       panel.classList.toggle('locked', locked);
       const container = document.getElementById('rows-' + cat);
       const lines = current.categories[cat] || [];
-      container.innerHTML = lines.map(l => rowTemplate(cat, l, locked)).join('');
+      container.innerHTML = lines.map((l, idx) => rowTemplate(cat, l, locked, idx)).join('');
 
       container.querySelectorAll('.ledger-row').forEach(rowEl => {
         const id = rowEl.dataset.id;
@@ -1279,8 +1280,8 @@
       if (!recurringReviews.length) { card.style.display = 'none'; return; }
       card.style.display = 'block';
 
-      list.innerHTML = recurringReviews.map(r => `
-        <div class="recurring-review-row" data-id="${r.id}">
+      list.innerHTML = recurringReviews.map((r, idx) => `
+        <div class="recurring-review-row ledger-row-in" data-id="${r.id}" style="animation-delay:${Math.min(idx, 12) * 30}ms;">
           <div class="recurring-review-info">
             <span class="recurring-review-merchant">${(r.merchant_name || 'Recurring charge').replace(/</g,'&lt;')}</span>
             <span class="recurring-review-meta">${fmtDate(r.txn_date)} · ${money(r.amount)} → ${(r.mapped_line_name || r.mapped_cat).replace(/</g,'&lt;')}</span>
@@ -2097,7 +2098,7 @@
           ? `<span class="log-custom-category-badge">${(logMirrorCategoryNameById[r.custom_category_id] || 'Category').replace(/</g,'&lt;')}: ${money(r.custom_category_amount || 0)}</span> `
           : '';
         const mainRow = `
-        <tr class="${logMirrorRowClass[r.action_type] || ''} logmirror-row${isGroupStart ? ' log-group-start' : ''}" data-log-id="${r.id}">
+        <tr class="log-row-in ${logMirrorRowClass[r.action_type] || ''} logmirror-row${isGroupStart ? ' log-group-start' : ''}" data-log-id="${r.id}">
           <td><label class="log-check" onclick="event.stopPropagation();"><input type="checkbox" class="logmirror-select" data-log-id="${r.id}" /><span class="check-box"></span></label></td>
           <td class="${logMirrorIsFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${logMirrorFormatDate(r.entry_date)}</td>
           <td class="num-cell log-amount-cell">${money(r.amount)}</td>

@@ -1793,6 +1793,19 @@ input[type="number"]::-webkit-outer-spin-button {
 .log-table tbody tr { transition: box-shadow 0.15s ease; }
 .log-table tbody tr:hover { box-shadow: inset 0 0 0 999px rgba(255,255,255,0.035); }
 
+/* renderLogTable() rebuilds the whole tbody on every search keystroke
+   and filter change (debounced, but still frequent), so this is
+   deliberately restrained: a quick opacity-only fade with no
+   per-row stagger and no transform, so results settling in reads as
+   a gentle refresh rather than a waterfall of rows popping in one by
+   one every time someone types — the animation equivalent of the
+   theme-picker "flashing" complaint this is written to avoid. */
+.log-table tbody tr.log-row-in { animation: logRowFadeIn 0.22s ease; }
+@keyframes logRowFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .log-table tbody tr.log-row-in { animation: none; }
+}
+
 .log-table td.num-cell {
   font-family: 'IBM Plex Mono', monospace;
   font-variant-numeric: tabular-nums;

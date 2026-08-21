@@ -193,6 +193,7 @@
 
     let currentUserId = null;
     let currentUserEmail = null;
+    let currentUserMetadata = {};
     let isPaidUser = false;
     let userTier = 1;
 
@@ -418,6 +419,7 @@
       if (!session) { window.location.href = 'login.html'; return; }
       currentUserId = session.user.id;
       currentUserEmail = session.user.email;
+      currentUserMetadata = session.user.user_metadata || {};
       document.getElementById('user-email').textContent = session.user.email;
 
       const { data: billing } = await supabaseClient.from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
@@ -441,7 +443,7 @@
       document.getElementById('view-log-button').addEventListener('click', () => { window.location.href = 'dashboard.html'; });
       document.getElementById('inv-go-connections-btn').addEventListener('click', () => { window.location.href = 'connections.html'; });
       setupPeriodPicker();
-      setupRingGlowToggle();
+      await setupRingGlowToggle();
 
       const { data: hiddenRows } = await supabaseClient
         .from('investment_hidden_holdings')
@@ -982,13 +984,21 @@
     }
 
     // ================= RING GLOW TOGGLE =================
-    // Off by default for every account (nothing stored yet reads as
-    // "off"), remembered per-user in this browser once they flip it,
-    // so the choice sticks without needing its own backend column.
-    function setupRingGlowToggle() {
+    // Off by default for every account, and now stored on the user's
+    // own auth record (user_metadata) instead of localStorage, so the
+    // choice follows them to any device/browser they log in from —
+    // not just the one where they first flipped it. No new table
+    // needed: user_metadata is a JSONB column Supabase already gives
+    // every user, untouched by anything else in this app. Always
+    // spreading currentUserMetadata into the update (rather than
+    // passing just { ring_glow }) is deliberate — Supabase's own docs
+    // don't actually specify whether updateUser({data}) merges or
+    // replaces user_metadata wholesale, so this merges client-side to
+    // be correct either way instead of risking silently wiping out
+    // some other key a future feature might store here.
+    async function setupRingGlowToggle() {
       const btn = document.getElementById('inv-glow-toggle');
       const wrap = document.getElementById('inv-ring-wrap');
-      const storageKey = `arko_ring_glow_${currentUserId}`;
 
       function applyState(on) {
         wrap.classList.toggle('no-glow', !on);
@@ -997,12 +1007,26 @@
         btn.title = on ? 'Ring glow: on' : 'Ring glow: off';
       }
 
-      applyState(localStorage.getItem(storageKey) === 'on');
+      // One-time migration: a returning user who already flipped this
+      // on under the old localStorage-only version keeps that choice
+      // instead of it silently resetting to off.
+      const legacyKey = `arko_ring_glow_${currentUserId}`;
+      if (currentUserMetadata.ring_glow === undefined && localStorage.getItem(legacyKey)) {
+        currentUserMetadata = { ...currentUserMetadata, ring_glow: localStorage.getItem(legacyKey) === 'on' };
+        const { data } = await supabaseClient.auth.updateUser({ data: currentUserMetadata });
+        if (data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
+        localStorage.removeItem(legacyKey);
+      }
 
-      btn.addEventListener('click', () => {
+      applyState(currentUserMetadata.ring_glow === true);
+
+      btn.addEventListener('click', async () => {
         const on = !btn.classList.contains('active');
-        localStorage.setItem(storageKey, on ? 'on' : 'off');
         applyState(on);
+        currentUserMetadata = { ...currentUserMetadata, ring_glow: on };
+        const { data, error } = await supabaseClient.auth.updateUser({ data: currentUserMetadata });
+        if (error) { applyState(!on); currentUserMetadata = { ...currentUserMetadata, ring_glow: !on }; return; }
+        if (data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
       });
     }
 

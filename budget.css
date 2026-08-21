@@ -856,6 +856,19 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Individual budget-line rows get the same fade-up, staggered by row
+   index (inline animation-delay set in rowTemplate()). This only ever
+   replays when rows actually change — adding, deleting, or
+   expanding/collapsing a log — since plain field edits mutate the
+   data in place without re-rendering the row markup. */
+.ledger-row-in { animation: ledgerFadeUp 0.32s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cashflow-card, .charts-card, .category-panel, .period-bar, .ledger-row-in {
+    animation: none;
+  }
+}
+
 /* Within the budget workspace, keyboard focus reads in brass rather than
    the dashboard's vintage-blue, so the two rooms keep their own identity
    even down to accessibility affordances. */
