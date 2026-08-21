@@ -541,7 +541,7 @@
 
         return `
         <tr class="log-row-in ${rowClassByType[r.action_type] || ''}${isGroupStart ? ' log-group-start' : ''}">
-          <td><label class="log-check"><input type="checkbox" class="row-select" data-id="${r.id}" /><span class="check-box"></span></label></td>
+          <td><label class="log-check"><input type="checkbox" class="row-select" data-id="${r.id}" aria-label="Select entry from ${formatDate(r.entry_date)}, ${money(r.amount)}" /><span class="check-box"></span></label></td>
           <td class="${firstOfMonthIds.has(r.id) ? 'log-date-firstofmonth' : ''}">${formatDate(r.entry_date)}</td>
           <td class="num-cell log-amount-cell">${money(r.amount)}</td>
           ${categoryCellsHtml}
