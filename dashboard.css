@@ -2046,6 +2046,20 @@ input[type="number"]::-webkit-outer-spin-button {
      just a long Settings list) the bottom of the menu extended past
      the edge of the screen with no way to reach it, since the menu is
      positioned off the sticky header rather than the scrollable page. */
+  /* Both dropdowns were still anchoring right:0 against their own tiny
+     trigger button (.settings-wrap), not the screen edge. On mobile
+     the ledger button in particular sits mid-row with the Settings
+     gear and Log out still to its right, so right:0 against just the
+     button positioned the whole panel far enough left to slice its
+     left edge off-screen — the width cap above wasn't enough on its
+     own since the anchor point itself was wrong. Moving the position
+     context up to .nav-auth (which the earlier flex-wrap fix already
+     stretches to the real right edge of the header row) makes right:0
+     resolve against the actual screen edge regardless of which button
+     opened it. */
+  .nav-auth { position: relative; }
+  .settings-wrap { position: static; }
+
   .ledger-dropdown {
     width: min(302px, calc(100vw - 32px));
     max-height: calc(100vh - 90px);
