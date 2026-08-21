@@ -755,7 +755,7 @@
       renderCustomCategoryCards();
     }
 
-    const COLOR_PICKER_OPTIONS = ['sage', 'blue', 'coral', 'gold', 'violet', 'teal'];
+    const COLOR_PICKER_OPTIONS = ['sage', 'blue', 'coral', 'gold', 'violet', 'teal', 'rose', 'indigo', 'lime', 'amber'];
     let colorPickerTargetCatKey = null;
 
     // Click-to-edit for a custom category's manual set-aside amount —
@@ -1180,6 +1180,7 @@
         if (!card) return;
         const accentColor = ACCENT_COLORS[categoryAccentByKey[key]] || ACCENT_COLORS.sage;
         card.style.borderLeft = `3px solid ${accentColor}`;
+        card.style.setProperty('--cat-accent', accentColor);
         const label = card.querySelector('.card-label');
         if (label) label.style.color = accentColor;
         const swatch = card.querySelector('.card-color-btn');
@@ -1270,6 +1271,7 @@
 
     const ACCENT_COLORS = {
       sage: '#6EC496', blue: '#6E8FA3', coral: '#E0806A', gold: '#D8BC7A', violet: '#A88FD8', teal: '#6EC4B8',
+      rose: '#D87BA0', indigo: '#8091E0', lime: '#B4C468', amber: '#D89A52',
     };
 
     function renderCustomCategoryCards() {
@@ -1284,6 +1286,7 @@
         card.dataset.catKey = cat.id;
         card.draggable = true;
         card.style.borderLeft = `3px solid ${accentColor}`;
+        card.style.setProperty('--cat-accent', accentColor);
         const valueHtml = cat.hasConnection
           ? `<span class="card-value">${money(cat.total)}</span>`
           : `<span class="card-value card-value-manual" data-manual-cat="${cat.id}" title="Click to set aside an amount">${money(cat.total)}</span>
