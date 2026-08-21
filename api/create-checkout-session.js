@@ -45,25 +45,21 @@ async function handleCheckout(req, res) {
   }
 
   try {
-    // Cancelling out of Stripe should send you back to Dashboard —
-    // unless the trial has genuinely run out and there's no active
-    // tier, in which case back to the paywall (the only page that
-    // should ever say "your trial has ended").
-    const { data: billing } = await supabaseAdmin
-      .from('user_billing')
-      .select('trial_end, tier')
-      .eq('user_id', userId)
-      .maybeSingle();
-    const trialExpired = billing ? new Date(billing.trial_end) < new Date() : true;
-    const hasNoAccess = trialExpired && (!billing || billing.tier <= 1);
-    const cancelUrl = hasNoAccess
-      ? `${req.headers.origin}/paywall.html?payment=cancelled`
-      : `${req.headers.origin}/dashboard.html?payment=cancelled`;
-
     const isMonthly = billingPeriod === 'monthly';
     const amount = isMonthly ? pricing.monthly : pricing.lifetime;
 
+    // ui_mode: 'embedded' keeps the whole payment form on arkofinance.com
+    // (mounted in an iframe via Stripe.js) instead of redirecting to a
+    // checkout.stripe.com page — Stripe still fully owns and hosts the
+    // actual card entry/PCI compliance, this only changes where it's
+    // *displayed*. Embedded sessions use return_url instead of
+    // success_url/cancel_url — passing either of those is rejected by
+    // Stripe for this mode. There's no cancel_url to redirect to
+    // because there's no separate Stripe page to back out of anymore:
+    // "cancelling" is just the user clicking Paywall's own back button,
+    // which unmounts the embedded form locally with no Stripe involved.
     const session = await stripe.checkout.sessions.create({
+      ui_mode: 'embedded',
       mode: isMonthly ? 'subscription' : 'payment',
       payment_method_types: ['card'],
       customer_email: email,
@@ -79,11 +75,10 @@ async function handleCheckout(req, res) {
       }],
       metadata: { userId, tier: String(tierNum), billingPeriod },
       ...(isMonthly ? { subscription_data: { metadata: { userId, tier: String(tierNum) } } } : {}),
-      success_url: `${req.headers.origin}/dashboard.html?payment=success`,
-      cancel_url: cancelUrl
+      return_url: `${req.headers.origin}/dashboard.html?payment=success`,
     });
 
-    res.status(200).json({ url: session.url });
+    res.status(200).json({ clientSecret: session.client_secret, publishableKey: process.env.STRIPE_PUBLISHABLE_KEY });
   } catch (err) {
     console.error('create-checkout-session (checkout) error:', err);
     res.status(500).json({ error: err.message });
@@ -186,10 +181,13 @@ async function handleUpgrade(req, res) {
 
     // Lifetime: a second one-time payment for exactly the price
     // difference ($135 - $65 = $70), not the full Tier 3 price again.
+    // Same embedded-checkout approach as handleCheckout — see the
+    // comment there for why return_url replaces success_url/cancel_url.
     if (billing.billing_period === 'lifetime') {
       const upgradeAmount = TIER_PRICING[3].lifetime - TIER_PRICING[2].lifetime;
 
       const session = await stripe.checkout.sessions.create({
+        ui_mode: 'embedded',
         mode: 'payment',
         payment_method_types: ['card'],
         customer_email: email,
@@ -202,11 +200,10 @@ async function handleUpgrade(req, res) {
           quantity: 1,
         }],
         metadata: { userId, tier: '3', billingPeriod: 'lifetime' },
-        success_url: `${req.headers.origin}/dashboard.html?payment=success`,
-        cancel_url: `${req.headers.origin}/dashboard.html?payment=cancelled`,
+        return_url: `${req.headers.origin}/dashboard.html?payment=success`,
       });
 
-      return res.status(200).json({ upgraded: false, mode: 'checkout', url: session.url });
+      return res.status(200).json({ upgraded: false, mode: 'checkout', clientSecret: session.client_secret, publishableKey: process.env.STRIPE_PUBLISHABLE_KEY });
     }
 
     return res.status(400).json({ error: 'Unrecognized billing period for upgrade.' });

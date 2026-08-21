@@ -141,6 +141,22 @@
     .paywall-message { text-align: center; margin-top: 16px; font-size: 0.85rem; min-height: 1.2em; }
     .paywall-message-error { color: var(--error); }
 
+    .checkout-back-btn {
+      padding: 9px 16px; border: 1px solid rgba(239,230,208,0.3); border-radius: 8px;
+      background: transparent; color: var(--tan); font-weight: 600; font-size: 0.85rem;
+      cursor: pointer; margin-bottom: 20px; font-family: 'Public Sans', sans-serif;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .checkout-back-btn:hover { background: rgba(239,230,208,0.1); border-color: rgba(239,230,208,0.55); }
+    #embedded-checkout-container {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 8px;
+      min-height: 420px;
+      box-shadow: 0 6px 22px rgba(0,0,0,0.28);
+    }
+
     @media (max-width: 860px) {
       .tier-grid { grid-template-columns: 1fr; }
       .tier-card.tier-3::before { position: static; display: inline-block; margin-bottom: 10px; }
@@ -170,6 +186,7 @@
     <div class="need-banner" id="need-banner"></div>
     <div class="trial-banner" id="trial-banner"></div>
 
+    <div id="paywall-plans-view">
     <div class="billing-toggle">
       <button type="button" class="billing-toggle-btn active" id="toggle-monthly-btn">Monthly</button>
       <button type="button" class="billing-toggle-btn" id="toggle-lifetime-btn">Lifetime <span class="billing-toggle-save">save more</span></button>
@@ -230,10 +247,18 @@
       </div>
     </div>
 
+    <p class="paywall-footnote">Monthly plans can be cancelled anytime from Manage subscription. Lifetime is a one-time payment — no recurring charge, ever.</p>
+    </div>
+
+    <div id="paywall-checkout-view" style="display:none;">
+      <button type="button" class="checkout-back-btn" id="checkout-back-btn">← Back to plans</button>
+      <div id="embedded-checkout-container"></div>
+    </div>
+
     <p class="paywall-message" id="paywall-message"></p>
-    <p class="paywall-footnote">Monthly plans can be cancelled anytime from Stripe's billing portal. Lifetime is a one-time payment — no recurring charge, ever.</p>
   </main>
 
+  <script src="https://js.stripe.com/v3/"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
@@ -296,13 +321,36 @@
       updatePrices();
     });
 
+    // Kept mounted between opens so backToPlans() can call .destroy()
+    // on whatever's currently showing, regardless of which flow
+    // (startCheckout or startUpgrade) created it.
+    let activeEmbeddedCheckout = null;
+
+    async function mountEmbeddedCheckout(clientSecret, publishableKey) {
+      document.getElementById('paywall-plans-view').style.display = 'none';
+      const container = document.getElementById('embedded-checkout-container');
+      container.innerHTML = '';
+      document.getElementById('paywall-checkout-view').style.display = 'block';
+
+      const stripe = Stripe(publishableKey);
+      activeEmbeddedCheckout = await stripe.initEmbeddedCheckout({ clientSecret });
+      activeEmbeddedCheckout.mount('#embedded-checkout-container');
+    }
+
+    function backToPlans() {
+      if (activeEmbeddedCheckout) { activeEmbeddedCheckout.destroy(); activeEmbeddedCheckout = null; }
+      document.getElementById('paywall-checkout-view').style.display = 'none';
+      document.getElementById('paywall-plans-view').style.display = 'block';
+      document.getElementById('paywall-message').textContent = '';
+    }
+
     async function startCheckout(tier, btn) {
       const message = document.getElementById('paywall-message');
       message.textContent = '';
       message.className = 'paywall-message';
       const originalText = btn.textContent;
       btn.disabled = true;
-      btn.textContent = 'Redirecting to checkout…';
+      btn.textContent = 'Loading checkout…';
 
       try {
         const res = await fetch('/api/create-checkout-session', {
@@ -311,8 +359,10 @@
           body: JSON.stringify({ userId: currentUser.id, email: currentUser.email, tier, billingPeriod })
         });
         const data = await res.json();
-        if (data.url) {
-          window.location.href = data.url;
+        if (data.clientSecret && data.publishableKey) {
+          await mountEmbeddedCheckout(data.clientSecret, data.publishableKey);
+          btn.disabled = false;
+          btn.textContent = originalText;
         } else {
           message.textContent = data.error || 'Could not start checkout. Please try again.';
           message.classList.add('paywall-message-error');
@@ -345,8 +395,10 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Could not process the upgrade.');
 
-        if (data.mode === 'checkout' && data.url) {
-          window.location.href = data.url;
+        if (data.mode === 'checkout' && data.clientSecret) {
+          await mountEmbeddedCheckout(data.clientSecret, data.publishableKey);
+          btn.disabled = false;
+          btn.textContent = originalText;
         } else if (data.upgraded) {
           message.textContent = data.message;
           message.className = 'paywall-message';
@@ -368,6 +420,7 @@
       if (userTier === 2) startUpgrade(e.target);
       else startCheckout(3, e.target);
     });
+    document.getElementById('checkout-back-btn').addEventListener('click', backToPlans);
 
     document.getElementById('paywall-back-button').addEventListener('click', () => {
       window.location.href = 'dashboard.html';
