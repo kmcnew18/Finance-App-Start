@@ -124,6 +124,9 @@
       </div>
 
       <div class="inv-ring-card">
+        <button type="button" class="inv-glow-toggle" id="inv-glow-toggle" aria-label="Toggle ring glow" aria-pressed="false" title="Ring glow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path><circle cx="12" cy="12" r="5"></circle></svg>
+        </button>
         <div class="inv-ring-wrap" id="inv-ring-wrap">
           <svg viewBox="0 0 300 300" class="inv-ring-svg" id="inv-ring-svg"></svg>
           <div class="inv-ring-center">
@@ -438,6 +441,7 @@
       document.getElementById('view-log-button').addEventListener('click', () => { window.location.href = 'dashboard.html'; });
       document.getElementById('inv-go-connections-btn').addEventListener('click', () => { window.location.href = 'connections.html'; });
       setupPeriodPicker();
+      setupRingGlowToggle();
 
       const { data: hiddenRows } = await supabaseClient
         .from('investment_hidden_holdings')
@@ -974,6 +978,31 @@
           dd.classList.remove('open');
           updateReturnPill();
         });
+      });
+    }
+
+    // ================= RING GLOW TOGGLE =================
+    // Off by default for every account (nothing stored yet reads as
+    // "off"), remembered per-user in this browser once they flip it,
+    // so the choice sticks without needing its own backend column.
+    function setupRingGlowToggle() {
+      const btn = document.getElementById('inv-glow-toggle');
+      const wrap = document.getElementById('inv-ring-wrap');
+      const storageKey = `arko_ring_glow_${currentUserId}`;
+
+      function applyState(on) {
+        wrap.classList.toggle('no-glow', !on);
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.title = on ? 'Ring glow: on' : 'Ring glow: off';
+      }
+
+      applyState(localStorage.getItem(storageKey) === 'on');
+
+      btn.addEventListener('click', () => {
+        const on = !btn.classList.contains('active');
+        localStorage.setItem(storageKey, on ? 'on' : 'off');
+        applyState(on);
       });
     }
 

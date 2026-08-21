@@ -191,6 +191,40 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Ring glow toggle — deliberately tiny and low-contrast so it reads as
+   a quiet corner control, not another action competing with the ring
+   itself. Off by default for every new account (see the
+   inv-ring-glow-* localStorage read in the script below); flipping it
+   just removes the drop-shadow filter and glow-pulse animation from
+   the arcs, nothing else about the ring changes. */
+.inv-glow-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--silver-dim);
+  opacity: 0.4;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: opacity 0.2s ease, color 0.2s ease, background 0.2s ease;
+  z-index: 2;
+}
+.inv-glow-toggle svg { width: 15px; height: 15px; }
+.inv-glow-toggle:hover { opacity: 0.85; background: rgba(168,143,216,0.1); }
+.inv-glow-toggle.active { opacity: 0.75; color: var(--violet-bright, #A88FD8); }
+.inv-glow-toggle.active:hover { opacity: 1; }
+
+.inv-ring-wrap.no-glow .inv-ring-arc {
+  filter: none;
+  animation: invArcIn 0.7s cubic-bezier(.22,.85,.25,1) backwards;
+}
+
 .inv-ring-wrap {
   position: relative;
   width: 100%;
