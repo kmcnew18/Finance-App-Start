@@ -29,23 +29,25 @@
       </div>
     </nav>
 
+    <div class="wip-banner">Early development · some features may not be live</div>
+
     <div class="auth-content">
       <h1>Welcome back</h1>
       <p class="auth-subhead">Log in to see your full picture.</p>
 
       <form class="auth-form" id="login-form">
         <label for="email">Email</label>
-        <input type="email" id="email" name="email" placeholder="you@email.com" required />
+        <input type="email" id="email" name="email" placeholder="you@email.com" autocomplete="email" autofocus required />
 
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" placeholder="••••••••" required minlength="8" />
+        <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required minlength="8" />
 
         <button type="submit" id="login-button">Log in</button>
       </form>
 
       <p class="auth-switch"><a href="forgot-password.html">Forgot password?</a></p>
 
-      <p class="auth-message" id="auth-message"></p>
+      <p class="auth-message" id="auth-message" aria-live="polite"></p>
 
       <button type="button" id="resend-button" class="btn-resend" style="display:none;">Resend confirmation email</button>
 

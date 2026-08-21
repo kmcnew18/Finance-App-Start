@@ -2,13 +2,9 @@
   --blue: #2E5472;
   --blue-deep: #1B2330;
   --blue-light: #6E8FA3;
-  --silver: #B3B6B9;
-  --silver-hover: #C7CACD;
   --tan: #E8E1D3;
   --tan-hover: #F0EBE0;
   --brown: #6b4a38;
-  --paper: #DCDDDE;
-  --paper-light: #E6E7E8;
   --ink: #20262B;
   --slate: #5B6268;
   --line: #C9CBCC;
@@ -122,6 +118,11 @@ h1, h2, h3, h4 {
 
 .btn-login:hover {
   background: var(--tan-hover);
+}
+
+.btn-login:focus-visible, .btn-signup:focus-visible {
+  outline: 2px solid var(--tan);
+  outline-offset: 2px;
 }
 
 .wordmark {
@@ -631,12 +632,16 @@ h1, h2, h3, h4 {
   color: #0B0F14;
   box-shadow: 0 0 20px color-mix(in srgb, var(--tier-color) 55%, transparent);
 }
+.price-cta:focus-visible {
+  outline: 2px solid var(--tier-color);
+  outline-offset: 2px;
+}
 
 .pricing-footnote {
   text-align: center;
   margin-top: 36px;
   font-size: 0.8rem;
-  color: #6B7880;
+  color: #7C8892;
   position: relative;
   z-index: 1;
 }
@@ -665,9 +670,6 @@ h1, h2, h3, h4 {
   .subhead { margin-left: auto; margin-right: auto; }
   .hero-visual { order: -1; margin-bottom: 8px; }
   .flow { max-width: 240px; }
-  .waitlist-form {
-    flex-direction: column;
-  }
 }
 
 @media (max-width: 480px) {
