@@ -189,8 +189,8 @@
       <p id="paywall-subhead">Start free, or unlock automation and the full toolkit whenever you're ready.</p>
     </div>
 
-    <div class="need-banner" id="need-banner"></div>
-    <div class="trial-banner" id="trial-banner"></div>
+    <div class="need-banner" id="need-banner" aria-live="polite"></div>
+    <div class="trial-banner" id="trial-banner" aria-live="polite"></div>
 
     <div id="paywall-plans-view">
     <div class="billing-toggle">
@@ -229,7 +229,7 @@
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Up to 6 connected accounts</li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Auto-updating balances tied to real accounts</li>
         </ul>
-        <button type="button" class="tier-cta tier-2-cta" id="tier-2-cta">Get Automation</button>
+        <button type="button" class="tier-cta tier-2-cta" id="tier-2-cta" disabled>Get Automation</button>
       </div>
 
       <!-- ================= TIER 3 ================= -->
@@ -249,7 +249,7 @@
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Investment portfolio view</li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>First access to future features</li>
         </ul>
-        <button type="button" class="tier-cta tier-3-cta" id="tier-3-cta">Get Full Access</button>
+        <button type="button" class="tier-cta tier-3-cta" id="tier-3-cta" disabled>Get Full Access</button>
       </div>
     </div>
 
@@ -261,7 +261,7 @@
       <div id="embedded-checkout-container"></div>
     </div>
 
-    <p class="paywall-message" id="paywall-message"></p>
+    <p class="paywall-message" id="paywall-message" aria-live="polite"></p>
   </main>
 
   <script src="https://js.stripe.com/v3/"></script>
@@ -452,6 +452,16 @@
         .from('user_billing').select('*').eq('user_id', currentUser.id).maybeSingle();
       userTier = computeEffectiveTier(billing);
       userBillingPeriod = billing?.billing_period || 'free';
+
+      // Both CTAs start disabled in HTML — currentUser (needed by
+      // startCheckout/startUpgrade) and userTier (needed by the
+      // already-own-this-tier checks right below) aren't known until
+      // this point, so a click landing before now would either throw
+      // on a null currentUser or let someone buy a tier they already
+      // have. Re-enabling here, before the tier-specific checks run,
+      // means those checks can still correctly re-disable either one.
+      document.getElementById('tier-2-cta').disabled = false;
+      document.getElementById('tier-3-cta').disabled = false;
 
       // Mark the current tier's card, and disable buying a tier you
       // already have (or a lower one than you already have).
