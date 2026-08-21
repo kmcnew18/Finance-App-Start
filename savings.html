@@ -400,8 +400,10 @@
               </linearGradient>
             </defs>
             <ellipse cx="80" cy="168" rx="34" ry="7" fill="rgba(0,0,0,0.25)"/>
-            <path d="M55 150 L105 150 L98 172 L62 172 Z" fill="#2C1F14" stroke="${accent}" stroke-width="1.5"/>
-            <rect x="52" y="144" width="56" height="10" rx="3" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
+            <g class="sav-pot-in" style="transform-origin:80px 172px;">
+              <path d="M55 150 L105 150 L98 172 L62 172 Z" fill="#2C1F14" stroke="${accent}" stroke-width="1.5"/>
+              <rect x="52" y="144" width="56" height="10" rx="3" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
+            </g>
             <line x1="80" y1="150" x2="80" y2="${stemTopY}" stroke="${accent}" stroke-width="3.5" stroke-linecap="round" pathLength="1" class="sav-stem-grow"/>
             <g class="sav-anim-sway" style="transform-origin:80px ${stemTopY + stemHeight * 0.35}px;">
               <g class="sav-leaf-pop" style="transform-origin:80px ${stemTopY + stemHeight * 0.35}px; animation-delay:0.55s;" opacity="${clampedPct > 5 ? 1 : 0}">
@@ -424,6 +426,7 @@
                 </g>
               </g>
             </g>
+            ${clampedPct > 60 ? `<g transform="translate(80 ${stemTopY - 30})"><g class="sav-twinkle" style="animation-delay:1.15s;"><path d="M0 -6 L1.5 -1.5 L6 0 L1.5 1.5 L0 6 L-1.5 1.5 L-6 0 L-1.5 -1.5 Z" fill="${accentBright}"/></g></g>` : ''}
             ${clampedPct >= 100 ? celebrationBurstSvg('petal', 80, stemTopY - 6, accent, accentBright) : ''}
           </svg>`;
       }
@@ -434,21 +437,25 @@
             <defs>
               <clipPath id="bottleClip-${theme}"><path d="M62 8 h36 v26 c18 10 30 30 30 56 v58 a14 14 0 0 1 -14 14 h-68 a14 14 0 0 1 -14 -14 v-58 c0 -26 12 -46 30 -56 z"/></clipPath>
             </defs>
-            <path d="M62 8 h36 v26 c18 10 30 30 30 56 v58 a14 14 0 0 1 -14 14 h-68 a14 14 0 0 1 -14 -14 v-58 c0 -26 12 -46 30 -56 z"
-              fill="rgba(255,255,255,0.03)" stroke="${accent}" stroke-width="2" opacity="0.9"/>
-            <rect x="58" y="2" width="44" height="12" rx="3" fill="${accent}" opacity="0.8"/>
-            <g clip-path="url(#bottleClip-${theme})">
-              <g class="sav-water-rise" style="transform-origin:80px 176px;">
-                <rect x="10" y="${fillY}" width="140" height="180" fill="${accent}" opacity="0.5"/>
-                <path d="M10 ${fillY} q 20 -5 40 0 t 40 0 t 40 0 t 20 0 v 6 h -140 z" fill="${accentBright}" opacity="0.7"/>
-                <g class="sav-anim-bob" style="transform-origin:80px ${fillY}px;" transform="translate(80 ${fillY - 4})" opacity="${clampedPct > 3 ? 1 : 0}">
-                  <path d="M-20 0 L20 0 L14 12 L-14 12 Z" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
-                  <line x1="0" y1="0" x2="0" y2="-24" stroke="${accent}" stroke-width="2"/>
-                  <path d="M0 -24 L16 -16 L0 -10 Z" fill="${accentBright}"/>
-                  <path d="M0 -22 L-12 -14 L0 -9 Z" fill="${accent}"/>
+            <g class="sav-bottle-in" style="transform-origin:80px 176px;">
+              <path d="M62 8 h36 v26 c18 10 30 30 30 56 v58 a14 14 0 0 1 -14 14 h-68 a14 14 0 0 1 -14 -14 v-58 c0 -26 12 -46 30 -56 z"
+                fill="rgba(255,255,255,0.03)" stroke="${accent}" stroke-width="2" opacity="0.9"/>
+              <rect x="58" y="2" width="44" height="12" rx="3" fill="${accent}" opacity="0.8"/>
+              <g clip-path="url(#bottleClip-${theme})">
+                <g class="sav-water-rise" style="transform-origin:80px 176px;">
+                  <rect x="10" y="${fillY}" width="140" height="180" fill="${accent}" opacity="0.5"/>
+                  <path d="M10 ${fillY} q 20 -5 40 0 t 40 0 t 40 0 t 20 0 v 6 h -140 z" fill="${accentBright}" opacity="0.7"/>
+                  <g class="sav-anim-bob" style="transform-origin:80px ${fillY}px;" transform="translate(80 ${fillY - 4})" opacity="${clampedPct > 3 ? 1 : 0}">
+                    <path d="M-20 0 L20 0 L14 12 L-14 12 Z" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
+                    <line x1="0" y1="0" x2="0" y2="-24" stroke="${accent}" stroke-width="2"/>
+                    <path d="M0 -24 L16 -16 L0 -10 Z" fill="${accentBright}"/>
+                    <path d="M0 -22 L-12 -14 L0 -9 Z" fill="${accent}"/>
+                  </g>
                 </g>
               </g>
             </g>
+            ${clampedPct > 3 ? `<g transform="translate(60 ${fillY})"><g class="sav-twinkle" style="animation-delay:1s;"><path d="M0 -5 L1.2 -1.2 L5 0 L1.2 1.2 L0 5 L-1.2 1.2 L-5 0 L-1.2 -1.2 Z" fill="${accentBright}"/></g></g>
+            <g transform="translate(102 ${fillY - 3})"><g class="sav-twinkle" style="animation-delay:1.12s;"><path d="M0 -4 L1 -1 L4 0 L1 1 L0 4 L-1 1 L-4 0 L-1 -1 Z" fill="${accentBright}"/></g></g>` : ''}
             ${clampedPct >= 100 ? celebrationBurstSvg('star', 80, 20, accent, accentBright) : ''}
           </svg>`;
       }
@@ -468,14 +475,19 @@
             <ellipse cx="80" cy="172" rx="40" ry="6" fill="rgba(0,0,0,0.22)"/>
             <g class="sav-rise-in" style="transform-origin:80px 172px;">
               <g class="sav-anim-float" style="transform-origin:80px ${riseY}px;" transform="translate(0 ${riseY - 60})">
-                <ellipse cx="80" cy="60" rx="34" ry="42" fill="url(#balloonGrad-${theme})"/>
-                <path d="M60 96 Q80 106 100 96" stroke="${accent}" stroke-width="2" fill="none" opacity="0.6"/>
+                <g class="sav-balloon-inflate" style="transform-origin:80px 60px;">
+                  <ellipse cx="80" cy="60" rx="34" ry="42" fill="url(#balloonGrad-${theme})"/>
+                  <path d="M60 96 Q80 106 100 96" stroke="${accent}" stroke-width="2" fill="none" opacity="0.6"/>
+                </g>
                 <line x1="64" y1="98" x2="70" y2="120" stroke="${accent}" stroke-width="1.5"/>
                 <line x1="96" y1="98" x2="90" y2="120" stroke="${accent}" stroke-width="1.5"/>
                 <line x1="80" y1="102" x2="80" y2="120" stroke="${accent}" stroke-width="1.5"/>
                 <rect x="68" y="120" width="24" height="16" rx="2" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
               </g>
             </g>
+            ${clampedPct > 3 ? `<g transform="translate(68 ${riseY + 62})"><g class="sav-dust-mote" style="animation-delay:0.25s;"><circle r="2.5" fill="${accentBright}" opacity="0.7"/></g></g>
+            <g transform="translate(92 ${riseY + 66})"><g class="sav-dust-mote" style="animation-delay:0.4s;"><circle r="2" fill="${accentBright}" opacity="0.6"/></g></g>
+            <g transform="translate(80 ${riseY + 70})"><g class="sav-dust-mote" style="animation-delay:0.55s;"><circle r="2" fill="${accentBright}" opacity="0.6"/></g></g>` : ''}
             ${clampedPct >= 100 ? celebrationBurstSvg('confetti', 80, riseY, accent, accentBright) : ''}
           </svg>`;
       }
@@ -498,12 +510,17 @@
                 <circle cx="80" cy="42" r="9" fill="#171D24" stroke="${accentBright}" stroke-width="2"/>
                 <path d="M64 60 L46 78 L64 74 Z" fill="${accent}"/>
                 <path d="M96 60 L114 78 L96 74 Z" fill="${accent}"/>
-                <g class="sav-anim-flicker">
-                  <path d="M70 76 L80 100 L90 76 Z" fill="${accentBright}"/>
-                  <path d="M74 76 L80 92 L86 76 Z" fill="#fff" opacity="0.7"/>
+                <g class="sav-flame-ignite" style="transform-origin:80px 76px;">
+                  <g class="sav-anim-flicker">
+                    <path d="M70 76 L80 100 L90 76 Z" fill="${accentBright}"/>
+                    <path d="M74 76 L80 92 L86 76 Z" fill="#fff" opacity="0.7"/>
+                  </g>
                 </g>
               </g>
             </g>
+            ${clampedPct > 3 ? `<g transform="translate(68 ${riseY + 38})"><g class="sav-smoke-puff" style="animation-delay:0.1s;"><circle r="4" fill="#8A8A8A" opacity="0.4"/></g></g>
+            <g transform="translate(92 ${riseY + 40})"><g class="sav-smoke-puff" style="animation-delay:0.2s;"><circle r="3.5" fill="#8A8A8A" opacity="0.35"/></g></g>
+            <g transform="translate(80 ${riseY + 44})"><g class="sav-smoke-puff" style="animation-delay:0.3s;"><circle r="4.5" fill="#8A8A8A" opacity="0.3"/></g></g>` : ''}
             ${clampedPct >= 100 ? celebrationBurstSvg('spark', 80, riseY - 30, accent, accentBright) : ''}
           </svg>`;
       }
@@ -530,12 +547,15 @@
             <rect x="86" y="130" width="8" height="10" fill="#171D24" opacity="0.5"/>
             <rect x="58" y="48" width="44" height="14" rx="2" fill="${accent}" stroke="${accentBright}" stroke-width="1.5"/>
             <path d="M64 48 L80 30 L96 48 Z" fill="${accentBright}"/>
-            <g class="sav-beam-extend" style="transform-origin:80px 55px;">
+            <g class="sav-beam-extend" style="transform-origin:80px 55px; animation-delay:0.25s;">
               <g class="sav-anim-beam" style="transform-origin:80px 55px;" opacity="${clampedPct > 2 ? 1 : 0}">
                 <path d="M80 55 L${80 + beamLen} ${40 - beamLen * 0.28} L${80 + beamLen} ${70 + beamLen * 0.28} Z" fill="${accentBright}" opacity="${beamOpacity}"/>
               </g>
             </g>
-            <circle cx="80" cy="55" r="5" fill="${accentBright}"/>
+            ${clampedPct > 2 ? `<g transform="translate(80 55)"><g class="sav-flash-ring" style="animation-delay:0.2s;"><circle r="6" fill="none" stroke="${accentBright}" stroke-width="1.5"/></g></g>` : ''}
+            <g class="sav-lamp-ignite" style="transform-origin:80px 55px;">
+              <circle cx="80" cy="55" r="5" fill="${accentBright}"/>
+            </g>
             ${clampedPct >= 100 ? celebrationBurstSvg('star', 80, 30, accent, accentBright) : ''}
           </svg>`;
       }
@@ -553,12 +573,18 @@
           <path d="M80 176 Q68 ${riseY + 70} 80 ${riseY + 14}" stroke="${accent}" stroke-width="1.5" fill="none" opacity="0.5"/>
           <g class="sav-rise-in" style="transform-origin:80px 176px;">
             <g class="sav-anim-sway" style="transform-origin:80px ${riseY}px;" transform="translate(0 ${riseY - 60})">
-              <path d="M80 20 L104 60 L80 100 L56 60 Z" fill="url(#kiteGrad-${theme})"/>
-              <line x1="80" y1="20" x2="80" y2="100" stroke="${accentBright}" stroke-width="1.5" opacity="0.7"/>
-              <line x1="56" y1="60" x2="104" y2="60" stroke="${accentBright}" stroke-width="1.5" opacity="0.7"/>
-              <path d="M80 100 Q76 110 82 116 Q76 122 82 128 Q76 134 82 140" stroke="${accent}" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <g class="sav-kite-in" style="transform-origin:80px 60px;">
+                <path d="M80 20 L104 60 L80 100 L56 60 Z" fill="url(#kiteGrad-${theme})"/>
+                <line x1="80" y1="20" x2="80" y2="100" stroke="${accentBright}" stroke-width="1.5" opacity="0.7"/>
+                <line x1="56" y1="60" x2="104" y2="60" stroke="${accentBright}" stroke-width="1.5" opacity="0.7"/>
+              </g>
+              <g class="sav-tail-flutter" style="transform-origin:80px 100px;">
+                <path d="M80 100 Q76 110 82 116 Q76 122 82 128 Q76 134 82 140" stroke="${accent}" stroke-width="2" fill="none" stroke-linecap="round"/>
+              </g>
             </g>
           </g>
+          ${clampedPct > 10 ? `<g transform="translate(40 ${riseY - 10})"><g class="sav-wind-streak" style="animation-delay:0.15s;"><line x1="0" y1="0" x2="14" y2="4" stroke="${accentBright}" stroke-width="1.5" opacity="0.5"/></g></g>
+          <g transform="translate(112 ${riseY + 20})"><g class="sav-wind-streak" style="animation-delay:0.35s;"><line x1="0" y1="0" x2="14" y2="4" stroke="${accentBright}" stroke-width="1.5" opacity="0.5"/></g></g>` : ''}
           ${clampedPct >= 100 ? celebrationBurstSvg('confetti', 80, riseY, accent, accentBright) : ''}
         </svg>`;
     }

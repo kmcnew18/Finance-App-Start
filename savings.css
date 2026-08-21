@@ -159,9 +159,116 @@
   to { opacity: 1; transform: scaleX(1); }
 }
 
+/* ---------- CINEMATIC ENTRANCE FLOURISHES ----------
+   Each theme's single entrance motion is now the middle beat of a
+   short sequence — something settles into place first, then the main
+   growth motion plays, then one small signature flourish punctuates
+   it. All of these are pure additions layered on top of the existing
+   elements above; nothing about the progress-driven geometry (stem
+   height, water fill, rise distance, beam length) changes. Every one
+   of these is a one-shot `backwards`-filled entrance with no static
+   opacity/transform set outside its own keyframe, so — unlike
+   .sav-stem-grow below — turning the animation off under
+   prefers-reduced-motion naturally leaves the real illustration part
+   sitting at its normal, fully-visible resting state with no extra
+   override needed. The purely decorative flourishes (twinkle, dust,
+   smoke, flash, wind streak) have nothing meaningful to rest at, so
+   those are hidden outright instead — see the media query below. */
+
+.sav-twinkle { transform-box: fill-box; transform-origin: center; animation: savTwinkle 0.8s ease-out backwards; }
+@keyframes savTwinkle {
+  0% { transform: scale(0); opacity: 0; }
+  45% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.2); opacity: 0; }
+}
+
+.sav-dust-mote { transform-box: fill-box; transform-origin: center; animation: savDustMote 0.9s ease-out backwards; }
+@keyframes savDustMote {
+  0% { transform: translateY(0) scale(1); opacity: 0.75; }
+  100% { transform: translateY(-20px) scale(0.3); opacity: 0; }
+}
+
+.sav-smoke-puff { transform-box: fill-box; transform-origin: center; animation: savSmokePuff 0.7s ease-out backwards; }
+@keyframes savSmokePuff {
+  0% { transform: scale(0.3) translateY(0); opacity: 0.55; }
+  100% { transform: scale(1.7) translateY(10px); opacity: 0; }
+}
+
+.sav-flash-ring { transform-box: fill-box; transform-origin: center; animation: savFlashRing 0.6s ease-out backwards; }
+@keyframes savFlashRing {
+  0% { transform: scale(0.3); opacity: 0.85; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.sav-wind-streak { animation: savWindStreak 0.7s ease-in backwards; }
+@keyframes savWindStreak {
+  0% { transform: translateX(-14px); opacity: 0; }
+  35% { opacity: 0.5; }
+  100% { transform: translateX(10px); opacity: 0; }
+}
+
+/* Plant: the pot settles into place a beat before the stem starts
+   drawing upward — like it was just set down. */
+.sav-pot-in { animation: savPotIn 0.4s cubic-bezier(.34,1.56,.64,1) backwards; }
+@keyframes savPotIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Ship: the whole bottle tilts and settles in first, as if just set
+   on the shelf, before the water inside starts rising. */
+.sav-bottle-in { animation: savBottleIn 0.55s cubic-bezier(.22,.85,.25,1.1) backwards; }
+@keyframes savBottleIn {
+  from { opacity: 0; transform: rotate(-5deg) scale(0.92); }
+  to { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+
+/* Balloon: the envelope itself puffs up to full size — separate from
+   .sav-rise-in's vertical liftoff, which still handles the whole
+   assembly rising off the ground. */
+.sav-balloon-inflate { animation: savBalloonInflate 0.5s cubic-bezier(.34,1.56,.64,1) backwards; }
+@keyframes savBalloonInflate {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Rocket: the flame ignites — scales up from nothing — right as
+   liftoff begins, instead of the exhaust just existing from frame one. */
+.sav-flame-ignite { animation: savFlameIgnite 0.35s ease-out backwards; }
+@keyframes savFlameIgnite {
+  from { opacity: 0; transform: scale(0.3); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Lighthouse: the lamp visibly powers on — a quick overshoot flash —
+   right before the beam extends out from it. */
+.sav-lamp-ignite { animation: savLampIgnite 0.4s cubic-bezier(.34,1.56,.64,1) backwards; }
+@keyframes savLampIgnite {
+  0% { opacity: 0; transform: scale(0.3); }
+  60% { opacity: 1; transform: scale(1.3); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Kite: the kite itself pops up to full size as part of the rise,
+   independent of the tether/tail beneath it. */
+.sav-kite-in { animation: savKiteIn 0.5s cubic-bezier(.34,1.56,.64,1) backwards; }
+@keyframes savKiteIn {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+/* Kite's tail flutters on its own faster rhythm than the kite's body
+   sway, so the two read as independently caught by the wind rather
+   than moving as one rigid unit. */
+.sav-tail-flutter { animation: savTailFlutter 1.8s ease-in-out infinite; }
+@keyframes savTailFlutter {
+  0%, 100% { transform: skewX(-4deg); }
+  50% { transform: skewX(4deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sav-anim-sway, .sav-anim-bob, .sav-anim-float, .sav-anim-flicker, .sav-anim-beam, .sav-celebrate-particle,
-  .sav-stem-grow, .sav-leaf-pop, .sav-water-rise, .sav-rise-in, .sav-beam-extend {
+  .sav-stem-grow, .sav-leaf-pop, .sav-water-rise, .sav-rise-in, .sav-beam-extend,
+  .sav-pot-in, .sav-bottle-in, .sav-balloon-inflate, .sav-flame-ignite, .sav-lamp-ignite, .sav-kite-in, .sav-tail-flutter {
     animation: none;
   }
   /* .sav-stem-grow's dash-offset is a base property, not just a
@@ -170,6 +277,12 @@
      unlike the others here whose "hidden" state only ever existed
      inside their keyframe. */
   .sav-stem-grow { stroke-dashoffset: 0; }
+  /* These have nothing meaningful to rest at — they're one-shot
+     decorative punctuation, not part of the illustration itself — so
+     they're removed outright rather than left frozen mid-sparkle. */
+  .sav-twinkle, .sav-dust-mote, .sav-smoke-puff, .sav-flash-ring, .sav-wind-streak {
+    display: none;
+  }
 }
 
 /* ---------- 100% CELEBRATION ---------- */
