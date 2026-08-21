@@ -1183,7 +1183,7 @@
         const label = card.querySelector('.card-label');
         if (label) label.style.color = accentColor;
         const swatch = card.querySelector('.card-color-btn');
-        if (swatch) swatch.style.background = accentColor;
+        if (swatch) { swatch.style.background = accentColor; swatch.style.color = accentColor; }
       });
       document.getElementById('val-total').textContent = money(total);
 
@@ -1304,7 +1304,7 @@
             <button type="button" class="card-menu-item" data-action="rename" data-cat-id="${cat.id}">Rename</button>
             <button type="button" class="card-menu-item danger" data-action="delete" data-cat-id="${cat.id}">Delete</button>
           </div>
-          <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor};"></button>
+          <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor}; color:${accentColor};"></button>
           <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
           ${valueHtml}
           <span class="sync-hint">${hintText + adjustLink}</span>
