@@ -373,11 +373,22 @@
         // spark
         return `<circle cx="0" cy="0" r="3" fill="${color}"/>`;
       };
+      // The positioning transform="translate(cx cy)" lives on its own
+      // un-animated outer <g> — putting it on the same element as the
+      // animated class would have the CSS transform (scale/translateY,
+      // via .sav-celebrate-particle's fill-box-relative animation)
+      // silently replace the attribute instead of composing with it,
+      // same footgun already fixed elsewhere in this file's theme
+      // illustrations. No transform-origin override needed here: the
+      // default (center) is exactly right paired with fill-box, since
+      // every particle shape above is drawn centered on its own local
+      // origin already.
       return `<g class="sav-celebrate">
         ${particles.map((p, i) => `
-          <g class="sav-celebrate-particle" style="transform-origin:${cx}px ${cy}px; animation-delay:${p.delay}s;"
-             transform="translate(${cx} ${cy})">
-            <g transform="translate(${p.dx} ${p.dy}) scale(${p.size})">${shapeSvg(p, i)}</g>
+          <g transform="translate(${cx} ${cy})">
+            <g class="sav-celebrate-particle" style="animation-delay:${p.delay}s;">
+              <g transform="translate(${p.dx} ${p.dy}) scale(${p.size})">${shapeSvg(p, i)}</g>
+            </g>
           </g>
         `).join('')}
       </g>`;
@@ -755,6 +766,8 @@
       const manualSaveBtn = document.getElementById('sav-manual-save-btn');
       if (manualSaveBtn) manualSaveBtn.addEventListener('click', async () => {
         const newAmount = round2(Math.max(0, parseFloat(document.getElementById('sav-manual-input').value) || 0));
+        manualSaveBtn.disabled = true;
+        manualSaveBtn.textContent = 'Saving…';
         await supabaseClient.from('savings_goals').update({ manual_amount: newAmount }).eq('id', g.id);
         await loadGoals();
         openGoalDetail(g.id);
@@ -790,6 +803,8 @@
           if (rawValue <= 0) { await arkoAlert('Enter an amount greater than $0.'); return; }
           row.allocated_amount = round2(rawValue);
         }
+        linkBtn.disabled = true;
+        linkBtn.textContent = 'Linking…';
         await supabaseClient.from('savings_goal_accounts').insert(row);
         await loadGoals();
         openGoalDetail(g.id);
@@ -844,14 +859,24 @@
 
       document.querySelectorAll('.sav-unlink-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
+          // Every other destructive action here (delete goal, remove an
+          // envelope elsewhere in the app) confirms first — this one
+          // didn't, despite being just as easy to hit by accident in a
+          // list of rows with a same-size "Edit" button right next to it.
+          const row = btn.closest('.sav-linked-row');
+          const name = row ? row.querySelector('.sav-linked-name').textContent : 'this account';
+          if (!await arkoConfirm(`Unlink ${name} from this goal? Its contribution will stop counting toward the total.`)) return;
           await supabaseClient.from('savings_goal_accounts').delete().eq('id', btn.dataset.linkId);
           await loadGoals();
           openGoalDetail(g.id);
         });
       });
 
-      document.getElementById('sav-target-save-btn').addEventListener('click', async () => {
+      const targetSaveBtn = document.getElementById('sav-target-save-btn');
+      targetSaveBtn.addEventListener('click', async () => {
         const newTarget = round2(Math.max(0, parseFloat(document.getElementById('sav-target-input').value) || 0));
+        targetSaveBtn.disabled = true;
+        targetSaveBtn.textContent = 'Updating…';
         await supabaseClient.from('savings_goals').update({ target_amount: newTarget }).eq('id', g.id);
         await loadGoals();
         openGoalDetail(g.id);
@@ -1060,6 +1085,13 @@
       dd.addEventListener('click', (e) => e.stopPropagation());
       document.addEventListener('click', () => { dd.classList.remove('open'); btn.classList.remove('stamp'); });
     }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const newGoalOverlay = document.getElementById('new-goal-overlay');
+      if (newGoalOverlay && newGoalOverlay.classList.contains('open')) stopThemePreviewLoop();
+      document.querySelectorAll('.mfa-overlay.open').forEach(el => el.classList.remove('open'));
+    });
 
     init();
   </script>
