@@ -670,7 +670,7 @@
           </div>
           <span class="spend-txn-amount">${money(t.amount)}</span>
           <button type="button" class="spend-txn-map-btn" data-merchant="${(t.merchant_name || '').replace(/"/g,'&quot;')}" title="Map to budget">
-            ${merchantMappingByName[(t.merchant_name || '').toLowerCase()] ? `→ ${merchantMappingByName[(t.merchant_name || '').toLowerCase()].mapped_line_name.replace(/</g,'&lt;')}` : 'Budget'}
+            ${merchantMappingByName[(t.merchant_name || '').toLowerCase()] ? `→ ${merchantMappingByName[(t.merchant_name || '').toLowerCase()].mapped_line_name.replace(/</g,'&lt;')}` : 'Map to budget'}
           </button>
           <button type="button" class="spend-txn-edit-btn" data-txn-id="${t.id}" title="Change category">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
@@ -1490,6 +1490,9 @@
         const name = document.getElementById('map-budget-new-line').value.trim();
         if (!name) { document.getElementById('map-budget-error').textContent = 'Type a line name, or pick one above.'; document.getElementById('map-budget-error').style.display = 'block'; return; }
         saveBudgetMapping(name);
+      });
+      document.getElementById('map-budget-new-line').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); document.getElementById('map-budget-save-btn').click(); }
       });
 
       document.getElementById('map-budget-unmap-btn').addEventListener('click', () => saveBudgetMapping(null));

@@ -2,6 +2,10 @@
    spending/subtract color identity used elsewhere (Dashboard's Subtract
    panel, log stripes). ============= */
 
+:root {
+  --spend-accent: #E0806A;
+}
+
 /* Shared row-entrance animation — transaction rows, category rows, and
    subscription rows all use this same class + a per-row inline
    animation-delay set in JS, matching the stagger pattern already
@@ -35,7 +39,7 @@
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-.spend-month-btn:hover { border-color: #E0806A; background: rgba(224,128,106,0.1); }
+.spend-month-btn:hover { border-color: var(--spend-accent); background: rgba(224,128,106,0.1); }
 .spend-month-label {
   font-family: 'Fraunces', serif;
   font-size: 1.1rem;
@@ -80,7 +84,7 @@
   border: 1px solid var(--panel-border); background: none; color: var(--silver-dim);
   font-size: 1rem; cursor: pointer;
 }
-.spend-month-picker-year button:hover { border-color: #E0806A; color: var(--tan); }
+.spend-month-picker-year button:hover { border-color: var(--spend-accent); color: var(--tan); }
 .spend-month-picker-year span { font-family: 'IBM Plex Mono', monospace; font-size: 0.9rem; color: var(--tan); }
 .spend-month-picker-grid {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
@@ -95,8 +99,8 @@
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-.spend-picker-month-btn:hover:not(:disabled) { border-color: #E0806A; background: rgba(224,128,106,0.1); }
-.spend-picker-month-btn.active { background: #E0806A; border-color: #E0806A; color: #241812; font-weight: 700; }
+.spend-picker-month-btn:hover:not(:disabled) { border-color: var(--spend-accent); background: rgba(224,128,106,0.1); }
+.spend-picker-month-btn.active { background: var(--spend-accent); border-color: var(--spend-accent); color: #241812; font-weight: 700; }
 .spend-picker-month-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .spend-total-card {
@@ -111,7 +115,7 @@
 .spend-total-value {
   font-family: 'Fraunces', serif;
   font-size: 2.2rem;
-  color: #E0806A;
+  color: var(--spend-accent);
   text-shadow: 0 0 20px rgba(224,128,106,0.3);
 }
 
@@ -147,7 +151,7 @@
 }
 .spend-cat-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #E0806A, #EFA88F);
+  background: linear-gradient(90deg, var(--spend-accent), #EFA88F);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
@@ -160,7 +164,7 @@
 .spend-sub-row:last-child { border-bottom: none; }
 .spend-sub-name { font-size: 0.86rem; color: var(--tan); }
 .spend-sub-freq { font-size: 0.72rem; color: var(--silver-dim); text-transform: capitalize; }
-.spend-sub-amt { font-size: 0.86rem; font-family: 'IBM Plex Mono', monospace; color: #E0806A; font-weight: 600; }
+.spend-sub-amt { font-size: 0.86rem; font-family: 'IBM Plex Mono', monospace; color: var(--spend-accent); font-weight: 600; }
 .spend-sub-map-btn {
   padding: 5px 11px;
   border-radius: 15px;
@@ -177,7 +181,7 @@
   text-overflow: ellipsis;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.spend-sub-map-btn:hover { background: rgba(224,128,106,0.1); border-color: rgba(224,128,106,0.35); color: #E0806A; }
+.spend-sub-map-btn:hover { background: rgba(224,128,106,0.1); border-color: rgba(224,128,106,0.35); color: var(--spend-accent); }
 
 @media (max-width: 600px) {
   .spend-sub-row { grid-template-columns: 1fr auto; }
@@ -209,7 +213,7 @@
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.spend-categories-btn:hover { background: rgba(224,128,106,0.1); border-color: rgba(224,128,106,0.35); color: #E0806A; }
+.spend-categories-btn:hover { background: rgba(224,128,106,0.1); border-color: rgba(224,128,106,0.35); color: var(--spend-accent); }
 
 .spend-categories-list {
   display: grid;
@@ -272,7 +276,7 @@
   font-size: 0.78rem;
   font-family: 'Public Sans', sans-serif;
 }
-.spend-txn-search input:focus { outline: none; border-color: #E0806A; }
+.spend-txn-search input:focus { outline: none; border-color: var(--spend-accent); }
 
 .spend-txn-list {
   display: flex; flex-direction: column;
@@ -297,7 +301,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #E0806A;
+  color: var(--spend-accent);
   background: rgba(224,128,106,0.14);
   border: 1px solid rgba(224,128,106,0.3);
 }
@@ -320,7 +324,7 @@
   transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .spend-txn-row:hover .spend-txn-map-btn { opacity: 0.75; }
-.spend-txn-map-btn:hover { opacity: 1 !important; background: rgba(224,128,106,0.1); border-color: rgba(224,128,106,0.35); color: #E0806A; }
+.spend-txn-map-btn:hover { opacity: 1 !important; background: rgba(224,128,106,0.1); border-color: rgba(224,128,106,0.35); color: var(--spend-accent); }
 .spend-txn-edit-btn {
   flex-shrink: 0;
   width: 26px; height: 26px;
@@ -335,8 +339,8 @@
 }
 .spend-txn-edit-btn svg { width: 13px; height: 13px; stroke: currentColor; }
 .spend-txn-row:hover .spend-txn-edit-btn { opacity: 0.7; }
-.spend-txn-edit-btn:hover { opacity: 1 !important; background: rgba(224,128,106,0.12); border-color: rgba(224,128,106,0.35); color: #E0806A; }
-.spend-txn-amount { font-size: 0.86rem; font-family: 'IBM Plex Mono', monospace; color: #E0806A; font-weight: 600; flex-shrink: 0; }
+.spend-txn-edit-btn:hover { opacity: 1 !important; background: rgba(224,128,106,0.12); border-color: rgba(224,128,106,0.35); color: var(--spend-accent); }
+.spend-txn-amount { font-size: 0.86rem; font-family: 'IBM Plex Mono', monospace; color: var(--spend-accent); font-weight: 600; flex-shrink: 0; }
 
 @media (max-width: 600px) {
   .spend-section-head-row { flex-direction: column; align-items: stretch; }
