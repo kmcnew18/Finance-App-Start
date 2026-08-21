@@ -426,7 +426,20 @@
                 </g>
               </g>
             </g>
-            ${clampedPct > 60 ? `<g transform="translate(80 ${stemTopY - 30})"><g class="sav-twinkle" style="animation-delay:1.15s;"><path d="M0 -6 L1.5 -1.5 L6 0 L1.5 1.5 L0 6 L-1.5 1.5 L-6 0 L-1.5 -1.5 Z" fill="${accentBright}"/></g></g>` : ''}
+            <g class="sav-leaf-pop" style="transform-origin:80px ${stemTopY - 4}px; animation-delay:1.05s;" opacity="${clampedPct > 85 ? 1 : 0}">
+              <g transform="translate(80 ${stemTopY - 4}) scale(${leafScale})">
+                <g fill="${accentBright}">
+                  <ellipse cx="0" cy="-7" rx="3.2" ry="6.5" transform="rotate(0)"/>
+                  <ellipse cx="0" cy="-7" rx="3.2" ry="6.5" transform="rotate(60)"/>
+                  <ellipse cx="0" cy="-7" rx="3.2" ry="6.5" transform="rotate(120)"/>
+                  <ellipse cx="0" cy="-7" rx="3.2" ry="6.5" transform="rotate(180)"/>
+                  <ellipse cx="0" cy="-7" rx="3.2" ry="6.5" transform="rotate(240)"/>
+                  <ellipse cx="0" cy="-7" rx="3.2" ry="6.5" transform="rotate(300)"/>
+                </g>
+                <circle cx="0" cy="0" r="3.4" fill="${accent}"/>
+              </g>
+            </g>
+            ${clampedPct > 85 ? `<g transform="translate(${80 + 14} ${stemTopY - 14})"><g class="sav-twinkle" style="animation-delay:1.35s;"><path d="M0 -6 L1.5 -1.5 L6 0 L1.5 1.5 L0 6 L-1.5 1.5 L-6 0 L-1.5 -1.5 Z" fill="${accentBright}"/></g></g>` : ''}
             ${clampedPct >= 100 ? celebrationBurstSvg('petal', 80, stemTopY - 6, accent, accentBright) : ''}
           </svg>`;
       }
@@ -446,10 +459,15 @@
                   <rect x="10" y="${fillY}" width="140" height="180" fill="${accent}" opacity="0.5"/>
                   <path d="M10 ${fillY} q 20 -5 40 0 t 40 0 t 40 0 t 20 0 v 6 h -140 z" fill="${accentBright}" opacity="0.7"/>
                   <g class="sav-anim-bob" style="transform-origin:80px ${fillY}px;" transform="translate(80 ${fillY - 4})" opacity="${clampedPct > 3 ? 1 : 0}">
-                    <path d="M-20 0 L20 0 L14 12 L-14 12 Z" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
-                    <line x1="0" y1="0" x2="0" y2="-24" stroke="${accent}" stroke-width="2"/>
-                    <path d="M0 -24 L16 -16 L0 -10 Z" fill="${accentBright}"/>
-                    <path d="M0 -22 L-12 -14 L0 -9 Z" fill="${accent}"/>
+                    <path d="M-22 0 C-24 8 -19 13 -11 13 L11 13 C19 13 24 8 22 0 Z" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
+                    <line x1="-22" y1="0" x2="22" y2="0" stroke="${accentBright}" stroke-width="1" opacity="0.5"/>
+                    <circle cx="-9" cy="7" r="1.4" fill="${accent}" opacity="0.6"/>
+                    <circle cx="9" cy="7" r="1.4" fill="${accent}" opacity="0.6"/>
+                    <line x1="-8" y1="0" x2="-8" y2="-13" stroke="${accent}" stroke-width="1.3"/>
+                    <path d="M-8 -12 Q-2.5 -9 -3.5 -2.5 Q-6 -0.5 -8 -1.5 Z" fill="${accent}" opacity="0.85"/>
+                    <line x1="2" y1="0" x2="2" y2="-26" stroke="${accent}" stroke-width="1.6"/>
+                    <path d="M2 -25 Q12 -19 11 -8 Q6 -4 2 -6 Z" fill="${accentBright}"/>
+                    <path d="M2 -25 L8 -22 L2 -19 Z" fill="${accentBright}"/>
                   </g>
                 </g>
               </g>
@@ -477,11 +495,18 @@
               <g class="sav-anim-float" style="transform-origin:80px ${riseY}px;" transform="translate(0 ${riseY - 60})">
                 <g class="sav-balloon-inflate" style="transform-origin:80px 60px;">
                   <ellipse cx="80" cy="60" rx="34" ry="42" fill="url(#balloonGrad-${theme})"/>
+                  <path d="M80 18 Q64 60 68 96" stroke="${accent}" stroke-width="1.2" fill="none" opacity="0.3"/>
+                  <path d="M80 18 Q72 60 76 100" stroke="${accent}" stroke-width="1.2" fill="none" opacity="0.3"/>
+                  <path d="M80 18 Q88 60 84 100" stroke="${accent}" stroke-width="1.2" fill="none" opacity="0.3"/>
+                  <path d="M80 18 Q96 60 92 96" stroke="${accent}" stroke-width="1.2" fill="none" opacity="0.3"/>
                   <path d="M60 96 Q80 106 100 96" stroke="${accent}" stroke-width="2" fill="none" opacity="0.6"/>
                 </g>
                 <line x1="64" y1="98" x2="70" y2="120" stroke="${accent}" stroke-width="1.5"/>
                 <line x1="96" y1="98" x2="90" y2="120" stroke="${accent}" stroke-width="1.5"/>
                 <line x1="80" y1="102" x2="80" y2="120" stroke="${accent}" stroke-width="1.5"/>
+                <g class="sav-anim-flicker" style="transform-origin:80px 100px;">
+                  <path d="M76 100 L80 88 L84 100 Z" fill="${accentBright}"/>
+                </g>
                 <rect x="68" y="120" width="24" height="16" rx="2" fill="#3A2A1A" stroke="${accent}" stroke-width="1.5"/>
               </g>
             </g>
@@ -506,10 +531,15 @@
             <ellipse cx="80" cy="172" rx="30" ry="6" fill="rgba(0,0,0,0.22)"/>
             <g class="sav-rise-in" style="transform-origin:80px 172px;">
               <g class="sav-anim-bob" style="transform-origin:80px ${riseY}px;" transform="translate(0 ${riseY - 40})">
+                <line x1="80" y1="6" x2="80" y2="0" stroke="${accentBright}" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="80" cy="0" r="1.6" fill="${accentBright}"/>
                 <path d="M80 6 C96 26 98 56 96 76 L64 76 C62 56 64 26 80 6 Z" fill="url(#rocketGrad-${theme})"/>
+                <rect x="66" y="53" width="28" height="5" rx="1.5" fill="${accentBright}" opacity="0.85"/>
                 <circle cx="80" cy="42" r="9" fill="#171D24" stroke="${accentBright}" stroke-width="2"/>
                 <path d="M64 60 L46 78 L64 74 Z" fill="${accent}"/>
                 <path d="M96 60 L114 78 L96 74 Z" fill="${accent}"/>
+                <path d="M68 78 L64 76 L68 74 Z" fill="${accentBright}" opacity="0.7"/>
+                <path d="M92 78 L96 76 L92 74 Z" fill="${accentBright}" opacity="0.7"/>
                 <g class="sav-flame-ignite" style="transform-origin:80px 76px;">
                   <g class="sav-anim-flicker">
                     <path d="M70 76 L80 100 L90 76 Z" fill="${accentBright}"/>
@@ -540,7 +570,15 @@
               </linearGradient>
             </defs>
             <ellipse cx="80" cy="172" rx="44" ry="6" fill="rgba(0,0,0,0.22)"/>
+            <defs>
+              <clipPath id="towerClip-${theme}"><path d="M64 168 L70 60 L90 60 L96 168 Z"/></clipPath>
+            </defs>
             <path d="M64 168 L70 60 L90 60 L96 168 Z" fill="url(#towerGrad-${theme})" opacity="0.85"/>
+            <g clip-path="url(#towerClip-${theme})">
+              <path d="M64 82 L96 82 L96 93 L64 93 Z" fill="${accentBright}" opacity="0.5"/>
+              <path d="M64 118 L96 118 L96 129 L64 129 Z" fill="${accentBright}" opacity="0.5"/>
+              <path d="M76 152 Q80 146 84 152 L84 168 L76 168 Z" fill="#171D24" opacity="0.55"/>
+            </g>
             <rect x="66" y="70" width="8" height="10" fill="#171D24" opacity="0.5"/>
             <rect x="86" y="90" width="8" height="10" fill="#171D24" opacity="0.5"/>
             <rect x="66" y="110" width="8" height="10" fill="#171D24" opacity="0.5"/>
@@ -575,11 +613,15 @@
             <g class="sav-anim-sway" style="transform-origin:80px ${riseY}px;" transform="translate(0 ${riseY - 60})">
               <g class="sav-kite-in" style="transform-origin:80px 60px;">
                 <path d="M80 20 L104 60 L80 100 L56 60 Z" fill="url(#kiteGrad-${theme})"/>
+                <path d="M80 32 L92 60 L80 88 L68 60 Z" fill="none" stroke="${accentBright}" stroke-width="1" opacity="0.4"/>
                 <line x1="80" y1="20" x2="80" y2="100" stroke="${accentBright}" stroke-width="1.5" opacity="0.7"/>
                 <line x1="56" y1="60" x2="104" y2="60" stroke="${accentBright}" stroke-width="1.5" opacity="0.7"/>
               </g>
               <g class="sav-tail-flutter" style="transform-origin:80px 100px;">
                 <path d="M80 100 Q76 110 82 116 Q76 122 82 128 Q76 134 82 140" stroke="${accent}" stroke-width="2" fill="none" stroke-linecap="round"/>
+                <path d="M82 116 L77 113 L77 119 Z M82 116 L87 113 L87 119 Z" fill="${accentBright}"/>
+                <path d="M82 128 L77 125 L77 131 Z M82 128 L87 125 L87 131 Z" fill="${accentBright}"/>
+                <path d="M82 140 L77 137 L77 143 Z M82 140 L87 137 L87 143 Z" fill="${accentBright}"/>
               </g>
             </g>
           </g>
