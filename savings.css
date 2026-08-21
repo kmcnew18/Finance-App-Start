@@ -83,36 +83,93 @@
   50% { transform: rotate(8deg); }
 }
 
-/* Wraps whichever element actually carries the progress (stem+leaves,
-   the water fill, the rise group, the beam) — layered as an outer
-   group around the theme's own idle animation rather than replacing
-   it, so both play at once: this handles "here's your progress
-   arriving," the inner one keeps handling "and now it's alive." Every
-   goal card re-renders its SVG from scratch on any update (new DOM
-   node each time, not a live value change on a persisted one), so a
-   plain CSS transition can't animate between old/new progress — this
-   is a `backwards`-filled keyframe instead, which replays the same
-   "grow up to current progress" motion on every render, load included. */
-.sav-grow-in {
-  /* Deliberately no transform-box override — SVG <g> defaults to
-     view-box space, which is what each instance's inline
-     transform-origin (in raw viewBox coordinates like "80px 150px")
-     actually needs. fill-box (used by .sav-celebrate-particle above,
-     correctly, for that element) would reinterpret those coordinates
-     relative to this element's own tight bounding box instead, an
-     unrelated and wrong frame of reference here. */
-  transform-origin: center;
-  animation: savGrowIn 0.9s cubic-bezier(.18,.82,.24,1.05) backwards;
+/* Each theme's entrance now actually animates the thing that
+   represents progress, rather than a single generic pop-in shared by
+   all six (the previous approach) — genuinely "grows like the plant
+   does" instead of fading in already at its final size. Every goal
+   card re-renders its SVG from scratch on any update (new DOM node
+   each time, not a live value change on a persisted one), so a plain
+   CSS transition can't animate between old/new progress — these are
+   all `backwards`-filled keyframes instead, replaying the same growth
+   motion on every render, load included. Deliberately no
+   transform-box override on any of these — SVG <g>/<line> default to
+   view-box space, which is what their inline transform-origin (raw
+   viewBox coordinates like "80px 150px") actually needs; fill-box
+   (used by .sav-celebrate-particle above, correctly, for that element)
+   would reinterpret those coordinates relative to each element's own
+   tight bounding box instead, an unrelated frame of reference here. */
+
+/* Plant: the stem draws itself upward like it's actually growing,
+   using pathLength="1" on the <line> so the dash math is always 0-1
+   regardless of the stem's real computed height — same motion whether
+   a goal is barely started or nearly full, just ending at a different
+   final height. Leaves stay invisible (their own opacity attribute,
+   threshold-gated) until the stem's roughly done, then pop in with a
+   slight overshoot, staggered bottom to top. */
+.sav-stem-grow {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: savStemGrow 0.9s cubic-bezier(.3,.7,.3,1) forwards;
 }
-@keyframes savGrowIn {
-  from { opacity: 0; transform: scale(0.45) translateY(16px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+@keyframes savStemGrow { to { stroke-dashoffset: 0; } }
+.sav-leaf-pop {
+  animation: savLeafPop 0.45s cubic-bezier(.34,1.56,.64,1) backwards;
+}
+@keyframes savLeafPop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+/* Ship: the water genuinely rises from the bottom of the bottle up to
+   its current fill line — scaleY(0) with transform-origin pinned to
+   the bottle's floor collapses the water to nothing right at the
+   bottom, and scaleY(1) restores it to its already-correct height
+   (baked into the rect/wave's own y-coordinate), so this just
+   uncovers it rather than needing to know the fill height itself. */
+.sav-water-rise {
+  animation: savWaterRise 1s cubic-bezier(.22,.85,.25,1) backwards;
+}
+@keyframes savWaterRise {
+  from { opacity: 0; transform: scaleY(0); }
+  to { opacity: 1; transform: scaleY(1); }
+}
+
+/* Balloon/rocket/kite: all three are already positioned at their
+   correct final height by an inline transform on the inner group —
+   this outer wrapper just adds a shared "rising from the ground"
+   motion on top (a fixed start offset animating to 0), so every goal
+   rises the same relative distance no matter how high it ends up. */
+.sav-rise-in {
+  animation: savRiseIn 1.1s cubic-bezier(.22,.85,.2,1) backwards;
+}
+@keyframes savRiseIn {
+  from { opacity: 0; transform: translateY(130px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Lighthouse: the beam extends outward from the lamp instead of just
+   fading in already at full length — transform-origin sits right at
+   the tip, so scaleX(0) collapses it to nothing exactly where the
+   light source is. */
+.sav-beam-extend {
+  animation: savBeamExtend 0.8s cubic-bezier(.3,.7,.3,1) backwards;
+}
+@keyframes savBeamExtend {
+  from { opacity: 0; transform: scaleX(0); }
+  to { opacity: 1; transform: scaleX(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sav-anim-sway, .sav-anim-bob, .sav-anim-float, .sav-anim-flicker, .sav-anim-beam, .sav-celebrate-particle, .sav-grow-in {
+  .sav-anim-sway, .sav-anim-bob, .sav-anim-float, .sav-anim-flicker, .sav-anim-beam, .sav-celebrate-particle,
+  .sav-stem-grow, .sav-leaf-pop, .sav-water-rise, .sav-rise-in, .sav-beam-extend {
     animation: none;
   }
+  /* .sav-stem-grow's dash-offset is a base property, not just a
+     keyframe value — disabling the animation alone would leave it
+     permanently at stroke-dashoffset:1 (invisible stem, forever),
+     unlike the others here whose "hidden" state only ever existed
+     inside their keyframe. */
+  .sav-stem-grow { stroke-dashoffset: 0; }
 }
 
 /* ---------- 100% CELEBRATION ---------- */

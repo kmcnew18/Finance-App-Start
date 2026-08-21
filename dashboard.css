@@ -2171,7 +2171,12 @@ input[type="number"]::-webkit-outer-spin-button {
   transform-origin: top right;
   transform: scaleY(0.1) translateY(-8px);
   transition: transform 0.4s cubic-bezier(.22,.9,.24,1.2), opacity 0.22s ease, visibility 0.4s;
-  box-shadow: 0 16px 38px rgba(0,0,0,0.5), 0 0 0 1px rgba(231,199,102,0.05);
+  /* Third layer is new: a wide, faint gold bloom around the whole
+     panel — same "ambient glow" language used elsewhere in the app
+     (Investments' ring, section title text-shadows), kept deliberately
+     soft (8% opacity, 34px spread) so it reads as a subtle premium
+     touch rather than a neon outline. */
+  box-shadow: 0 16px 38px rgba(0,0,0,0.5), 0 0 0 1px rgba(231,199,102,0.05), 0 0 34px rgba(231,199,102,0.08);
   overflow: hidden;
 }
 .ledger-dropdown::before {
@@ -2181,6 +2186,7 @@ input[type="number"]::-webkit-outer-spin-button {
   width: 22px; height: 15px;
   background: #C9A227;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 68%, 0 100%);
+  filter: drop-shadow(0 0 5px rgba(201,162,39,0.5));
 }
 .ledger-dropdown.open {
   opacity: 1;
@@ -2195,6 +2201,7 @@ input[type="number"]::-webkit-outer-spin-button {
   letter-spacing: 0.01em;
   margin-bottom: 4px;
   padding: 0 6px;
+  text-shadow: 0 0 18px rgba(231,199,102,0.35);
 }
 .ledger-sub {
   font-size: 0.71rem;
@@ -3050,8 +3057,22 @@ textarea:focus-visible,
 .activity-row-meta { font-size: 0.7rem; color: var(--silver-dim); margin-top: 1px; }
 .activity-row-pending { color: var(--transfer-accent); }
 .activity-row-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.activity-row-recurring { color: var(--silver-dim); display: flex; }
-.activity-row-recurring svg { width: 13px; height: 13px; }
+/* Was a plain 13px silver-dim icon with no background — easy to miss
+   next to the amount. Given its own small pill (same treatment as the
+   "Card" badge in Spendings) so it reads as a deliberate label rather
+   than a faint decoration. */
+.activity-row-recurring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: rgba(110,143,163,0.16);
+  border: 1px solid rgba(110,143,163,0.35);
+  color: var(--vintage-blue-light);
+  flex-shrink: 0;
+}
+.activity-row-recurring svg { width: 11px; height: 11px; }
 .activity-row-amt { font-size: 0.87rem; font-weight: 700; color: var(--tan); font-variant-numeric: tabular-nums; }
 
 .activity-panel-empty { color: var(--silver-dim); font-size: 0.85rem; text-align: center; padding: 30px 0; }
