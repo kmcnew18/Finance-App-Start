@@ -816,7 +816,20 @@
           });
         });
         const delBtn = rowEl.querySelector('.row-delete');
-        delBtn.addEventListener('click', () => {
+        delBtn.addEventListener('click', async () => {
+          // Only prompt when there's actually something to lose — a
+          // blank, never-used line shouldn't cost an extra click, but
+          // one with a real budget/actual or logged entries deserves
+          // the same safety net deleting a single entry already gets
+          // (line 914's arkoConfirm), which this line-level delete
+          // previously skipped entirely.
+          const line = current.categories[cat].find(l => l.id === id);
+          const entryCount = line && line.entries ? line.entries.length : 0;
+          const hasData = line && ((Number(line.actual) || 0) !== 0 || (Number(line.budget) || 0) !== 0 || entryCount > 0);
+          if (hasData) {
+            const entryNote = entryCount ? ` Its ${entryCount} logged ${entryCount === 1 ? 'entry' : 'entries'} will be removed too.` : '';
+            if (!await arkoConfirm(`Delete "${(line.name || 'this line').trim() || 'this line'}"?${entryNote} This can't be undone.`, true)) return;
+          }
           current.categories[cat] = current.categories[cat].filter(l => l.id !== id);
           expandedLogLines.delete(id);
           renderCategoryPanel(cat);
@@ -1906,15 +1919,22 @@
       document.documentElement.style.setProperty('--ledger-accent-rgb', a.rgb);
     }
 
+    function currentFileName() {
+      const seg = window.location.pathname.split('/').pop();
+      const raw = seg && seg.length ? seg : 'dashboard.html';
+      return raw.replace(/\.html?$/i, '');
+    }
+
     function renderLedgerMenu() {
       applyLedgerTierAccent();
       const inner = document.getElementById('ledger-dropdown-inner');
       const lockBadge = document.getElementById('ledger-lock-badge');
       lockBadge.style.display = userTier >= 3 ? 'none' : 'flex';
       document.getElementById('ledger-menu-btn').classList.toggle('unlocked', userTier >= 3);
+      const here = currentFileName();
 
       const itemsHtml = PREMIUM_TOOLS.map((tool, i) => {
-        const isCurrent = tool.href === 'budget.html';
+        const isCurrent = tool.href.replace(/\.html?$/i, '') === here;
         const isLocked = userTier < tool.requiredTier;
         const classes = ['ledger-tool-item'];
         if (isCurrent) classes.push('current');
@@ -2022,8 +2042,26 @@
     function logMirrorFormatDate(d) {
       return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     }
-    function logMirrorIsFirstOfMonth(d) {
-      return d.split('-')[2] === '01';
+    // Highlights the actual earliest-dated entry within each calendar
+    // month, not literally whatever's dated the 1st — ported from the
+    // real Log page's computeFirstOfMonthIds() (log.html), which
+    // replaced this exact day==='01' check because most months' first
+    // entry isn't logged exactly on the 1st, so it rarely highlighted
+    // anything. This mirror table had drifted from that fix.
+    function computeLogMirrorFirstOfMonthIds() {
+      const minDateByMonth = {};
+      logMirrorRows.forEach(r => {
+        const monthKey = r.entry_date.slice(0, 7);
+        if (!minDateByMonth[monthKey] || r.entry_date < minDateByMonth[monthKey]) {
+          minDateByMonth[monthKey] = r.entry_date;
+        }
+      });
+      const ids = new Set();
+      logMirrorRows.forEach(r => {
+        const monthKey = r.entry_date.slice(0, 7);
+        if (r.entry_date === minDateByMonth[monthKey]) ids.add(r.id);
+      });
+      return ids;
     }
 
     const LOG_SPLIT_COLUMNS = [
@@ -2091,6 +2129,7 @@
       if (!logMirrorRows.length) { tbody.innerHTML = '<tr><td colspan="8">No entries yet — add some from the Dashboard first.</td></tr>'; return; }
 
       let prevActionType = null;
+      const logMirrorFirstOfMonthIds = computeLogMirrorFirstOfMonthIds();
       tbody.innerHTML = logMirrorRows.map(r => {
         const isGroupStart = r.action_type !== prevActionType;
         prevActionType = r.action_type;
@@ -2100,7 +2139,7 @@
         const mainRow = `
         <tr class="log-row-in ${logMirrorRowClass[r.action_type] || ''} logmirror-row${isGroupStart ? ' log-group-start' : ''}" data-log-id="${r.id}">
           <td><label class="log-check" onclick="event.stopPropagation();"><input type="checkbox" class="logmirror-select" data-log-id="${r.id}" /><span class="check-box"></span></label></td>
-          <td class="${logMirrorIsFirstOfMonth(r.entry_date) ? 'log-date-firstofmonth' : ''}">${logMirrorFormatDate(r.entry_date)}</td>
+          <td class="${logMirrorFirstOfMonthIds.has(r.id) ? 'log-date-firstofmonth' : ''}">${logMirrorFormatDate(r.entry_date)}</td>
           <td class="num-cell log-amount-cell">${money(r.amount)}</td>
           <td class="num-cell">${money(r.savings)}</td>
           <td class="num-cell">${money(r.investment)}</td>

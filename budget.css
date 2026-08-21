@@ -897,6 +897,12 @@
   .recurring-review-card {
     padding: 14px 16px;
   }
+  .recurring-review-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .recurring-review-actions { justify-content: flex-end; }
   .period-bar {
     padding: 14px;
   }

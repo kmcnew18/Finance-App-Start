@@ -17,6 +17,7 @@
   --tan: #E8E1D3;
   --grey: #313032;
   --error: #E08B7D;
+  --emerald-bright: #63D9AA;
 
   --panel-bg: #12181F;
   --panel-border: #0F1620;
@@ -248,7 +249,7 @@ h1, h2, h3 {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(110,143,163,0.28);
   border-radius: 14px;
-  padding: 24px 18px;
+  padding: 24px 18px 34px;
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -298,7 +299,6 @@ h1, h2, h3 {
   .card.card-enter { animation: none; }
 }
 
-.card { position: relative; }
 .sync-hint {
   position: absolute;
   bottom: 8px;
@@ -309,7 +309,6 @@ h1, h2, h3 {
   color: var(--emerald-bright, #63D9AA);
   font-weight: 600;
 }
-.card { padding-bottom: 34px; }
 .card-add-category { padding-bottom: 24px; }
 .sync-hint {
   opacity: 0;
@@ -2569,7 +2568,11 @@ textarea:focus-visible,
 .ledger-tool-item:focus-visible,
 .ledger-link-item:focus-visible,
 .ledger-lock-cta:focus-visible {
-  outline: 2px solid var(--brass-bright);
+  /* --brass-bright only exists in budget.css — undefined (and thus
+     invalid, dropping the whole outline) on dashboard.html/log.html,
+     which load this file without it. --ledger-accent is defined right
+     here and already tracks the user's actual plan tier. */
+  outline: 2px solid var(--ledger-accent);
   outline-offset: 2px;
 }
 

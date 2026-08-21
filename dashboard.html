@@ -267,7 +267,7 @@
         </label>
 
         <div class="panel-actions">
-          <button type="button" id="subtract-button" class="btn-primary">Subtract</button>
+          <button type="button" id="subtract-button" class="btn-primary" disabled>Subtract</button>
           <button type="button" id="subtract-reset" class="btn-ghost">Reset</button>
         </div>
         <p class="panel-message" id="subtract-message"></p>
@@ -310,7 +310,7 @@
         </label>
 
         <div class="panel-actions">
-          <button type="button" id="transfer-button" class="btn-primary">Transfer</button>
+          <button type="button" id="transfer-button" class="btn-primary" disabled>Transfer</button>
           <button type="button" id="transfer-reset" class="btn-ghost">Reset</button>
         </div>
         <p class="panel-message" id="transfer-message"></p>
@@ -3429,6 +3429,10 @@
       updateRemaining();
     });
 
+    incomeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !addButton.disabled) { e.preventDefault(); addButton.click(); }
+    });
+
     document.getElementById('add-button').addEventListener('click', async () => {
       const msg = document.getElementById('add-message');
       const income = getIncome();
@@ -3478,6 +3482,20 @@
     });
 
     // ================= SUBTRACT SECTION LOGIC =================
+    const subtractAmountInput = document.getElementById('subtract-amount');
+    const subtractButton = document.getElementById('subtract-button');
+
+    function updateSubtractButtonState() {
+      const amount = parseFloat(subtractAmountInput.value) || 0;
+      const anyChecked = document.querySelectorAll('.sub-cat:checked').length > 0;
+      subtractButton.disabled = !(amount > 0 && anyChecked);
+    }
+    subtractAmountInput.addEventListener('input', updateSubtractButtonState);
+    document.querySelectorAll('.sub-cat').forEach(cb => cb.addEventListener('change', updateSubtractButtonState));
+    subtractAmountInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !subtractButton.disabled) { e.preventDefault(); subtractButton.click(); }
+    });
+
     document.getElementById('subtract-button').addEventListener('click', async () => {
       const msg = document.getElementById('subtract-message');
       const amount = parseFloat(document.getElementById('subtract-amount').value) || 0;
@@ -3514,6 +3532,7 @@
       document.getElementById('subtract-amount').value = '';
       document.querySelectorAll('.sub-cat').forEach(c => { c.checked = false; c.closest('.chip').classList.remove('chip-active'); });
       document.getElementById('subtract-notes').value = '';
+      updateSubtractButtonState();
     }
 
     document.getElementById('subtract-reset').addEventListener('click', () => {
@@ -3522,6 +3541,21 @@
     });
 
     // ================= TRANSFER SECTION LOGIC =================
+    const transferAmountInput = document.getElementById('transfer-amount');
+    const transferButton = document.getElementById('transfer-button');
+
+    function updateTransferButtonState() {
+      const amount = parseFloat(transferAmountInput.value) || 0;
+      const fromChecked = document.querySelectorAll('.from-cat:checked').length > 0;
+      const toChecked = document.querySelectorAll('.to-cat:checked').length > 0;
+      transferButton.disabled = !(amount > 0 && fromChecked && toChecked);
+    }
+    transferAmountInput.addEventListener('input', updateTransferButtonState);
+    document.querySelectorAll('.from-cat, .to-cat').forEach(cb => cb.addEventListener('change', updateTransferButtonState));
+    transferAmountInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !transferButton.disabled) { e.preventDefault(); transferButton.click(); }
+    });
+
     document.getElementById('transfer-button').addEventListener('click', async () => {
       const msg = document.getElementById('transfer-message');
       const amount = parseFloat(document.getElementById('transfer-amount').value) || 0;
@@ -3563,6 +3597,7 @@
       document.getElementById('transfer-amount').value = '';
       document.querySelectorAll('.from-cat, .to-cat').forEach(c => { c.checked = false; c.closest('.chip').classList.remove('chip-active'); });
       document.getElementById('transfer-notes').value = '';
+      updateTransferButtonState();
     }
 
     document.getElementById('transfer-reset').addEventListener('click', () => {
