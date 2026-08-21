@@ -544,20 +544,6 @@
 }
 .manage-cat-delete-btn:hover { background: rgba(224,128,106,0.1); }
 
-.recurring-subhead-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  margin: 18px 0 10px;
-}
-.recurring-subhead-row .recurring-subhead { margin: 0 !important; }
-/* Override the shared (vintage-blue) bulk-approve button styling with
-   Connections' own emerald identity, so it doesn't look imported from
-   another room. */
-#recurring-approve-all-btn {
-  border-color: var(--emerald-dim) !important;
-  background: rgba(63,174,133,0.14) !important;
-  color: var(--emerald-bright) !important;
-}
-#recurring-approve-all-btn:hover { background: rgba(63,174,133,0.24) !important; }
 @keyframes liveDotPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -677,86 +663,6 @@
 .plaid-connect-btn:hover { transform: translateY(-1px); box-shadow: 0 0 20px rgba(99,217,170,0.3); border-color: var(--emerald); }
 .plaid-connect-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-/* ---------- recurring transactions ---------- */
-.recurring-section {
-  background: linear-gradient(150deg, var(--vault-panel-raised), var(--vault-panel));
-  border: 1px solid var(--vault-line);
-  border-radius: 14px;
-  padding: 22px 24px 24px;
-}
-.recurring-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-.recurring-head h2 { font-family: 'Fraunces', serif; font-size: 1.1rem; color: var(--emerald-bright); }
-.recurring-sub { font-size: 0.78rem; color: var(--silver-dim); margin-top: 3px; max-width: 480px; line-height: 1.5; }
-.recurring-subhead {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--silver-dim);
-  margin: 18px 0 10px;
-}
-.recurring-subhead:first-of-type { margin-top: 0; }
-.recurring-empty-note { font-size: 0.82rem; color: var(--silver-dim); padding: 10px 2px; }
-
-.recurring-list { display: flex; flex-direction: column; gap: 8px; }
-.recurring-card {
-  background: var(--vault-panel);
-  border: 1px solid var(--vault-line);
-  border-radius: 10px;
-  padding: 12px 14px;
-  transition: border-color 0.15s ease;
-}
-.recurring-card:hover { border-color: rgba(99,217,170,0.3); }
-.recurring-card-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.recurring-card-desc { font-weight: 700; color: var(--tan); font-size: 0.88rem; }
-.recurring-card-meta { font-size: 0.74rem; color: var(--silver-dim); margin-top: 2px; }
-.recurring-mapped-pill {
-  font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
-  color: var(--emerald-bright); background: rgba(99,217,170,0.14);
-  border: 1px solid rgba(99,217,170,0.32); border-radius: 20px; padding: 3px 9px; white-space: nowrap;
-}
-.recurring-ignored-pill {
-  font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
-  color: var(--silver-dim); background: rgba(179,182,185,0.1);
-  border: 1px solid rgba(179,182,185,0.25); border-radius: 20px; padding: 3px 9px; white-space: nowrap;
-}
-.recurring-card-actions { display: flex; gap: 8px; margin-top: 10px; }
-.recurring-card-actions button {
-  background: none; border: 1px solid var(--vault-line); color: var(--silver-dim);
-  border-radius: 6px; padding: 5px 11px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-.recurring-card-actions button:hover { color: var(--tan); border-color: var(--emerald-dim); background: rgba(63,174,133,0.08); }
-.recurring-approve-btn { color: var(--emerald-bright) !important; border-color: var(--emerald-dim) !important; }
-.recurring-approve-btn:hover { background: rgba(63,174,133,0.14) !important; }
-.recurring-dismiss-btn:hover { color: var(--liability-bright) !important; border-color: var(--liability) !important; background: rgba(224,128,106,0.08) !important; }
-.recurring-ignore-btn:hover { color: var(--liability-bright) !important; border-color: var(--liability) !important; }
-
-.recurring-map-form {
-  display: none;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--vault-line);
-}
-.recurring-map-form select {
-  padding: 7px 10px; border-radius: 7px; border: 1px solid var(--vault-line);
-  background: #0B120F; color: var(--tan); font-size: 0.78rem; font-family: inherit;
-}
-.recurring-map-form select:focus { outline: none; border-color: var(--emerald-dim); }
-.recurring-map-save {
-  background: var(--emerald) !important; color: #0B1512 !important; border: none !important;
-  font-weight: 700 !important;
-}
-.recurring-map-save:hover { background: var(--emerald-bright) !important; }
-
 @media (max-width: 600px) {
   .vault-shell { padding: 20px 12px 80px; }
   .networth-card { padding: 20px; }
@@ -764,7 +670,6 @@
   .account-cards { grid-template-columns: 1fr; }
   .manage-cat-row { flex-wrap: wrap; }
   .manage-cat-name-input { flex-basis: 100%; }
-  .recurring-subhead-row { flex-wrap: wrap; }
 }
 
 /* Envelopes — money set aside within an account, tracked separately

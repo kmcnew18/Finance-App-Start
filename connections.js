@@ -441,8 +441,6 @@ async function loadPendingAmounts() {
     return;
   }
 
-  console.log('loadPendingAmounts result:', { creditCardCount: creditCardIds.length, pendingTxnCount: (pendingTxns || []).length, pendingTxns });
-
   (pendingTxns || []).forEach(t => {
     const amt = Number(t.amount) || 0;
     if (amt <= 0) return; // only actual charges count toward amount owed, not pending refunds/credits
@@ -1867,7 +1865,7 @@ async function renderMfaManage() {
   }
 
   body.innerHTML = `
-    <p class="mfa-modal-sub">Two-factor authentication is <strong style="color:var(--emerald-bright);">enabled</strong>. It's required to open Connections and to link accounts via Plaid.</p>
+    <p class="mfa-modal-sub">Two-factor authentication is <strong style="color:var(--emerald-bright);">enabled</strong>. It's required to make changes here — editing, deleting, or linking accounts via Plaid.</p>
     <div class="mfa-factor-list">
       ${totpFactors.map(f => `
         <div class="mfa-factor-row">
@@ -1935,7 +1933,7 @@ async function renderMfaEnrollStart() {
   mfaEnrollFactorId = data.id;
 
   body.innerHTML = `
-    <p class="mfa-modal-sub">Two-factor authentication is required to open Connections. Scan this code with an authenticator app (Google Authenticator, Authy, 1Password, etc.), then enter the 6-digit code it shows.</p>
+    <p class="mfa-modal-sub">Two-factor authentication is required to make changes in Connections — editing, deleting, or linking accounts. Scan this code with an authenticator app (Google Authenticator, Authy, 1Password, etc.), then enter the 6-digit code it shows.</p>
     ${mfaQrFrameHtml(data.totp.qr_code, data.totp.secret)}
     <div class="mfa-field">
       <label for="mfa-verify-code">6-digit code</label>

@@ -1117,6 +1117,11 @@
       document.addEventListener('click', () => { dd.classList.remove('open'); btn.classList.remove('stamp'); });
     }
 
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      document.querySelectorAll('.mfa-overlay.open').forEach(el => el.classList.remove('open'));
+    });
+
     init();
   </script>
 

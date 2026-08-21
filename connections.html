@@ -109,7 +109,7 @@
         <h1>All your money, one place</h1>
         <span class="last-synced-row">
           <span class="last-synced-label" id="last-synced-label" style="display:none;"></span>
-          <button type="button" id="sync-all-btn" class="sync-now-btn" title="Sync now" style="display:none;">
+          <button type="button" id="sync-all-btn" class="sync-now-btn" title="Sync now" aria-label="Sync now" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
           </button>
         </span>
@@ -221,8 +221,9 @@
   <!-- ================= TWO-FACTOR AUTHENTICATION OVERLAY =================
        This is a shared component (styles live in dashboard.css, loaded on
        every page) so Dashboard, Log, Budget, and Connections all present
-       an identical MFA flow. Entry to this page is gated on it — see
-       requireMfaVerified(true) awaited at the top of init() below. -->
+       an identical MFA flow. Viewing this page no longer requires it —
+       only editing something does (per-action, via requireMfaVerified(false)
+       calls scattered through connections.js's action handlers). -->
   <!-- ================= MANAGE SUBSCRIPTION ================= -->
   <div class="mfa-overlay" id="manage-sub-overlay">
     <div class="mfa-modal" style="max-width: 440px;">

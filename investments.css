@@ -193,10 +193,13 @@
 
 /* Ring glow toggle — deliberately tiny and low-contrast so it reads as
    a quiet corner control, not another action competing with the ring
-   itself. Off by default for every new account (see the
-   inv-ring-glow-* localStorage read in the script below); flipping it
-   just removes the drop-shadow filter and glow-pulse animation from
-   the arcs, nothing else about the ring changes. */
+   itself. Off by default for every new account, stored on the user's
+   own Supabase user_metadata (ring_glow) so the choice follows them
+   across devices — see setupRingGlowToggle() in the script below;
+   localStorage is only touched once, as a legacy-migration fallback
+   for anyone who set this before that moved off localStorage.
+   Flipping it just removes the drop-shadow filter and glow-pulse
+   animation from the arcs, nothing else about the ring changes. */
 .inv-glow-toggle {
   position: absolute;
   top: 16px;
