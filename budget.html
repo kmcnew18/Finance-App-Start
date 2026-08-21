@@ -1887,7 +1887,26 @@
       }
     ];
 
+    // The Premium Tools menu's outline/glow color reflects whichever
+    // plan tier is actually active (Tier 2 = Automation blue, Tier 3 =
+    // Full gold) instead of one fixed color regardless of what's been
+    // paid for. Tier 1 gets a neutral, muted tone since no premium plan
+    // is active. Set as CSS custom properties on the root so every rule
+    // reading var(--ledger-accent...) in dashboard.css picks it up
+    // without needing its own JS per property.
+    function applyLedgerTierAccent() {
+      const ACCENTS = {
+        1: { hex: '#9AA5AD', rgb: '154,165,173' },
+        2: { hex: '#6E8FA3', rgb: '110,143,163' },
+        3: { hex: '#E7C766', rgb: '231,199,102' },
+      };
+      const a = ACCENTS[userTier] || ACCENTS[1];
+      document.documentElement.style.setProperty('--ledger-accent', a.hex);
+      document.documentElement.style.setProperty('--ledger-accent-rgb', a.rgb);
+    }
+
     function renderLedgerMenu() {
+      applyLedgerTierAccent();
       const inner = document.getElementById('ledger-dropdown-inner');
       const lockBadge = document.getElementById('ledger-lock-badge');
       lockBadge.style.display = userTier >= 3 ? 'none' : 'flex';

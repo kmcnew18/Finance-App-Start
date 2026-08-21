@@ -21,6 +21,13 @@
   --panel-bg: #12181F;
   --panel-border: #0F1620;
 
+  /* Fallback only — overwritten by applyLedgerTierAccent() (in every
+     page's own script) the moment userTier is known, based on which
+     plan is actually active. This default just avoids an unstyled
+     flash before that first runs. */
+  --ledger-accent: #E7C766;
+  --ledger-accent-rgb: 231,199,102;
+
   /* panel accents — muted vintage green / red / yellow, still tuned to sit with the silver/blue chrome */
   --add-accent: #5C8A6B;
   --add-accent-hover: #70A07F;
@@ -2109,31 +2116,28 @@ input[type="number"]::-webkit-outer-spin-button {
    feels like unlocking a distinct, premium space rather than a menu.
    ========================================================================== */
 
-.btn-icon.btn-ledger svg { stroke: #C9A227; }
-.btn-icon.btn-ledger:hover svg { stroke: #E7C766; }
+.btn-icon.btn-ledger svg { stroke: var(--ledger-accent); filter: drop-shadow(0 0 4px rgba(var(--ledger-accent-rgb), 0.35)); transition: stroke 0.25s ease, filter 0.2s ease; }
+.btn-icon.btn-ledger:hover svg { filter: drop-shadow(0 0 7px rgba(var(--ledger-accent-rgb), 0.6)) brightness(1.25); }
 
-/* Paid/unlocked state — a richer gold than the locked state's, so the
-   icon itself signals "you have full access" rather than just hiding
-   the lock badge and leaving the same color behind either way. Gold
-   throughout (not copper) so this stays visually part of the same
-   family as the app's own "Tier 3 / Full" accent (paywall.html) and
-   Budget Planner's icon within this same menu, rather than introducing
-   a fourth, unrelated hue. The glow is deliberately soft — a quiet
-   ambient presence, not a spotlight. The dropdown panel itself picks
-   up this same gold tone when open, so the button and what it opens
-   read as one thing. */
+/* Paid/unlocked state (Tier 3 only — see the userTier >= 3 gate in
+   renderLedgerMenu) layers a real glow on top of the base accent
+   color every tier already gets from the rule above, so reaching Full
+   specifically still feels like something extra, not just "yet
+   another color." Bumped noticeably brighter than the original pass —
+   that one read as basically invisible against the dark chrome. The
+   dropdown panel below picks up this same var(--ledger-accent) tone
+   when open, so the button and what it opens always read as one
+   thing, whichever tier is active. */
 .btn-icon.btn-ledger.unlocked {
-  border-color: rgba(231,199,102,0.35);
-  background: rgba(231,199,102,0.06);
-  box-shadow: 0 0 14px rgba(231,199,102,0.18);
+  border-color: rgba(var(--ledger-accent-rgb), 0.5);
+  background: rgba(var(--ledger-accent-rgb), 0.1);
+  box-shadow: 0 0 20px rgba(var(--ledger-accent-rgb), 0.4);
 }
-.btn-icon.btn-ledger.unlocked svg { stroke: #E7C766; }
 .btn-icon.btn-ledger.unlocked:hover {
-  border-color: rgba(240,216,136,0.55);
-  background: rgba(231,199,102,0.1);
-  box-shadow: 0 0 20px rgba(231,199,102,0.28);
+  border-color: rgba(var(--ledger-accent-rgb), 0.75);
+  background: rgba(var(--ledger-accent-rgb), 0.16);
+  box-shadow: 0 0 30px rgba(var(--ledger-accent-rgb), 0.55);
 }
-.btn-icon.btn-ledger.unlocked:hover svg { stroke: #F0D888; }
 
 .btn-icon.btn-ledger .lock-badge {
   position: absolute;
@@ -2163,20 +2167,21 @@ input[type="number"]::-webkit-outer-spin-button {
   right: 0;
   width: 302px;
   background: linear-gradient(180deg, var(--dark-vintage), var(--panel-border));
-  border: 1px solid rgba(231,199,102,0.3);
+  border: 1px solid rgba(var(--ledger-accent-rgb), 0.45);
   border-radius: 4px 4px 14px 14px;
   z-index: 20;
   opacity: 0;
   visibility: hidden;
   transform-origin: top right;
   transform: scaleY(0.1) translateY(-8px);
-  transition: transform 0.4s cubic-bezier(.22,.9,.24,1.2), opacity 0.22s ease, visibility 0.4s;
-  /* Third layer is new: a wide, faint gold bloom around the whole
-     panel — same "ambient glow" language used elsewhere in the app
-     (Investments' ring, section title text-shadows), kept deliberately
-     soft (8% opacity, 34px spread) so it reads as a subtle premium
-     touch rather than a neon outline. */
-  box-shadow: 0 16px 38px rgba(0,0,0,0.5), 0 0 0 1px rgba(231,199,102,0.05), 0 0 34px rgba(231,199,102,0.08);
+  transition: transform 0.4s cubic-bezier(.22,.9,.24,1.2), opacity 0.22s ease, visibility 0.4s, border-color 0.3s ease, box-shadow 0.3s ease;
+  /* Outline now tracks var(--ledger-accent) — whichever plan is
+     actually active (see applyLedgerTierAccent()), not a fixed color.
+     Glow bumped up a full step from the first pass (which read as
+     essentially invisible against the dark chrome): border opacity
+     0.05->0.16, bloom 8%->22% at a wider 46px spread. Still one ambient
+     layer, not a hard neon outline — just one that's actually visible. */
+  box-shadow: 0 16px 38px rgba(0,0,0,0.5), 0 0 0 1px rgba(var(--ledger-accent-rgb), 0.16), 0 0 46px rgba(var(--ledger-accent-rgb), 0.22);
   overflow: hidden;
 }
 .ledger-dropdown::before {
@@ -2184,9 +2189,9 @@ input[type="number"]::-webkit-outer-spin-button {
   position: absolute;
   top: 0; left: 22px;
   width: 22px; height: 15px;
-  background: #C9A227;
+  background: var(--ledger-accent);
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 68%, 0 100%);
-  filter: drop-shadow(0 0 5px rgba(201,162,39,0.5));
+  filter: drop-shadow(0 0 6px rgba(var(--ledger-accent-rgb), 0.65));
 }
 .ledger-dropdown.open {
   opacity: 1;
@@ -2197,11 +2202,11 @@ input[type="number"]::-webkit-outer-spin-button {
 .ledger-heading {
   font-family: 'Fraunces', serif;
   font-size: 0.95rem;
-  color: #E7C766;
+  color: var(--ledger-accent);
   letter-spacing: 0.01em;
   margin-bottom: 4px;
   padding: 0 6px;
-  text-shadow: 0 0 18px rgba(231,199,102,0.35);
+  text-shadow: 0 0 20px rgba(var(--ledger-accent-rgb), 0.55);
 }
 .ledger-sub {
   font-size: 0.71rem;
@@ -2228,7 +2233,7 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 10px 10px;
   border-radius: 9px;
   border: 1px solid transparent;
-  background: rgba(231,199,102,0.05);
+  background: rgba(var(--ledger-accent-rgb), 0.05);
   cursor: pointer;
   opacity: 0;
   transform: translateX(-8px);
@@ -2236,15 +2241,15 @@ input[type="number"]::-webkit-outer-spin-button {
   transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 .ledger-tool-item:hover {
-  background: rgba(231,199,102,0.14);
-  border-color: rgba(231,199,102,0.38);
+  background: rgba(var(--ledger-accent-rgb), 0.14);
+  border-color: rgba(var(--ledger-accent-rgb), 0.38);
   transform: translateX(2px);
   box-shadow: 0 4px 14px rgba(0,0,0,0.25);
 }
 .ledger-tool-item:active { transform: translateX(2px) scale(0.99); }
 .ledger-tool-item.current {
-  background: rgba(231,199,102,0.16);
-  border-color: rgba(231,199,102,0.4);
+  background: rgba(var(--ledger-accent-rgb), 0.16);
+  border-color: rgba(var(--ledger-accent-rgb), 0.4);
   cursor: default;
 }
 .ledger-tool-item.current:hover { transform: none; box-shadow: none; }
@@ -2266,15 +2271,16 @@ input[type="number"]::-webkit-outer-spin-button {
   width: 36px; height: 36px;
   border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(155deg, rgba(231,199,102,0.2), rgba(231,199,102,0.05));
-  border: 1px solid rgba(231,199,102,0.28);
-  transition: transform 0.3s cubic-bezier(.22,.9,.3,1.4), background 0.2s ease;
+  background: linear-gradient(155deg, rgba(var(--ledger-accent-rgb), 0.2), rgba(var(--ledger-accent-rgb), 0.05));
+  border: 1px solid rgba(var(--ledger-accent-rgb), 0.28);
+  transition: transform 0.3s cubic-bezier(.22,.9,.3,1.4), background 0.2s ease, box-shadow 0.2s ease;
 }
 .ledger-tool-item:hover .ledger-tool-icon {
   transform: scale(1.08) rotate(-4deg);
-  background: linear-gradient(155deg, rgba(231,199,102,0.32), rgba(231,199,102,0.08));
+  background: linear-gradient(155deg, rgba(var(--ledger-accent-rgb), 0.32), rgba(var(--ledger-accent-rgb), 0.08));
+  box-shadow: 0 0 14px rgba(var(--ledger-accent-rgb), 0.35);
 }
-.ledger-tool-icon svg { width: 17px; height: 17px; stroke: #E7C766; }
+.ledger-tool-icon svg { width: 17px; height: 17px; stroke: var(--ledger-accent); }
 
 /* Budget Planner gets its own actual brass/gold, matching its page
    theme — it never had this before; it was just silently inheriting
@@ -2282,10 +2288,12 @@ input[type="number"]::-webkit-outer-spin-button {
 .ledger-tool-icon.icon-ledger {
   background: linear-gradient(155deg, rgba(201,162,39,0.24), rgba(201,162,39,0.05));
   border-color: rgba(201,162,39,0.32);
+  box-shadow: 0 0 8px rgba(201,162,39,0.18);
 }
 .ledger-tool-icon.icon-ledger svg { stroke: #E7C766; }
 .ledger-tool-item:hover .ledger-tool-icon.icon-ledger {
   background: linear-gradient(155deg, rgba(201,162,39,0.36), rgba(201,162,39,0.08));
+  box-shadow: 0 0 14px rgba(201,162,39,0.4);
 }
 
 /* Dashboard gets its own unique identity within the list: cool slate-blue
@@ -2294,10 +2302,12 @@ input[type="number"]::-webkit-outer-spin-button {
 .ledger-tool-icon.icon-dashboard {
   background: linear-gradient(155deg, rgba(110,143,163,0.24), rgba(110,143,163,0.05));
   border-color: rgba(110,143,163,0.32);
+  box-shadow: 0 0 8px rgba(110,143,163,0.18);
 }
 .ledger-tool-icon.icon-dashboard svg { stroke: #9FC1D6; }
 .ledger-tool-item:hover .ledger-tool-icon.icon-dashboard {
   background: linear-gradient(155deg, rgba(110,143,163,0.36), rgba(110,143,163,0.08));
+  box-shadow: 0 0 14px rgba(110,143,163,0.4);
   transform: scale(1.08) rotate(0deg);
 }
 .ledger-tool-item:hover .icon-dashboard svg { animation: dashPulse 1.15s ease infinite; }
@@ -2311,10 +2321,12 @@ input[type="number"]::-webkit-outer-spin-button {
 .ledger-tool-icon.icon-connections {
   background: linear-gradient(155deg, rgba(63,174,133,0.24), rgba(63,174,133,0.05));
   border-color: rgba(63,174,133,0.32);
+  box-shadow: 0 0 8px rgba(63,174,133,0.18);
 }
 .ledger-tool-icon.icon-connections svg { stroke: #7FE0BB; }
 .ledger-tool-item:hover .ledger-tool-icon.icon-connections {
   background: linear-gradient(155deg, rgba(63,174,133,0.36), rgba(63,174,133,0.08));
+  box-shadow: 0 0 14px rgba(63,174,133,0.4);
   transform: scale(1.08) rotate(0deg);
 }
 .ledger-tool-item:hover .icon-connections svg { animation: connPulse 1.3s ease infinite; }
@@ -2328,10 +2340,12 @@ input[type="number"]::-webkit-outer-spin-button {
 .ledger-tool-icon.icon-spending {
   background: linear-gradient(155deg, rgba(224,128,106,0.24), rgba(224,128,106,0.05));
   border-color: rgba(224,128,106,0.32);
+  box-shadow: 0 0 8px rgba(224,128,106,0.18);
 }
 .ledger-tool-icon.icon-spending svg { stroke: #E0806A; }
 .ledger-tool-item:hover .ledger-tool-icon.icon-spending {
   background: linear-gradient(155deg, rgba(224,128,106,0.36), rgba(224,128,106,0.08));
+  box-shadow: 0 0 14px rgba(224,128,106,0.4);
   transform: scale(1.08);
 }
 
@@ -2340,10 +2354,12 @@ input[type="number"]::-webkit-outer-spin-button {
 .ledger-tool-icon.icon-investments {
   background: linear-gradient(155deg, rgba(168,143,216,0.24), rgba(168,143,216,0.05));
   border-color: rgba(168,143,216,0.32);
+  box-shadow: 0 0 8px rgba(168,143,216,0.18);
 }
 .ledger-tool-icon.icon-investments svg { stroke: #A88FD8; }
 .ledger-tool-item:hover .ledger-tool-icon.icon-investments {
   background: linear-gradient(155deg, rgba(168,143,216,0.36), rgba(168,143,216,0.08));
+  box-shadow: 0 0 14px rgba(168,143,216,0.4);
   transform: scale(1.08);
 }
 
@@ -2353,10 +2369,12 @@ input[type="number"]::-webkit-outer-spin-button {
 .ledger-tool-icon.icon-savings {
   background: linear-gradient(155deg, rgba(110,196,184,0.24), rgba(110,196,184,0.05));
   border-color: rgba(110,196,184,0.32);
+  box-shadow: 0 0 8px rgba(110,196,184,0.18);
 }
 .ledger-tool-icon.icon-savings svg { stroke: #6EC4B8; }
 .ledger-tool-item:hover .ledger-tool-icon.icon-savings {
   background: linear-gradient(155deg, rgba(110,196,184,0.36), rgba(110,196,184,0.08));
+  box-shadow: 0 0 14px rgba(110,196,184,0.4);
   transform: scale(1.08);
 }
 
@@ -2373,8 +2391,8 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 0.56rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #E7C766;
-  border: 1px solid rgba(231,199,102,0.4);
+  color: var(--ledger-accent);
+  border: 1px solid rgba(var(--ledger-accent-rgb), 0.4);
   padding: 1px 6px;
   border-radius: 20px;
   font-weight: 700;
@@ -2392,7 +2410,7 @@ input[type="number"]::-webkit-outer-spin-button {
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 .ledger-tool-item:hover .ledger-tool-arrow { opacity: 1; transform: translateX(0); }
-.ledger-tool-arrow svg { width: 14px; height: 14px; stroke: #E7C766; }
+.ledger-tool-arrow svg { width: 14px; height: 14px; stroke: var(--ledger-accent); }
 
 .ledger-link-item {
   display: flex; align-items: center; justify-content: space-between;
@@ -2400,7 +2418,7 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 10px 10px;
   border-radius: 6px;
   border: none;
-  background: rgba(231,199,102,0.07);
+  background: rgba(var(--ledger-accent-rgb), 0.07);
   color: var(--tan);
   font-size: 0.83rem;
   font-weight: 600;
@@ -2409,7 +2427,7 @@ input[type="number"]::-webkit-outer-spin-button {
   transition: background 0.15s ease, padding-left 0.15s ease;
 }
 .ledger-link-item:last-child { margin-bottom: 0; }
-.ledger-link-item:hover { background: rgba(231,199,102,0.15); padding-left: 14px; }
+.ledger-link-item:hover { background: rgba(var(--ledger-accent-rgb), 0.15); padding-left: 14px; }
 
 .ledger-lock-cta {
   margin-top: 2px;
@@ -2417,7 +2435,7 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 11px;
   border: none;
   border-radius: 7px;
-  background: #E7C766;
+  background: var(--ledger-accent);
   color: #171106;
   font-weight: 700;
   font-size: 0.83rem;
@@ -2425,7 +2443,7 @@ input[type="number"]::-webkit-outer-spin-button {
   letter-spacing: 0.02em;
   transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
-.ledger-lock-cta:hover { background: #F0D888; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(231,199,102,0.25); }
+.ledger-lock-cta:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(var(--ledger-accent-rgb), 0.25); }
 .ledger-lock-cta:active { transform: translateY(0); }
 
 /* Feedback — its own small, quiet section within the Premium Tools
@@ -2465,7 +2483,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .ledger-future-hint {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px dashed rgba(231,199,102,0.25);
+  border-top: 1px dashed rgba(var(--ledger-accent-rgb), 0.25);
   font-size: 0.64rem;
   color: var(--silver-dim);
   text-align: center;
