@@ -15,8 +15,8 @@ const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABAS
 // pre-create Products/Prices in Stripe for this to work. Tier 1 isn't
 // listed since it's free and never reaches checkout.
 const TIER_PRICING = {
-  2: { name: 'Arko — Tier 2: Automation', monthly: 800, lifetime: 9500 },
-  3: { name: 'Arko — Tier 3: Full', monthly: 1500, lifetime: 16500 },
+  2: { name: 'Arko — Tier 2: Automation', monthly: 600, lifetime: 6500 },
+  3: { name: 'Arko — Tier 3: Full', monthly: 1200, lifetime: 13500 },
 };
 
 export default async function handler(req, res) {
@@ -185,7 +185,7 @@ async function handleUpgrade(req, res) {
     }
 
     // Lifetime: a second one-time payment for exactly the price
-    // difference ($165 - $95 = $70), not the full Tier 3 price again.
+    // difference ($135 - $65 = $70), not the full Tier 3 price again.
     if (billing.billing_period === 'lifetime') {
       const upgradeAmount = TIER_PRICING[3].lifetime - TIER_PRICING[2].lifetime;
 
