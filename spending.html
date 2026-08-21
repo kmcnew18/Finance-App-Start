@@ -656,8 +656,8 @@
       }
       empty.style.display = 'none';
 
-      list.innerHTML = sorted.map(t => `
-        <div class="spend-txn-row">
+      list.innerHTML = sorted.map((t, idx) => `
+        <div class="spend-txn-row spend-row-in" style="animation-delay:${Math.min(idx, 14) * 30}ms">
           <div class="spend-txn-info">
             <span class="spend-txn-merchant">${(t.merchant_name || 'Transaction').replace(/</g,'&lt;')}</span>
             <span class="spend-txn-meta">${new Date(t.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${effectiveCategory(t).replace(/</g,'&lt;')}${t.custom_category ? ' <span class="spend-txn-custom-badge">edited</span>' : ''}</span>
@@ -817,18 +817,27 @@
         },
       });
 
-      list.innerHTML = rows.map(r => {
+      list.innerHTML = rows.map((r, idx) => {
         const color = colorForCategory(r.cat);
         return `
-        <div class="spend-cat-row">
+        <div class="spend-cat-row spend-row-in" style="animation-delay:${idx * 45}ms">
           <div class="spend-cat-head">
             <span class="spend-cat-name"><span class="spend-cat-dot" style="background:${color};"></span>${r.cat}</span>
             <span class="spend-cat-amt">${money(r.amt)} · ${r.pct}%</span>
           </div>
-          <div class="spend-cat-bar-track"><div class="spend-cat-bar-fill" style="width:${Math.min(r.pct, 100)}%; background:${color};"></div></div>
+          <div class="spend-cat-bar-track"><div class="spend-cat-bar-fill" style="width:0%; background:${color};" data-fill="${Math.min(r.pct, 100)}"></div></div>
         </div>
       `;
       }).join('');
+      // Set the real width a frame after insertion (not inline at
+      // render time) so the transition below actually has a 0% ->
+      // real% change to animate, instead of painting straight at its
+      // final width with nothing to transition from.
+      requestAnimationFrame(() => {
+        list.querySelectorAll('.spend-cat-bar-fill').forEach(el => {
+          el.style.width = el.dataset.fill + '%';
+        });
+      });
     }
 
     async function loadSubscriptions() {
@@ -872,7 +881,7 @@
       }
       empty.style.display = 'none';
 
-      list.innerHTML = filtered.map(s => {
+      list.innerHTML = filtered.map((s, idx) => {
         // plaid_account_id on the stream is what makes this possible —
         // added specifically so a subscription billed to a credit card
         // (as opposed to pulled straight from checking) is visibly
@@ -881,7 +890,7 @@
         const onCreditCard = s.plaid_account_id && creditCardPlaidIds.has(s.plaid_account_id);
         const cardBadge = onCreditCard ? '<span class="txn-cardpayment-badge">Card</span>' : '';
         return `
-        <div class="spend-sub-row">
+        <div class="spend-sub-row spend-row-in" style="animation-delay:${idx * 45}ms">
           <span class="spend-sub-name">${(s.description || s.merchant_name || 'Recurring charge').replace(/</g,'&lt;')}${cardBadge}</span>
           <span class="spend-sub-freq">${s.frequency ? s.frequency.toLowerCase() : ''}</span>
           <span class="spend-sub-amt">${money(s.last_amount || s.average_amount || 0)}</span>

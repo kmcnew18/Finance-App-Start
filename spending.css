@@ -2,6 +2,25 @@
    spending/subtract color identity used elsewhere (Dashboard's Subtract
    panel, log stripes). ============= */
 
+/* Shared row-entrance animation — transaction rows, category rows, and
+   subscription rows all use this same class + a per-row inline
+   animation-delay set in JS, matching the stagger pattern already
+   established elsewhere (Investments' holdings list, Dashboard's
+   review queue). Transaction lists specifically cap the delay at the
+   JS level (idx capped, not just the animation itself) so a long
+   month of transactions doesn't take seconds to finish staggering in. */
+.spend-row-in {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: spendRowIn 0.32s cubic-bezier(.2,.8,.3,1) forwards;
+}
+@keyframes spendRowIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spend-row-in { animation: none; opacity: 1; transform: none; }
+}
+
 .spend-month-nav {
   position: relative;
   display: flex; align-items: center; justify-content: center; gap: 18px;

@@ -72,15 +72,15 @@
 
   <!-- BENEFITS -->
   <section class="benefits">
-    <div class="benefit">
+    <div class="benefit reveal">
       <h3>See everything at once</h3>
       <p>Every account, every bank, one place, updated automatically. No more bouncing between apps just to check.</p>
     </div>
-    <div class="benefit">
+    <div class="benefit reveal">
       <h3>Budget your way</h3>
       <p>Ledger-style monthly planning, category breakdowns, and spending trends — as hands-on or automated as you want it.</p>
     </div>
-    <div class="benefit">
+    <div class="benefit reveal">
       <h3>Bank-level security</h3>
       <p>Read-only by default. Your credentials are never stored. Every connection is encrypted end to end.</p>
     </div>
@@ -91,17 +91,17 @@
     <h2>How it works</h2>
     <hr class="how-divider" />
     <ol class="steps">
-      <li>
+      <li class="reveal">
         <span class="step-num">01</span>
         <h4>Start free</h4>
         <p>Manual budgeting, a full ledger, and dashboard tracking — no bank connection required, ever.</p>
       </li>
-      <li>
+      <li class="reveal">
         <span class="step-num">02</span>
         <h4>Connect your accounts</h4>
         <p>When you're ready, securely link banks and brokerages in a couple of minutes, through the same technology major banking apps use.</p>
       </li>
-      <li>
+      <li class="reveal">
         <span class="step-num">03</span>
         <h4>See the full picture</h4>
         <p>Balances, spending, investments, and net worth — unified and updated automatically, with as much detail as you want.</p>
@@ -114,28 +114,28 @@
     <h2>Getting set up</h2>
     <p class="setup-sub">From signup to your first synced balance, in a few minutes.</p>
     <ol class="setup-steps">
-      <li>
+      <li class="reveal">
         <span class="setup-num">1</span>
         <div>
           <h4>Create your account</h4>
           <p>No card required. You're on the free Manual tier the moment you sign up, with a 14-day trial of everything else included automatically.</p>
         </div>
       </li>
-      <li>
+      <li class="reveal">
         <span class="setup-num">2</span>
         <div>
           <h4>Start however you want</h4>
           <p>Log a few transactions by hand to get a feel for it, or jump straight to Connections and link a bank or brokerage — both work from day one.</p>
         </div>
       </li>
-      <li>
+      <li class="reveal">
         <span class="setup-num">3</span>
         <div>
           <h4>Connect an account (optional)</h4>
           <p>Search your institution, log in through Plaid's secure flow, and pick which accounts to share. Takes about two minutes; nothing is stored on our end beyond what's needed to run the app.</p>
         </div>
       </li>
-      <li>
+      <li class="reveal">
         <span class="setup-num">4</span>
         <div>
           <h4>Let it settle in</h4>
@@ -149,27 +149,27 @@
   <section class="faq" id="faq">
     <h2>Common questions</h2>
     <div class="faq-list">
-      <details class="faq-item" open>
+      <details class="faq-item reveal" open>
         <summary>Is Arko actually free?</summary>
         <p>Yes — manual budgeting, the full ledger, and dashboard tracking are free forever, no card required and no time limit. You only pay if you want connected accounts and the automated features on top.</p>
       </details>
-      <details class="faq-item">
+      <details class="faq-item reveal">
         <summary>What happens when my trial ends?</summary>
         <p>Every new account gets a 14-day trial of full access. If you don't upgrade before it ends, your account drops to the free Manual tier automatically — any connected accounts are disconnected (fully, at Plaid's end too), but nothing you entered manually is ever touched.</p>
       </details>
-      <details class="faq-item">
+      <details class="faq-item reveal">
         <summary>Do I have to connect a bank account?</summary>
         <p>No. Manual tracking works completely on its own — connecting accounts is there for when you want balances and transactions to update themselves instead of typing them in.</p>
       </details>
-      <details class="faq-item">
+      <details class="faq-item reveal">
         <summary>Is my financial data safe?</summary>
         <p>Account connections go through Plaid, the same infrastructure most banking apps use — your bank login is never seen or stored by Arko. Read-only access by default, encrypted connections throughout, and you can disconnect any account at any time.</p>
       </details>
-      <details class="faq-item">
+      <details class="faq-item reveal">
         <summary>Can I cancel anytime?</summary>
         <p>Yes. Monthly plans cancel from Settings whenever you want — you keep access through the end of what you already paid for, and you're never charged again after that. Lifetime plans are a one-time payment with nothing to cancel.</p>
       </details>
-      <details class="faq-item">
+      <details class="faq-item reveal">
         <summary>What's the difference between the paid tiers?</summary>
         <p>Automation adds bank and card connections with auto-syncing balances, up to 6 accounts. Full adds investment and debt account linking, up to 15 accounts, spending trends, visual savings goals, and the investment portfolio view.</p>
       </details>
@@ -185,7 +185,7 @@
 
     <div class="pricing-grid">
       <!-- TIER 1 -->
-      <div class="price-card" style="--tier-color: var(--neon-tier1);">
+      <div class="price-card reveal" style="--tier-color: var(--neon-tier1);">
         <span class="price-badge">Manual</span>
         <h3>Tier 1</h3>
         <p class="price-tagline">Everything you need to budget by hand — free forever.</p>
@@ -202,7 +202,7 @@
       </div>
 
       <!-- TIER 2 -->
-      <div class="price-card" style="--tier-color: var(--neon-tier2);">
+      <div class="price-card reveal" style="--tier-color: var(--neon-tier2);">
         <span class="price-badge">Automation</span>
         <h3>Tier 2</h3>
         <p class="price-tagline">Connect your real accounts and let balances update themselves.</p>
@@ -218,7 +218,7 @@
       </div>
 
       <!-- TIER 3 -->
-      <div class="price-card featured" style="--tier-color: var(--neon-tier3);">
+      <div class="price-card featured reveal" style="--tier-color: var(--neon-tier3);">
         <span class="price-badge">Full Access</span>
         <h3>Tier 3</h3>
         <p class="price-tagline">Investments, debt, spending trends, savings goals — all of it.</p>
@@ -273,6 +273,28 @@
         document.body.classList.remove('auth-checking');
       }
     })();
+
+    // Reveals each .reveal element (feature cards, "how it works" steps,
+    // setup steps, FAQ items, pricing cards) once as it scrolls into
+    // view — staggered per-sibling via nth-child transition-delay in
+    // CSS, not computed here. One-shot: unobserves immediately after
+    // triggering, since re-hiding something the visitor already saw
+    // (e.g. on scrolling back up) would read as broken, not polished.
+    if ('IntersectionObserver' in window) {
+      const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('in-view');
+            revealObserver.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+      document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+    } else {
+      // No IntersectionObserver support — show everything immediately
+      // rather than leaving content permanently invisible.
+      document.querySelectorAll('.reveal').forEach(el => el.classList.add('in-view'));
+    }
   </script>
 
 </body>
