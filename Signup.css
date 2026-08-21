@@ -2,14 +2,10 @@
   --blue: #2E5472;
   --blue-deep: #1B2330;
   --blue-light: #6E8FA3;
-  --silver: #B3B6B9;
-  --silver-hover: #C7CACD;
   --tan: #E8E1D3;
   --tan-hover: #F0EBE0;
   --brown: #6b4a38;
   --brown-hover: #7d5745;
-  --paper: #DCDDDE;
-  --paper-light: #E6E7E8;
   --ink: #20262B;
   --slate: #5B6268;
   --line: #C9CBCC;
@@ -23,6 +19,22 @@ body {
   background: var(--blue-deep);
   color: var(--ink);
   line-height: 1.55;
+}
+
+/* Shared once here instead of copy-pasted inline per page — the same
+   fix dashboard.css already applied for its own pages, after the
+   inline-per-page version there meant Spendings silently ended up
+   missing it. Add <div class="wip-banner">...</div> to any page that
+   loads this stylesheet and wants the banner. */
+.wip-banner {
+  text-align: center;
+  padding: 5px 20px;
+  background: transparent;
+  border-bottom: 1px solid rgba(139,111,71,0.25);
+  font-family: 'Public Sans', sans-serif;
+  font-size: 11px;
+  color: #b3ae9f;
+  letter-spacing: .15px;
 }
 
 h1, h2, h3, h4 {
@@ -177,7 +189,8 @@ h1, h2, h3, h4 {
 }
 
 .auth-form input:focus,
-button:focus-visible {
+button:focus-visible,
+a:focus-visible {
   outline: 2px solid var(--brown);
   outline-offset: 2px;
 }
@@ -229,12 +242,6 @@ button:focus-visible {
   text-decoration: underline;
 }
 
-.microcopy {
-  font-size: 0.8rem;
-  color: #9A9184;
-  margin-top: 16px;
-}
-
 /* ---------- RESEND BUTTON ---------- */
 .btn-resend {
   margin-top: 8px;
@@ -256,53 +263,6 @@ button:focus-visible {
 .btn-resend:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-/* ---------- PAYWALL CTA ---------- */
-.hero-cta {
-  position: relative;
-  display: inline-block;
-  margin-top: 8px;
-  padding: 16px 40px;
-  border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--brown), var(--brown-hover));
-  color: var(--tan);
-  font-family: 'Public Sans', sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  white-space: nowrap;
-  box-shadow:
-    0 0 18px rgba(107, 74, 56, 0.55),
-    0 0 36px rgba(107, 74, 56, 0.3),
-    0 8px 18px rgba(0, 0, 0, 0.35);
-  transition: transform 0.2s ease, box-shadow 0.3s ease, background 0.2s ease;
-}
-
-.hero-cta:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 0 26px rgba(107, 74, 56, 0.7),
-    0 0 52px rgba(107, 74, 56, 0.4),
-    0 10px 22px rgba(0, 0, 0, 0.4);
-}
-
-.hero-cta:active {
-  transform: translateY(0);
-}
-
-.hero-cta:focus-visible {
-  outline: 2px solid var(--tan);
-  outline-offset: 3px;
-}
-
-.hero-cta:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 @media (max-width: 480px) {
