@@ -327,15 +327,15 @@ async function init() {
   setupFeedback();
   setupIdleTimeout();
 
-  // Blocks here until the user has enrolled AND verified a second
-  // factor for this session — the rest of the page (accounts, net
-  // worth, everything) does not load until this resolves. Cancelling
-  // out sends them back to Dashboard rather than leaving them stuck
-  // staring at a blocked, empty Connections page.
-  document.getElementById('loading-message').textContent = 'Checking two-factor authentication…';
-  const verified = await requireMfaVerified(true);
-  if (!verified) { window.location.href = 'dashboard.html'; return; }
-
+  // MFA is no longer required just to look at Connections — balances
+  // and account names here aren't materially more sensitive than what
+  // Dashboard already shows without a second factor. It's now required
+  // per-action instead, gated at the moment something actually changes
+  // (adding/editing/removing an account, reconnecting, category
+  // mapping, managing categories — see requireMfaVerified(false) calls
+  // at each of those entry points), rather than blocking the whole page
+  // behind a prompt every single time someone just wants to check a
+  // balance.
   document.getElementById('loading-message').textContent = 'Loading your accounts...';
   await loadAccounts();
 
@@ -855,7 +855,13 @@ function renderAssetsLiabilitiesChart() {
 }
 
 // ================= MANUAL ADD / EDIT =================
-function openAddModal() {
+async function openAddModal() {
+  // MFA is no longer required just to view Connections (see init()) —
+  // only to actually change anything. Gated here, at the moment editing
+  // starts, rather than on every individual save inside the modal: one
+  // prompt per edit session instead of one per action, and if it's
+  // cancelled the modal simply never opens.
+  if (!await requireMfaVerified(false)) return;
   editingAccountId = null;
   document.getElementById('connect-modal-title').textContent = 'Connect an account';
   document.getElementById('connect-modal-sub').textContent = "Link instantly with Plaid, or add an account by hand if it's not supported.";
@@ -869,7 +875,8 @@ function openAddModal() {
   document.getElementById('connect-overlay').classList.add('open');
 }
 
-function openEditModal(id) {
+async function openEditModal(id) {
+  if (!await requireMfaVerified(false)) return;
   const acct = accounts.find(a => a.id === id);
   if (!acct) return;
   editingAccountId = id;
@@ -921,6 +928,7 @@ async function deleteAccount(id) {
   const acct = accounts.find(a => a.id === id);
   if (!acct) return;
   if (!await arkoConfirm(`Remove ${acct.institution_name}${acct.nickname ? ' — ' + acct.nickname : ''}? This cannot be undone.`)) return;
+  if (!await requireMfaVerified(false)) return;
   const { error } = await supabaseClient.from('linked_accounts').delete().eq('id', id);
   if (error) { console.error(error); await arkoAlert('Could not remove this account: ' + error.message); return; }
   logAuditEvent('linked_account_removed', { institution_name: acct.institution_name, account_type: acct.account_type, source: acct.source });
@@ -1187,8 +1195,8 @@ async function finishAddNewAccounts(itemId) {
 }
 
 async function startPlaidLink() {
-  // No MFA check needed here — the whole page is gated at entry in
-  // init(), so reaching this point already means the session is AAL2.
+  // No MFA check needed here — this button only exists inside the
+  // connect modal, which openAddModal() already gates before it opens.
   // Single button now — the backend requests every product Plaid
   // supports, so Link's own account-selection screen is what lets
   // someone pick checking, investments, a credit card, etc. all from
@@ -1242,6 +1250,7 @@ async function startPlaidLink() {
 
 // ================= UPDATE MODE (RECONNECTING A BROKEN CONNECTION) =================
 async function reconnectItem(itemId, institutionName, btn) {
+  if (!await requireMfaVerified(false)) return;
   const originalText = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Connecting…';
@@ -1292,6 +1301,7 @@ async function reconnectItem(itemId, institutionName, btn) {
 // path — granting access to a newly-opened account at a bank
 // that's already connected, rather than fixing a broken connection.
 async function addNewAccounts(itemId, institutionName, btn) {
+  if (!await requireMfaVerified(false)) return;
   const originalText = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Connecting…';
@@ -1691,11 +1701,13 @@ function setupLedgerMenu() {
 
 // ================= TWO-FACTOR AUTHENTICATION =================
 // Real end-user MFA via Supabase Auth's native TOTP support.
-// requireMfaVerified(gate) is awaited at the very top of init(), before
-// any page content renders — so Connections genuinely cannot be entered
-// (not just "Connect with Plaid," the whole tab) until the user has
-// both enrolled AND verified a second factor for this session (AAL2).
-// When gate=true, the overlay can't be dismissed without completing it.
+// requireMfaVerified(gate) is called individually at the start of every
+// action that actually changes something (add/edit/remove an account,
+// reconnect, category mapping, managing categories) rather than once
+// at page entry — viewing Connections itself no longer requires AAL2.
+// gate=true still exists for anything that should be non-dismissable;
+// every per-action call here uses gate=false so cancelling just aborts
+// that one action instead of trapping the user in the prompt.
 let mfaEnrollFactorId = null;
 let mfaGateActive = false;
 let mfaResolveQueue = [];
@@ -2086,7 +2098,8 @@ function closeCategoryOverlay() {
   categoryMappingAccountId = null;
 }
 
-function openCategoryMapping(accountId) {
+async function openCategoryMapping(accountId) {
+  if (!await requireMfaVerified(false)) return;
   categoryMappingAccountId = accountId;
   document.getElementById('category-overlay').classList.add('open');
 
@@ -2485,8 +2498,9 @@ function renderManageCategories() {
 }
 
 function setupManageCategories() {
-  document.getElementById('manage-categories-btn').addEventListener('click', () => {
+  document.getElementById('manage-categories-btn').addEventListener('click', async () => {
     document.getElementById('settings-dropdown').classList.remove('open');
+    if (!await requireMfaVerified(false)) return;
     document.getElementById('manage-categories-overlay').classList.add('open');
     renderManageCategories();
   });

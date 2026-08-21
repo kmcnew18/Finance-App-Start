@@ -83,8 +83,34 @@
   50% { transform: rotate(8deg); }
 }
 
+/* Wraps whichever element actually carries the progress (stem+leaves,
+   the water fill, the rise group, the beam) — layered as an outer
+   group around the theme's own idle animation rather than replacing
+   it, so both play at once: this handles "here's your progress
+   arriving," the inner one keeps handling "and now it's alive." Every
+   goal card re-renders its SVG from scratch on any update (new DOM
+   node each time, not a live value change on a persisted one), so a
+   plain CSS transition can't animate between old/new progress — this
+   is a `backwards`-filled keyframe instead, which replays the same
+   "grow up to current progress" motion on every render, load included. */
+.sav-grow-in {
+  /* Deliberately no transform-box override — SVG <g> defaults to
+     view-box space, which is what each instance's inline
+     transform-origin (in raw viewBox coordinates like "80px 150px")
+     actually needs. fill-box (used by .sav-celebrate-particle above,
+     correctly, for that element) would reinterpret those coordinates
+     relative to this element's own tight bounding box instead, an
+     unrelated and wrong frame of reference here. */
+  transform-origin: center;
+  animation: savGrowIn 0.9s cubic-bezier(.18,.82,.24,1.05) backwards;
+}
+@keyframes savGrowIn {
+  from { opacity: 0; transform: scale(0.45) translateY(16px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .sav-anim-sway, .sav-anim-bob, .sav-anim-float, .sav-anim-flicker, .sav-anim-beam, .sav-celebrate-particle {
+  .sav-anim-sway, .sav-anim-bob, .sav-anim-float, .sav-anim-flicker, .sav-anim-beam, .sav-celebrate-particle, .sav-grow-in {
     animation: none;
   }
 }

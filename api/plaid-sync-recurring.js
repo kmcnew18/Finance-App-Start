@@ -123,20 +123,33 @@ module.exports = async (req, res) => {
           result = await refreshSubscriptionsForItem(item);
           totalQueued += result.queuedCount;
         } else if (mode === 'deep-refresh') {
-          // Dashboard's "Refresh detected activity" is the only caller
-          // of deep-refresh, and Dashboard never displays subscriptions
-          // (that's Spendings, fed by the separate "Refresh
-          // subscriptions" button on Connections) — so routing this
-          // through processItemUpdate used to also call
-          // refreshSubscriptionsForItem for no reason, which spends a
-          // full Plaid /transactions/recurring/get call per item (plus
-          // its isLikelyReimbursedPattern checks and stream upserts)
-          // on every single click. Scoped to transactions only now.
-          // The backfill/dedupe/reclassify passes below — the actual
-          // point of deep-refresh — are pure DB work, never touched
-          // Plaid to begin with, and are unaffected by this change.
-          result = await refreshTransactionsForItem(item);
-          totalAdded += result.addedCount;
+          // Previously scoped to transactions only, on the reasoning
+          // that Dashboard never displays subscriptions itself. That
+          // reasoning missed the actual consequence: this deep-refresh
+          // call (fired automatically on every Dashboard visit) is the
+          // only thing in the app that reliably runs every day for a
+          // given item — and it shares the same once-a-day-per-item
+          // Plaid budget as balance syncs and subscription syncs alike
+          // (see isSyncDue in lib/plaid-helpers.js). Since this one
+          // fires first, on every single Dashboard load, it was
+          // permanently claiming that day's budget for transactions
+          // only — the "Refresh subscriptions" button (Connections /
+          // Spendings) essentially never got to run for real, because
+          // by the time anyone clicked it, today's budget was already
+          // spent. In practice, subscriptions/recurring charges were
+          // never actually refreshing at all. Now covers both, so
+          // whichever trigger happens to win the day's one real Plaid
+          // call, the item gets fully refreshed either way. The
+          // backfill/dedupe/reclassify passes below are pure DB work,
+          // never touched Plaid, and are unaffected either way.
+          const txnResult = await refreshTransactionsForItem(item);
+          const subResult = await refreshSubscriptionsForItem(item);
+          totalAdded += txnResult.addedCount;
+          totalQueued += subResult.queuedCount;
+          result = {
+            skipped: !!(txnResult.skipped && subResult.skipped),
+            nextSyncAt: txnResult.nextSyncAt || subResult.nextSyncAt,
+          };
         } else {
           // No mode = the old fully-combined behavior. Still used by
           // Connections' "Sync all accounts," where refreshing

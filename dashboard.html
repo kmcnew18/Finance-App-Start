@@ -98,7 +98,7 @@
     </div>
     <div class="activity-panel-total" id="activity-panel-total">$0.00</div>
     <div class="activity-day-strip" id="activity-day-strip"></div>
-    <div class="activity-panel-subhead">Recent transactions</div>
+    <div class="activity-panel-subhead">This week's transactions</div>
     <div class="activity-panel-list" id="activity-panel-list"></div>
     <p class="activity-panel-empty" id="activity-panel-empty" style="display:none;">No recent activity.</p>
   </aside>
@@ -1640,7 +1640,10 @@
 
       const list = document.getElementById('activity-panel-list');
       const empty = document.getElementById('activity-panel-empty');
-      const recent = rows.slice(0, 6);
+      // Every transaction in the 7-day window already fetched above, not
+      // just a handful — the panel scrolls (see .activity-panel's own
+      // overflow-y), so there's no layout reason to cap this artificially.
+      const recent = rows;
 
       if (!recent.length) {
         list.innerHTML = '';
