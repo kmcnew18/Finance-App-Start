@@ -7,11 +7,14 @@
 // Supabase auth — Plaid isn't a logged-in user, it's authenticated via a
 // signed JWT in the Plaid-Verification header instead, verified below.
 //
-// processItemUpdate (in lib/plaid-helpers.js) is gated by the same
-// shared once-a-day-per-item sync budget as every other sync path — so
-// even though Plaid can send this webhook at any time, it only actually
-// results in a live Plaid call once every 24 hours per item. Other than
-// that, this file is unchanged: Plaid still gets a fast 200 either way.
+// processItemUpdate (in lib/plaid-helpers.js) is called here with
+// force: true, meaning this bypasses the once-a-day budget every other
+// sync path respects (button clicks, page loads) — a webhook only
+// fires because Plaid itself detected real new data at the bank, so
+// there's no reason to make that wait up to 24 hours the same way a
+// user-triggered sync is throttled. Still floored at a much shorter
+// FORCE_SYNC_MIN_INTERVAL_MS so a burst of webhooks for the same item
+// can't spam live Plaid calls. Plaid still gets a fast 200 either way.
 //
 // Requires: npm install plaid @supabase/supabase-js jsonwebtoken jwk-to-pem
 //
@@ -88,9 +91,15 @@ module.exports = async (req, res) => {
         return;
       }
 
-      const result = await processItemUpdate(itemRow);
+      // force: true — this webhook only fires when Plaid itself detected
+      // real new data at the bank, so it shouldn't wait on the same
+      // once-a-day budget a button click or page load respects. Still
+      // floored at FORCE_SYNC_MIN_INTERVAL_MS (lib/plaid-helpers.js) so
+      // a burst of webhooks for one item can't turn into a spam of live
+      // Plaid calls.
+      const result = await processItemUpdate(itemRow, { force: true });
       if (result.skipped) {
-        console.log(`Webhook for item ${item_id} arrived, but this item already synced within the last 24h — skipped (next eligible: ${result.nextSyncAt || 'n/a'})`);
+        console.log(`Webhook for item ${item_id} arrived, but this item synced too recently (within the last 15 minutes) — skipped (next eligible: ${result.nextSyncAt || 'n/a'})`);
       } else {
         console.log(`Processed webhook for item ${item_id}:`, result);
       }

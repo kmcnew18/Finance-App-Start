@@ -7,12 +7,13 @@
 // triggers the other. Omitting mode runs both, for anything that still
 // wants the old combined behavior (Connections' "Sync all accounts").
 // 'deep-refresh' — used only by Dashboard's "Refresh detected activity"
-// — runs the transactions-only sync, then also backfills anything that
-// was stored but somehow never made it into the review queue, and
-// dedupes whatever's currently pending. It deliberately does NOT touch
-// subscriptions: Dashboard never displays them (that's Spendings), so
-// there's no reason for this button to spend a Plaid
-// /transactions/recurring/get call on every click.
+// — runs both the transactions AND subscriptions sync (see the mode
+// branch below for why: this fires on every Dashboard load and shares
+// one sync slot per day with everything else, so scoping it to
+// transactions-only was silently starving subscriptions of ever
+// running for real), then also backfills anything that was stored but
+// somehow never made it into the review queue, and dedupes whatever's
+// currently pending.
 //
 // Every one of these paths goes through refreshTransactionsForItem /
 // refreshSubscriptionsForItem / processItemUpdate in lib/plaid-helpers.js,
