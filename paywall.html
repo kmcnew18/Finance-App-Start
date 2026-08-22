@@ -104,9 +104,39 @@
       flex-direction: column;
       position: relative;
       box-shadow: 0 6px 22px rgba(0,0,0,0.28);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
-    .tier-card.tier-current { border-color: rgba(110,196,150,0.5); box-shadow: 0 0 0 1.5px rgba(110,196,150,0.35), 0 6px 22px rgba(0,0,0,0.28); }
-    .tier-card.tier-3 { border-color: rgba(231,199,102,0.35); }
+    .tier-card:hover { border-color: rgba(255,255,255,0.16); box-shadow: 0 10px 26px rgba(0,0,0,0.32); }
+    /* Each tier picks up the crisp-ring-plus-bloom recipe used
+       everywhere else in the app, keyed to its own accent color —
+       matches the marketing page's pricing cards, which this UI is
+       conceptually the same thing as. tier-current is defined last so
+       "this is your active plan" always wins visually even for a
+       tier that also carries its own tier-N accent. */
+    .tier-card.tier-2 {
+      border-color: rgba(110,143,163,0.35);
+      box-shadow: 0 6px 22px rgba(0,0,0,0.28), 0 0 0 1px rgba(110,143,163,0.12), 0 0 18px rgba(110,143,163,0.1);
+    }
+    .tier-card.tier-2:hover {
+      border-color: rgba(110,143,163,0.55);
+      box-shadow: 0 6px 22px rgba(0,0,0,0.28), 0 0 0 1px rgba(110,143,163,0.22), 0 0 30px rgba(110,143,163,0.22);
+    }
+    .tier-card.tier-3 {
+      border-color: rgba(231,199,102,0.35);
+      box-shadow: 0 6px 22px rgba(0,0,0,0.28), 0 0 0 1px rgba(231,199,102,0.12), 0 0 18px rgba(231,199,102,0.1);
+    }
+    .tier-card.tier-3:hover {
+      border-color: rgba(231,199,102,0.55);
+      box-shadow: 0 6px 22px rgba(0,0,0,0.28), 0 0 0 1px rgba(231,199,102,0.22), 0 0 30px rgba(231,199,102,0.22);
+    }
+    .tier-card.tier-current {
+      border-color: rgba(110,196,150,0.5);
+      box-shadow: 0 6px 22px rgba(0,0,0,0.28), 0 0 0 1.5px rgba(110,196,150,0.3), 0 0 20px rgba(110,196,150,0.16);
+    }
+    .tier-card.tier-current:hover {
+      border-color: rgba(110,196,150,0.65);
+      box-shadow: 0 6px 22px rgba(0,0,0,0.28), 0 0 0 1.5px rgba(110,196,150,0.4), 0 0 32px rgba(110,196,150,0.26);
+    }
     .tier-card.tier-3::before {
       content: 'Most complete'; position: absolute; top: -11px; left: 24px;
       background: var(--tier3-accent); color: #171106; font-size: 0.66rem; font-weight: 700;
@@ -217,7 +247,7 @@
       </div>
 
       <!-- ================= TIER 2 ================= -->
-      <div class="tier-card" id="tier-2-card">
+      <div class="tier-card tier-2" id="tier-2-card">
         <span class="tier-current-badge">Current plan</span>
         <h2 class="tier-name" style="color: var(--tier2-accent);">Automation</h2>
         <p class="tier-tagline">Connect your real accounts and let balances update themselves.</p>
