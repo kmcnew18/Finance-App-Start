@@ -358,7 +358,7 @@
 .category-panel {
   background: var(--ledger-panel);
   border: 1px solid var(--ledger-line);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 22px 22px 18px;
   scroll-margin-top: 96px;
   position: relative;

@@ -126,9 +126,10 @@
 .spend-section {
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 20px;
   margin-bottom: 20px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28);
 }
 .spend-section-title { font-family: 'Fraunces', serif; font-size: 1.05rem; color: var(--tan); margin-bottom: 4px; }
 .spend-section-sub { font-size: 0.78rem; color: var(--silver-dim); margin-bottom: 14px; }
