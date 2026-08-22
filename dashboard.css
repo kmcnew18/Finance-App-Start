@@ -2793,15 +2793,6 @@ textarea:focus-visible,
 }
 .idle-stay-btn:hover { background: var(--vintage-blue-light); transform: translateY(-1px); }
 
-/* Recent Activity list */
-.activity-list { display: flex; flex-direction: column; }
-.activity-row {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  padding: 11px 2px; border-bottom: 1px solid #222C3A; font-size: 0.85rem;
-}
-.activity-row:last-child { border-bottom: none; }
-.activity-label { color: var(--tan); }
-.activity-when { color: var(--silver-dim); font-size: 0.74rem; white-space: nowrap; flex-shrink: 0; }
 
 /* Dismissible 2FA suggestion banner — accessible, never blocking. */
 .mfa-banner {
