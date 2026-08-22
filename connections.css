@@ -605,7 +605,7 @@
 
 /* ---------- connect / add-account overlay ---------- */
 .vault-overlay {
-  position: fixed; inset: 0; background: rgba(6,8,11,0.72);
+  position: fixed; inset: 0; background: rgba(6,8,11,0.78);
   display: flex; align-items: flex-start; justify-content: center;
   padding: 70px 20px; z-index: 100;
   opacity: 0; visibility: hidden;

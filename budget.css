@@ -708,7 +708,7 @@
 
 /* ---------- history / archive drawer ---------- */
 .history-overlay {
-  position: fixed; inset: 0; background: rgba(6,8,11,0.72);
+  position: fixed; inset: 0; background: rgba(6,8,11,0.78);
   display: flex; align-items: flex-start; justify-content: center;
   padding: 70px 20px;
   z-index: 100;
@@ -724,7 +724,7 @@
   width: 100%; max-width: 560px;
   max-height: 78vh;
   display: flex; flex-direction: column;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 22px rgba(184,147,74,0.08);
   transform: translateY(-10px) scale(0.98);
   transition: transform 0.25s cubic-bezier(.2,.9,.25,1.1);
 }

@@ -2767,7 +2767,7 @@ textarea:focus-visible,
    first so nothing gets cut off mid-action without notice.
    ========================================================================== */
 .idle-overlay {
-  position: fixed; inset: 0; background: rgba(6,8,11,0.82);
+  position: fixed; inset: 0; background: rgba(6,8,11,0.78);
   display: flex; align-items: center; justify-content: center;
   padding: 20px; z-index: 300;
   opacity: 0; visibility: hidden;
@@ -2830,7 +2830,7 @@ textarea:focus-visible,
    drives this markup, but the visual styling lives here once, centrally.
    ========================================================================== */
 .arko-dialog-overlay {
-  position: fixed; inset: 0; background: rgba(6,8,11,0.82);
+  position: fixed; inset: 0; background: rgba(6,8,11,0.78);
   display: flex; align-items: center; justify-content: center;
   padding: 20px; z-index: 400;
   opacity: 0; visibility: hidden;
@@ -2903,7 +2903,7 @@ textarea:focus-visible,
    screen-recorded video — a taste of what the feature looks like in motion.
    ========================================================================== */
 .feature-preview-overlay {
-  position: fixed; inset: 0; background: rgba(6,8,11,0.82);
+  position: fixed; inset: 0; background: rgba(6,8,11,0.78);
   display: flex; align-items: center; justify-content: center;
   padding: 20px; z-index: 410;
   opacity: 0; visibility: hidden;
@@ -2916,7 +2916,7 @@ textarea:focus-visible,
   border-radius: 16px;
   width: 100%; max-width: 420px;
   padding: 0;
-  box-shadow: 0 26px 64px rgba(0,0,0,0.55);
+  box-shadow: 0 26px 64px rgba(0,0,0,0.55), 0 0 26px rgba(46,84,114,0.2);
   transform: translateY(-8px) scale(0.97);
   transition: transform 0.25s cubic-bezier(.2,.9,.25,1.1);
   overflow: hidden;
