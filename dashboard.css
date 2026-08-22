@@ -2706,6 +2706,7 @@ textarea:focus-visible,
 }
 .mfa-verify-btn:hover { background: var(--vintage-blue-light); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
 .mfa-verify-btn:active { transform: translateY(0); }
+.mfa-verify-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
 
 /* QR code — clean white rounded card behind it (QR codes need light
    contrast to scan reliably anyway), sitting on the dark modal like a

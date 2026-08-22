@@ -453,3 +453,15 @@
   .sav-goals-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
   .sav-theme-grid { grid-template-columns: 1fr; }
 }
+
+/* Within Savings, keyboard focus reads in teal rather than the
+   dashboard's vintage-blue, matching the room's own accent (same
+   pattern budget.css uses for its brass focus ring). Goal cards
+   themselves already have a per-theme --goal-glow ring on hover/focus
+   via .sav-goal-card, so this only needs to cover the page's plain
+   buttons/inputs (modals, theme picker, etc). */
+#sav-main button:focus-visible,
+#sav-main input:focus-visible {
+  outline: 2px solid #6EC4B8;
+  outline-offset: 2px;
+}

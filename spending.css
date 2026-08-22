@@ -366,3 +366,12 @@
     width: min(280px, calc(100vw - 32px));
   }
 }
+
+/* Within Spendings, keyboard focus reads in coral rather than the
+   dashboard's vintage-blue, matching the room's own accent (same
+   pattern budget.css uses for its brass focus ring). */
+#spend-main button:focus-visible,
+#spend-main input:focus-visible {
+  outline: 2px solid var(--spend-accent);
+  outline-offset: 2px;
+}

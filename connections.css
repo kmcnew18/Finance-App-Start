@@ -743,3 +743,13 @@
 .account-select-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .account-select-name { font-size: 0.88rem; font-weight: 600; color: var(--tan); }
 .account-select-meta { font-size: 0.72rem; color: var(--silver-dim); text-transform: capitalize; }
+
+/* Within Connections, keyboard focus reads in emerald rather than the
+   dashboard's vintage-blue, matching the room's own accent (same
+   pattern budget.css uses for its brass focus ring). */
+.vault-shell button:focus-visible,
+.vault-shell input:focus-visible,
+.vault-shell select:focus-visible {
+  outline: 2px solid var(--emerald-bright);
+  outline-offset: 2px;
+}
