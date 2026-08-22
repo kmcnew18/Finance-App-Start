@@ -16,6 +16,7 @@
 // plaid-item-actions.js merged three files earlier) or upgrading to Pro.
 
 const { Resend } = require('resend');
+const { supabaseAdmin } = require('../lib/plaid-helpers');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -33,11 +34,25 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { name, type, message, userEmail } = req.body || {};
+    const { name, type, message } = req.body || {};
     if (!message || !message.trim()) {
       res.status(400).json({ error: 'Message is required' });
       return;
     }
+
+    // Verify against a real session and use the verified email, not a
+    // client-supplied one. This form is only ever shown to a logged-in
+    // user (every page it's reachable from requires a session), so
+    // there's no legitimate anonymous path being closed off here —
+    // trusting a client-supplied "account email" would otherwise let
+    // anyone send feedback that looks like it came from someone else's
+    // inbox.
+    const authHeaderVal = req.headers.authorization || '';
+    const token = authHeaderVal.startsWith('Bearer ') ? authHeaderVal.slice(7) : null;
+    if (!token) { res.status(401).json({ error: 'Missing authorization token' }); return; }
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !authData?.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const userEmail = authData.user.email;
 
     const typeLabel = TYPE_LABELS[type] || 'Feedback';
     const fromName = name && name.trim() ? name.trim() : 'Anonymous';
@@ -45,12 +60,12 @@ module.exports = async (req, res) => {
     await resend.emails.send({
       from: 'Arko Feedback <feedback@mail.arkofinance.com>',
       to: 'contact@arkofinance.com',
-      reply_to: userEmail || undefined,
+      reply_to: userEmail,
       subject: `[${typeLabel}] Feedback from ${fromName}`,
       text: [
         `Type: ${typeLabel}`,
         `Name: ${fromName}`,
-        `Account email: ${userEmail || 'not signed in / not provided'}`,
+        `Account email: ${userEmail}`,
         '',
         message.trim(),
       ].join('\n'),

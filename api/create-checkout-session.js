@@ -21,7 +21,24 @@ const TIER_PRICING = {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
-  const { action } = req.body;
+  const { action, userId } = req.body;
+
+  // Verify the caller is actually authenticated as this user before
+  // doing anything else — every branch below (new checkout, cancel/
+  // resume, upgrade) runs on the service-role key, which bypasses RLS
+  // entirely, so a userId in the request body is just an unverified
+  // claim unless checked against a real session. Without this, anyone
+  // who knew or guessed another user's UUID could start checkout,
+  // cancel their subscription, or trigger a tier upgrade on their
+  // behalf. Same pattern already used in api/plaid-sync-recurring.js.
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+  const authHeaderVal = req.headers.authorization || '';
+  const token = authHeaderVal.startsWith('Bearer ') ? authHeaderVal.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Missing authorization token' });
+  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !authData?.user || authData.user.id !== userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   if (action === 'status' || action === 'cancel' || action === 'resume') {
     return handleManageSubscription(req, res);

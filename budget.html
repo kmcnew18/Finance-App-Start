@@ -379,6 +379,18 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Every /api/* call that acts on the current user's data must send
+    // their real session token, not just their claimed user id in the
+    // body — the backend endpoints run on Supabase's service-role key,
+    // which bypasses RLS entirely, so a userId in a request body is
+    // just a claim unless the server verifies it against a real
+    // session. This helper is the single place that grabs the current
+    // token so every call site does it the same way.
+    async function authHeader() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      return session ? { 'Authorization': `Bearer ${session.access_token}` } : {};
+    }
+
     const APP_TIMEZONE = 'America/Chicago';
     let currentUserId = null;
     let userTier = 1;
@@ -1378,7 +1390,7 @@
       try {
         const res = await fetch('/api/create-checkout-session', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
           body: JSON.stringify({ userId: currentUserId, action: 'status' })
         });
         const data = await res.json();
@@ -1444,7 +1456,7 @@
       try {
         const res = await fetch('/api/create-checkout-session', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
           body: JSON.stringify({ userId: currentUserId, action })
         });
         const data = await res.json();
@@ -2331,7 +2343,7 @@
         try {
           const res = await fetch('/api/send-feedback', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
             body: JSON.stringify({ name, type, message, userEmail: currentUserEmail }),
           });
           if (!res.ok) throw new Error('Could not send feedback right now — try again in a bit.');
