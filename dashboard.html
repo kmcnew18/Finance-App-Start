@@ -1541,87 +1541,6 @@
     // every page load, since this is a "check when curious" panel, not
     // something that needs to be ready before the user asks for it.
     const RECURRING_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 22l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>';
-
-    // The whole point of a recurring-charge detector is to catch things
-    // the user might NOT have noticed yet — waiting on Plaid's own
-    // pattern detection (which generally needs to see a charge repeat
-    // at least once) misses exactly the case that matters most: the
-    // first charge from a new subscription. This is a curated allowlist
-    // of well-known subscription/membership services — matched by
-    // merchant-name substring, case-insensitive — so a first-ever charge
-    // from one of these is flagged automatically, no user action
-    // required. Deliberately an allowlist of known recurring-billing
-    // brands rather than a Plaid category match: several of Plaid's own
-    // categories that sound subscription-shaped (ENTERTAINMENT_TV_AND_
-    // MOVIES, ENTERTAINMENT_MUSIC_AND_AUDIO) also cover genuine one-time
-    // purchases (a movie ticket, a single album), so category-matching
-    // alone would misflag those as recurring. A named-brand match has
-    // effectively no false-positive risk in comparison — these are
-    // subscription businesses, full stop.
-    const KNOWN_SUBSCRIPTION_KEYWORDS = [
-      // streaming / entertainment
-      'netflix', 'hulu', 'disney+', 'disneyplus', 'disney plus', 'hbo max', 'hbomax', 'paramount+', 'paramountplus',
-      'peacock', 'espn+', 'espnplus', 'youtube premium', 'youtube tv', 'youtubepremium', 'amazon prime', 'prime video',
-      'apple tv', 'appletv', 'sling tv', 'slingtv', 'crunchyroll', 'twitch',
-      // music / audio
-      'spotify', 'apple music', 'pandora', 'siriusxm', 'sirius xm', 'tidal', 'audible', 'youtube music',
-      // software / cloud / productivity
-      'icloud', 'apple.com/bill', 'google one', 'google storage', 'dropbox', 'microsoft 365', 'office 365',
-      'adobe', 'canva', 'openai', 'chatgpt', 'notion', 'slack', 'zoom.us', '1password', 'lastpass',
-      'nordvpn', 'expressvpn', 'norton', 'mcafee', 'github',
-      // fitness / wellness
-      'planet fitness', 'la fitness', 'equinox', 'peloton', 'classpass', '24 hour fitness', 'anytime fitness',
-      'headspace', 'calm.com', 'myfitnesspal', 'weight watchers',
-      // news / media
-      'nytimes', 'new york times', 'washington post', 'wall street journal', 'wsj.com',
-      // gaming
-      'playstation', 'xbox', 'nintendo', 'steam',
-      // delivery / membership
-      'doordash', 'uber one', 'instacart', 'walmart+', 'walmart plus',
-      // dating
-      'tinder', 'bumble', 'hinge',
-      // other
-      'patreon', 'onlyfans', 'linkedin premium', 'duolingo',
-    ];
-    function looksLikeKnownSubscription(merchantName) {
-      const name = (merchantName || '').toLowerCase();
-      if (!name) return false;
-      return KNOWN_SUBSCRIPTION_KEYWORDS.some(kw => name.includes(kw));
-    }
-
-    // Independent of both Plaid's stream detection AND the named-brand
-    // list above — this looks for the actual mathematical signature of
-    // "recurring" directly in the user's own history: the same merchant
-    // charging a similar amount more than once, regardless of whether
-    // it's a brand anyone's heard of. Catches an obscure/local
-    // subscription the keyword list was never going to know about, as
-    // long as it's charged at least twice somewhere in the lookback
-    // window — the one thing no automatic system (this one, Plaid's, or
-    // any other) can do is call a merchant recurring off a single
-    // transaction with zero repeat anywhere in the data, since nothing
-    // about a lone charge distinguishes it from an ordinary one-time
-    // purchase. That case can only ever be caught by asking the user,
-    // which is what the manual toggle is for.
-    function findHistoricalRepeatMerchants(allTxns) {
-      const amountsByMerchant = {};
-      allTxns.forEach(t => {
-        const name = (t.merchant_name || '').toLowerCase();
-        const amt = Number(t.amount);
-        if (!name || !amt) return;
-        (amountsByMerchant[name] = amountsByMerchant[name] || []).push(amt);
-      });
-      const repeats = new Set();
-      Object.entries(amountsByMerchant).forEach(([name, amounts]) => {
-        if (amounts.length < 2) return;
-        outer: for (let i = 0; i < amounts.length; i++) {
-          for (let j = i + 1; j < amounts.length; j++) {
-            const tolerance = Math.max(2, Math.abs(amounts[i]) * 0.05);
-            if (Math.abs(amounts[i] - amounts[j]) <= tolerance) { repeats.add(name); break outer; }
-          }
-        }
-      });
-      return repeats;
-    }
     const ICON_BASKET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.5 11a2 2 0 0 1-2 1.8H8.5a2 2 0 0 1-2-1.8L5 8Z"></path><path d="M9 8V6a3 3 0 0 1 6 0v2"></path></svg>';
     const ICON_BAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l1 12H5L6 8Z"></path><path d="M9 8V6a3 3 0 0 1 6 0v2"></path></svg>';
     const ICON_TAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 12.3 12.3 20.6a2 2 0 0 1-2.83 0l-7.07-7.07a2 2 0 0 1 0-2.83l8.3-8.3A2 2 0 0 1 12.1 2H19a2 2 0 0 1 2 2v6.9a2 2 0 0 1-.4 1.4Z"></path><circle cx="16" cy="7" r="1.5"></circle></svg>';
@@ -1685,9 +1604,7 @@
       }
       const startDate = days[0];
 
-      const historyStartDate = new Date(todayStr + 'T12:00:00');
-      historyStartDate.setDate(historyStartDate.getDate() - 400);
-      const [{ data: txnRows }, { data: streamRows }, { data: historyRows }] = await Promise.all([
+      const [{ data: txnRows }, { data: streamRows }] = await Promise.all([
         supabaseClient
           .from('transactions')
           .select('amount, txn_date, merchant_name, plaid_category, is_pending, txn_type')
@@ -1701,18 +1618,6 @@
           .select('merchant_name, description')
           .eq('user_id', currentUserId)
           .eq('ignored', false),
-        // Wide lookback (~13 months, to also catch something billed
-        // annually) purely to detect the same-merchant/similar-amount
-        // repeat pattern below — this app's own recurring signal,
-        // independent of Plaid's. Minimal columns since nothing here
-        // needs anything beyond what the match itself requires.
-        supabaseClient
-          .from('transactions')
-          .select('amount, merchant_name')
-          .eq('user_id', currentUserId)
-          .eq('is_removed', false)
-          .neq('txn_type', 'transfer')
-          .gte('txn_date', historyStartDate.toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE })),
       ]);
 
       const rows = txnRows || [];
@@ -1721,37 +1626,9 @@
       // by merchant name is an approximation, good enough for a "here's
       // roughly what repeats" glance, not something anything downstream
       // depends on for accuracy.
-      //
-      // Plaid's own pattern detection generally needs to see a charge
-      // repeat before it'll call it recurring — a merchant charged for
-      // the first time this week won't be in streamRows yet even though
-      // the whole point of this feature is to catch exactly that case.
-      // Four sources feed the final set: Plaid's own detected streams,
-      // a curated allowlist of known subscription brands (matched
-      // against this week's actual transactions, so a first-ever
-      // Netflix charge is flagged the moment it appears), this app's own
-      // same-merchant/similar-amount repeat detector run over ~13
-      // months of history (catches an obscure or local subscription the
-      // brand list was never going to know about, as long as it's
-      // charged more than once somewhere in that window), and anything
-      // the user flagged by hand for a merchant none of the automatic
-      // sources caught. ignored_recurring_merchants lets a false
-      // positive from any automatic source be dismissed without it
-      // reappearing every render. All of this (and the ignore list)
-      // lives in user_metadata, not localStorage, so none of it is tied
-      // to one browser.
-      const manualRecurring = (currentUserMetadata.manual_recurring_merchants || []).map(m => m.toLowerCase());
-      const ignoredRecurring = new Set((currentUserMetadata.ignored_recurring_merchants || []).map(m => m.toLowerCase()));
-      const autoDetected = rows
-        .map(t => (t.merchant_name || '').toLowerCase())
-        .filter(name => name && looksLikeKnownSubscription(name));
-      const historicalRepeats = findHistoricalRepeatMerchants(historyRows || []);
-      const recurringMerchants = new Set([
-        ...(streamRows || []).map(s => (s.merchant_name || s.description || '').toLowerCase()).filter(Boolean),
-        ...manualRecurring,
-        ...autoDetected,
-        ...[...historicalRepeats].filter(name => rows.some(t => (t.merchant_name || '').toLowerCase() === name)),
-      ].filter(name => !ignoredRecurring.has(name)));
+      const recurringMerchants = new Set(
+        (streamRows || []).map(s => (s.merchant_name || s.description || '').toLowerCase()).filter(Boolean)
+      );
 
       // Plaid convention: positive = money left the account. Only actual
       // spend counts toward "Spent last 7 days" — a refund/credit showing

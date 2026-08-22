@@ -187,31 +187,10 @@
 }
 .spend-sub-map-btn:hover { background: rgba(224,128,106,0.1); border-color: rgba(224,128,106,0.35); color: var(--spend-accent); }
 
-/* Manual rows have no frequency to show (there's no Plaid-derived
-   pattern behind them) and carry an extra button (unmark), so they
-   get their own column count instead of squeezing into the 4-column
-   grid the real, Plaid-detected rows use. */
-.spend-sub-row-manual { grid-template-columns: 1fr auto auto auto; }
-.spend-sub-manual-badge {
-  display: inline-block;
-  margin-left: 7px;
-  padding: 1px 7px;
-  border-radius: 4px;
-  font-size: 0.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--spend-accent);
-  background: rgba(224,128,106,0.14);
-  border: 1px solid rgba(224,128,106,0.3);
-}
-
 @media (max-width: 600px) {
   .spend-sub-row { grid-template-columns: 1fr auto; }
   .spend-sub-freq { display: none; }
   .spend-sub-map-btn { grid-column: 1 / -1; }
-  .spend-sub-row-manual { grid-template-columns: 1fr auto auto; }
-  .spend-sub-row-manual .spend-sub-map-btn { grid-column: 1 / -1; }
 }
 
 /* Section header with an inline search box — used above the
@@ -367,32 +346,6 @@
 .spend-txn-edit-btn:hover { opacity: 1 !important; background: rgba(224,128,106,0.12); border-color: rgba(224,128,106,0.35); color: var(--spend-accent); }
 .spend-txn-amount { font-size: 0.86rem; font-family: 'IBM Plex Mono', monospace; color: var(--spend-accent); font-weight: 600; flex-shrink: 0; }
 
-/* "Mark as recurring" — hover-revealed like its neighbors when off,
-   but stays visible once flagged (.active) so the flag itself doesn't
-   disappear the moment the mouse moves away. */
-.spend-txn-recurring-btn {
-  flex-shrink: 0;
-  width: 26px; height: 26px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  background: none;
-  color: var(--silver-dim);
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-.spend-txn-recurring-btn svg { width: 13px; height: 13px; stroke: currentColor; }
-.spend-txn-row:hover .spend-txn-recurring-btn { opacity: 0.7; }
-.spend-txn-recurring-btn:hover { opacity: 1 !important; background: rgba(224,128,106,0.12); border-color: rgba(224,128,106,0.35); color: var(--spend-accent); }
-.spend-txn-recurring-btn.active {
-  opacity: 1;
-  color: var(--spend-accent);
-  background: rgba(224,128,106,0.14);
-  border-color: rgba(224,128,106,0.4);
-}
-.spend-txn-recurring-btn.active:hover { background: rgba(224,128,106,0.2); border-color: rgba(224,128,106,0.55); }
-
 @media (max-width: 600px) {
   .spend-section-head-row { flex-direction: column; align-items: stretch; }
   .spend-txn-search { width: 100%; }
@@ -402,8 +355,7 @@
      without this override these are permanently invisible and
      untappable on mobile, not just small. */
   .spend-txn-map-btn,
-  .spend-txn-edit-btn,
-  .spend-txn-recurring-btn {
+  .spend-txn-edit-btn {
     opacity: 1;
   }
 
