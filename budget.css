@@ -358,56 +358,64 @@
 /* Each category gets its own quiet neon accent — a slightly different color
    temperature per "room" while everything else (layout, type, spacing)
    stays identical, so the page reads as cohesive rather than five clashing
-   themes. Glow lives on the top hairline + a soft ambient box-shadow, and
-   brightens slightly on hover/focus like the rest of the app. */
+   themes. Restyled to the crisp-ring-plus-bloom recipe used everywhere else
+   in the app (the marketing page's pricing cards, the dashboard's category
+   cards, investments ring, ledger menu): a defined 1px ring at rest, not
+   just an ambient blur, so the border reads as lit rather than just tinted;
+   brighter ring and wider bloom on hover/focus, same as the rest of the app. */
 .category-panel.accent-income {
-  border-color: rgba(110, 196, 150, 0.28);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 18px rgba(110, 196, 150, 0.08);
+  border-color: rgba(110, 196, 150, 0.35);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 0 1px rgba(110, 196, 150, 0.12), 0 0 18px rgba(110, 196, 150, 0.1);
 }
 .category-panel.accent-income::before { background: linear-gradient(90deg, transparent, #6EC496, transparent); opacity: 0.9; }
 .category-panel.accent-income:hover,
 .category-panel.accent-income:focus-within {
-  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 26px rgba(110, 196, 150, 0.16);
+  border-color: rgba(110, 196, 150, 0.55);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 0 1px rgba(110, 196, 150, 0.22), 0 0 30px rgba(110, 196, 150, 0.22);
 }
 
 .category-panel.accent-bills {
-  border-color: rgba(224, 128, 106, 0.28);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 18px rgba(224, 128, 106, 0.08);
+  border-color: rgba(224, 128, 106, 0.35);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 0 1px rgba(224, 128, 106, 0.12), 0 0 18px rgba(224, 128, 106, 0.1);
 }
 .category-panel.accent-bills::before { background: linear-gradient(90deg, transparent, #E0806A, transparent); opacity: 0.9; }
 .category-panel.accent-bills:hover,
 .category-panel.accent-bills:focus-within {
-  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 26px rgba(224, 128, 106, 0.16);
+  border-color: rgba(224, 128, 106, 0.55);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 0 1px rgba(224, 128, 106, 0.22), 0 0 30px rgba(224, 128, 106, 0.22);
 }
 
 .category-panel.accent-expenses {
-  border-color: rgba(224, 185, 110, 0.28);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 18px rgba(224, 185, 110, 0.08);
+  border-color: rgba(224, 185, 110, 0.35);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 0 1px rgba(224, 185, 110, 0.12), 0 0 18px rgba(224, 185, 110, 0.1);
 }
 .category-panel.accent-expenses::before { background: linear-gradient(90deg, transparent, #E0B96E, transparent); opacity: 0.9; }
 .category-panel.accent-expenses:hover,
 .category-panel.accent-expenses:focus-within {
-  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 26px rgba(224, 185, 110, 0.16);
+  border-color: rgba(224, 185, 110, 0.55);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 0 1px rgba(224, 185, 110, 0.22), 0 0 30px rgba(224, 185, 110, 0.22);
 }
 
 .category-panel.accent-savings {
-  border-color: rgba(110, 150, 196, 0.28);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 18px rgba(110, 150, 196, 0.08);
+  border-color: rgba(110, 150, 196, 0.35);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 0 1px rgba(110, 150, 196, 0.12), 0 0 18px rgba(110, 150, 196, 0.1);
 }
 .category-panel.accent-savings::before { background: linear-gradient(90deg, transparent, #6E96C4, transparent); opacity: 0.9; }
 .category-panel.accent-savings:hover,
 .category-panel.accent-savings:focus-within {
-  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 26px rgba(110, 150, 196, 0.16);
+  border-color: rgba(110, 150, 196, 0.55);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 0 1px rgba(110, 150, 196, 0.22), 0 0 30px rgba(110, 150, 196, 0.22);
 }
 
 .category-panel.accent-debt {
-  border-color: rgba(178, 122, 196, 0.28);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 18px rgba(178, 122, 196, 0.08);
+  border-color: rgba(178, 122, 196, 0.35);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 0 1px rgba(178, 122, 196, 0.12), 0 0 18px rgba(178, 122, 196, 0.1);
 }
 .category-panel.accent-debt::before { background: linear-gradient(90deg, transparent, #B27AC4, transparent); opacity: 0.9; }
 .category-panel.accent-debt:hover,
 .category-panel.accent-debt:focus-within {
-  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 26px rgba(178, 122, 196, 0.16);
+  border-color: rgba(178, 122, 196, 0.55);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 0 1px rgba(178, 122, 196, 0.22), 0 0 30px rgba(178, 122, 196, 0.22);
 }
 
 .category-panel.accent-income h2 { color: #8FDCB0; }

@@ -1753,7 +1753,7 @@
           const tool = PREMIUM_TOOLS.find(t => t.id === btn.dataset.toolId);
           const isLocked = tool && userTier < tool.requiredTier;
           if (isLocked) { closeLedgerMenu(); showFeaturePreview(tool.id); return; }
-          if (btn.dataset.href === 'connections.html' || btn.dataset.href === 'spending.html') {
+          if (btn.dataset.href === 'connections.html') {
             closeLedgerMenu();
             const verified = await requireMfaVerified(true);
             if (!verified) return;

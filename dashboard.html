@@ -189,10 +189,17 @@
 
     <section class="manual-entry-section" id="manual-entry-section">
       <div class="manual-entry-head">
-        <span class="manual-entry-head-title">Manual entry</span>
-        <span class="manual-entry-head-sub">For anything not covered by a connected account</span>
+        <div class="manual-entry-head-text">
+          <span class="manual-entry-head-title">Manual entry</span>
+          <span class="manual-entry-head-sub">For anything not covered by a connected account</span>
+        </div>
+        <button type="button" class="manual-entry-toggle" id="manual-entry-toggle" aria-label="Toggle manual entry visibility" aria-pressed="true" title="Hide manual entry">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="manual-entry-eye-open"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="manual-entry-eye-closed"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a20.3 20.3 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+        </button>
       </div>
 
+      <div id="manual-entry-panels">
       <!-- ================= ADD / DEPOSIT ================= -->
       <section class="panel panel-add">
         <div class="panel-head">
@@ -315,6 +322,7 @@
         </div>
         <p class="panel-message" id="transfer-message"></p>
       </section>
+      </div>
     </section>
 
   </main>
@@ -482,6 +490,7 @@
 
     let currentUserId = null;
     let currentUserEmail = null;
+    let currentUserMetadata = {};
     let isPaidUser = false;
     let trialExpired = false;
     let userTier = 1;
@@ -1345,6 +1354,7 @@
 
       currentUserId = session.user.id;
       currentUserEmail = session.user.email;
+      currentUserMetadata = session.user.user_metadata || {};
       document.getElementById('user-email').textContent = session.user.email;
       const { data: billing } = await supabaseClient
         .from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
@@ -1397,6 +1407,7 @@
       setupManualCategoryEdit();
       setupEnvelopePicker();
       setupSkippedActivity();
+      await setupManualEntryToggle();
       setupMissingLogsOverlay();
       setupRecentActivityPanel();
       setupManageSubscription();
@@ -2654,6 +2665,43 @@
       document.getElementById('missing-logs-list').addEventListener('click', (e) => {
         const btn = e.target.closest('.missing-logs-create-btn');
         if (btn) createMissingLogEntry(btn.dataset.id);
+      });
+    }
+
+    // ================= MANUAL ENTRY VISIBILITY TOGGLE =================
+    // Visible by default for everyone — hiding this is a deliberate
+    // opt-out once someone's fully covered by Connections, not a
+    // decorative flourish someone opts into (unlike the investments
+    // ring glow, which is the same cross-device user_metadata pattern
+    // but off by default). Always merging currentUserMetadata into the
+    // update, same reasoning as the ring-glow toggle: Supabase's docs
+    // don't specify whether updateUser({data}) merges or replaces
+    // user_metadata wholesale, so this is correct either way instead
+    // of risking silently wiping another key out.
+    async function setupManualEntryToggle() {
+      const btn = document.getElementById('manual-entry-toggle');
+      const panels = document.getElementById('manual-entry-panels');
+
+      function applyState(hidden) {
+        panels.classList.toggle('manual-entry-panels-hidden', hidden);
+        btn.classList.toggle('is-hidden', hidden);
+        btn.setAttribute('aria-pressed', hidden ? 'false' : 'true');
+        btn.title = hidden ? 'Show manual entry' : 'Hide manual entry';
+      }
+
+      applyState(currentUserMetadata.manual_entry_hidden === true);
+
+      btn.addEventListener('click', async () => {
+        const hidden = !btn.classList.contains('is-hidden');
+        applyState(hidden);
+        currentUserMetadata = { ...currentUserMetadata, manual_entry_hidden: hidden };
+        const { data, error } = await supabaseClient.auth.updateUser({ data: currentUserMetadata });
+        if (error) {
+          applyState(!hidden);
+          currentUserMetadata = { ...currentUserMetadata, manual_entry_hidden: !hidden };
+          return;
+        }
+        if (data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
       });
     }
 

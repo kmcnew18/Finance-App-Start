@@ -1509,6 +1509,7 @@ function setupSettingsGear() {
     gearDropdown.classList.remove('open');
     if (!accounts.length) { await arkoAlert('No accounts to remove.'); return; }
     if (!await arkoConfirm('Remove every connected account? This cannot be undone. (Manually added and Plaid-linked accounts are both removed — this only clears them from Arko, it does not close any real account.)')) return;
+    if (!await requireMfaVerified(false)) return;
 
     // Collect distinct Plaid Items before the local rows are gone, so
     // each one can be fully revoked at Plaid's end too.
