@@ -539,6 +539,7 @@
       document.getElementById('spend-txn-search-input').addEventListener('input', renderTransactionList);
 
       await loadMerchantMappings();
+      await loadHistoricalRepeatMerchants();
       await loadSpendingData();
 
       document.getElementById('loading-message').style.display = 'none';
@@ -713,20 +714,71 @@
     // just via the manual/auto-keyword sources below.
     let knownRecurringStreamMerchants = new Set();
 
-    // Three sources feed "is this recurring": Plaid's own detected
-    // streams, the automatic brand-keyword match above, and anything
-    // the user flagged by hand for a merchant the allowlist doesn't
-    // know about. ignored_recurring_merchants lets a false positive
-    // from either automatic source be dismissed without it reappearing
-    // every render. All of this lives in user_metadata (not
-    // localStorage), same cross-device pattern as the investments
-    // ring-glow toggle.
+    // Independent of Plaid's stream detection AND the named-brand list
+    // above — this looks for the actual mathematical signature of
+    // "recurring" directly in the user's own history: the same merchant
+    // charging a similar amount more than once, regardless of whether
+    // it's a brand anyone's heard of. Catches an obscure/local
+    // subscription the keyword list was never going to know about, as
+    // long as it's charged at least twice somewhere in the lookback
+    // window. Populated once at page load (loadHistoricalRepeatMerchants,
+    // called from init()) rather than per-month, since the pattern is
+    // about the whole account's history, not whichever month happens to
+    // be on screen. The one case nothing here — or Plaid, or any other
+    // app — can catch automatically is a merchant charged exactly once
+    // ever with zero repeat anywhere in the data: there is no signal in
+    // a lone transaction that distinguishes it from an ordinary one-time
+    // purchase. That case can only be caught by asking, which is what
+    // the manual toggle is for.
+    let historicalRepeatMerchants = new Set();
+    function findHistoricalRepeatMerchants(allTxns) {
+      const amountsByMerchant = {};
+      allTxns.forEach(t => {
+        const name = (t.merchant_name || '').toLowerCase();
+        const amt = Number(t.amount);
+        if (!name || !amt) return;
+        (amountsByMerchant[name] = amountsByMerchant[name] || []).push(amt);
+      });
+      const repeats = new Set();
+      Object.entries(amountsByMerchant).forEach(([name, amounts]) => {
+        if (amounts.length < 2) return;
+        outer: for (let i = 0; i < amounts.length; i++) {
+          for (let j = i + 1; j < amounts.length; j++) {
+            const tolerance = Math.max(2, Math.abs(amounts[i]) * 0.05);
+            if (Math.abs(amounts[i] - amounts[j]) <= tolerance) { repeats.add(name); break outer; }
+          }
+        }
+      });
+      return repeats;
+    }
+    async function loadHistoricalRepeatMerchants() {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 400);
+      const { data } = await supabaseClient
+        .from('transactions')
+        .select('amount, merchant_name')
+        .eq('user_id', currentUserId)
+        .eq('is_removed', false)
+        .neq('txn_type', 'transfer')
+        .gte('txn_date', cutoff.toISOString().slice(0, 10));
+      historicalRepeatMerchants = findHistoricalRepeatMerchants(data || []);
+    }
+
+    // Four sources feed "is this recurring": Plaid's own detected
+    // streams, the automatic brand-keyword match above, this app's own
+    // historical repeat detector, and anything the user flagged by hand
+    // for a merchant none of the automatic sources caught.
+    // ignored_recurring_merchants lets a false positive from any
+    // automatic source be dismissed without it reappearing every
+    // render. All of this lives in user_metadata (not localStorage),
+    // same cross-device pattern as the investments ring-glow toggle.
     function isEffectivelyRecurring(merchantName) {
       const key = (merchantName || '').toLowerCase();
       if (!key) return false;
       if ((currentUserMetadata.ignored_recurring_merchants || []).includes(key)) return false;
       if (knownRecurringStreamMerchants.has(key)) return true;
       if ((currentUserMetadata.manual_recurring_merchants || []).includes(key)) return true;
+      if (historicalRepeatMerchants.has(key)) return true;
       return looksLikeKnownSubscription(key);
     }
 
@@ -993,20 +1045,24 @@
       knownRecurringStreamMerchants = knownMerchants;
 
       // Plaid hasn't detected these as recurring yet (usually because
-      // it's only happened once so far), but either the known-brand
-      // allowlist caught it automatically or the user flagged it by
-      // hand — surface both here too instead of only in Dashboard's
-      // weekly badge, using the most recent matching transaction this
-      // month for the amount/date since there's no Plaid-derived
-      // frequency to show. Real Plaid-detected rows always take
-      // priority (this whole block is skipped for any merchant already
-      // in knownMerchants), and a dismissed false positive
-      // (ignored_recurring_merchants) is excluded from both sources.
+      // it's only happened once so far), but one of this app's own
+      // automatic sources caught it — the known-brand allowlist, or the
+      // same-merchant/similar-amount repeat detector over ~13 months of
+      // history — or the user flagged it by hand. Surface all of them
+      // here too instead of only in Dashboard's weekly badge, using the
+      // most recent matching transaction this month for the amount/date
+      // since there's no Plaid-derived frequency to show. Real
+      // Plaid-detected rows always take priority (this whole block is
+      // skipped for any merchant already in knownMerchants), and a
+      // dismissed false positive (ignored_recurring_merchants) is
+      // excluded from every source.
       const ignoredRecurring = new Set((currentUserMetadata.ignored_recurring_merchants || []).map(m => m.toLowerCase()));
       const manualMerchants = (currentUserMetadata.manual_recurring_merchants || []).filter(m => !knownMerchants.has(m) && !ignoredRecurring.has(m));
-      const autoMerchants = [...new Set(
-        currentSpendTxns.map(t => (t.merchant_name || '').toLowerCase()).filter(Boolean)
-      )].filter(m => looksLikeKnownSubscription(m) && !knownMerchants.has(m) && !manualMerchants.includes(m) && !ignoredRecurring.has(m));
+      const thisMonthMerchants = [...new Set(currentSpendTxns.map(t => (t.merchant_name || '').toLowerCase()).filter(Boolean))];
+      const autoMerchants = thisMonthMerchants.filter(m =>
+        (looksLikeKnownSubscription(m) || historicalRepeatMerchants.has(m)) &&
+        !knownMerchants.has(m) && !manualMerchants.includes(m) && !ignoredRecurring.has(m)
+      );
       const manualEntries = [...manualMerchants.map(m => ({ merchant: m, isAuto: false })), ...autoMerchants.map(m => ({ merchant: m, isAuto: true }))].map(({ merchant, isAuto }) => {
         const matches = currentSpendTxns.filter(t => (t.merchant_name || '').toLowerCase() === merchant);
         if (!matches.length) return null;
