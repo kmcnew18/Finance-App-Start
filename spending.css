@@ -110,6 +110,10 @@
   border-radius: 14px;
   padding: 24px;
   margin-bottom: 24px;
+  /* This is the page's hero stat — every sibling card elsewhere in the
+     app picks up the crisp-ring/soft-bloom glow language, this one
+     never did despite its value text already glowing on its own. */
+  box-shadow: 0 0 0 1px rgba(224,128,106,0.12), 0 0 24px rgba(224,128,106,0.14), 0 10px 28px rgba(0,0,0,0.3);
 }
 .spend-total-label { font-size: 0.78rem; color: var(--silver-dim); text-transform: uppercase; letter-spacing: 0.05em; }
 .spend-total-value {

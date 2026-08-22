@@ -159,6 +159,22 @@
   box-shadow: 0 0 12px rgba(216,188,122,0.55), 0 0 30px rgba(216,188,122,0.3);
 }
 
+/* "Save as default layout" overwrites your saved template for every
+   future new period — sitting right next to routine navigation
+   buttons (New period, Unlock, Reopen) with identical outline styling
+   made it too easy to not notice it's a heavier action than its
+   neighbors. Keeps the outline treatment (Finalize is still the only
+   solid/primary button here) but adds a resting glow ring so it reads
+   as worth a second glance. */
+#save-default-btn {
+  border-color: rgba(216,188,122,0.5);
+  box-shadow: 0 0 0 1px rgba(216,188,122,0.12), 0 0 14px rgba(216,188,122,0.14);
+}
+#save-default-btn:hover {
+  border-color: var(--brass-bright);
+  box-shadow: 0 0 0 1px rgba(216,188,122,0.22), 0 0 20px rgba(216,188,122,0.26);
+}
+
 .period-status-pill {
   font-size: 0.68rem;
   font-weight: 700;

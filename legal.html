@@ -146,5 +146,24 @@
     </div>
   </header>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    // This page is reachable while logged out (e.g. from signup's
+    // consent links), where "Back to Dashboard" would land on a login
+    // wall instead of actually going anywhere useful. Point it at the
+    // marketing page instead when there's no session.
+    const SUPABASE_URL = "https://pkfkdmjuwkfkbkmlmoxq.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrZmtkbWp1d2tma2JrbWxtb3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzIxMTIsImV4cCI6MjA5ODg0ODExMn0.MWUcOvwttx1y0iE_Rcc6aUoJ7F5jmT-mMrQfOTwqmOY";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    (async () => {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) {
+        const link = document.getElementById('legal-back-link');
+        link.href = 'index.html';
+        link.textContent = '← Back to Home';
+      }
+    })();
+  </script>
 </body>
 </html>
