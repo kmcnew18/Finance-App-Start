@@ -249,6 +249,7 @@
 
     let currentUserId = null;
     let currentUserEmail = null;
+    let currentUserMetadata = {};
     let isPaidUser = false;
     let userTier = 1;
 
@@ -514,6 +515,7 @@
       if (!session) { window.location.href = 'login.html'; return; }
       currentUserId = session.user.id;
       currentUserEmail = session.user.email;
+      currentUserMetadata = session.user.user_metadata || {};
       document.getElementById('user-email').textContent = session.user.email;
 
       const { data: billing } = await supabaseClient.from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
@@ -533,6 +535,7 @@
       setupSpendCategoriesOverlay();
       setupEditTxnCategory();
       setupMapToBudget();
+      setupManualRecurringToggle();
       document.getElementById('spend-txn-search-input').addEventListener('input', renderTransactionList);
 
       await loadMerchantMappings();
@@ -642,6 +645,35 @@
       merchantMappingByName = Object.fromEntries((data || []).map(m => [m.merchant_name.toLowerCase(), m]));
     }
 
+    // Plaid's own recurring-pattern detection generally needs to see a
+    // charge repeat before it calls it recurring — a subscription
+    // charged for the first time won't show up in recurring_streams
+    // yet even though it obviously is one. This lets a user say so
+    // directly instead of waiting on Plaid to catch up on the next
+    // occurrence. Stored in user_metadata (not localStorage) so it's
+    // account-wide, not tied to one browser — same pattern as the
+    // investments ring-glow toggle. Always merging currentUserMetadata
+    // into the update rather than sending just this one key, since
+    // Supabase's docs don't specify whether updateUser({data}) merges
+    // or replaces user_metadata wholesale.
+    function isManuallyRecurring(merchantName) {
+      return (currentUserMetadata.manual_recurring_merchants || []).includes((merchantName || '').toLowerCase());
+    }
+
+    async function toggleManualRecurring(merchantName) {
+      const key = (merchantName || '').toLowerCase();
+      if (!key) return;
+      const current = currentUserMetadata.manual_recurring_merchants || [];
+      const next = current.includes(key) ? current.filter(m => m !== key) : [...current, key];
+      currentUserMetadata = { ...currentUserMetadata, manual_recurring_merchants: next };
+      const { data, error } = await supabaseClient.auth.updateUser({ data: currentUserMetadata });
+      if (!error && data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
+      renderTransactionList();
+      await loadSubscriptions();
+    }
+
+
+    const RECURRING_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 22l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>';
 
     function renderTransactionList() {
       const list = document.getElementById('spend-txn-list');
@@ -669,6 +701,9 @@
             <span class="spend-txn-meta">${new Date(t.txn_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${effectiveCategory(t).replace(/</g,'&lt;')}${t.custom_category ? ' <span class="spend-txn-custom-badge">edited</span>' : ''}</span>
           </div>
           <span class="spend-txn-amount">${money(t.amount)}</span>
+          <button type="button" class="spend-txn-recurring-btn${isManuallyRecurring(t.merchant_name) ? ' active' : ''}" data-merchant="${(t.merchant_name || '').replace(/"/g,'&quot;')}" title="${isManuallyRecurring(t.merchant_name) ? 'Marked as recurring — click to unmark' : 'Mark as recurring'}">
+            ${RECURRING_ICON_SVG}
+          </button>
           <button type="button" class="spend-txn-map-btn" data-merchant="${(t.merchant_name || '').replace(/"/g,'&quot;')}" title="Map to budget">
             ${merchantMappingByName[(t.merchant_name || '').toLowerCase()] ? `→ ${merchantMappingByName[(t.merchant_name || '').toLowerCase()].mapped_line_name.replace(/</g,'&lt;')}` : 'Map to budget'}
           </button>
@@ -876,18 +911,33 @@
       // actual recurring charges.
       const TRANSFER_SHAPED_CATEGORIES = new Set(['TRANSFER_IN', 'TRANSFER_OUT', 'LOAN_PAYMENTS']);
       const filtered = (data || []).filter(s => !TRANSFER_SHAPED_CATEGORIES.has(s.category));
+      const knownMerchants = new Set(filtered.map(s => (s.merchant_name || s.description || '').toLowerCase()).filter(Boolean));
+
+      // Plaid hasn't detected these as recurring yet (usually because
+      // it's only happened once so far) but the user flagged them
+      // directly from the transaction list — surface them here too
+      // instead of only in Dashboard's weekly badge, using the most
+      // recent matching transaction this month for the amount/date
+      // since there's no Plaid-derived frequency to show.
+      const manualMerchants = (currentUserMetadata.manual_recurring_merchants || []).filter(m => !knownMerchants.has(m));
+      const manualEntries = manualMerchants.map(merchant => {
+        const matches = currentSpendTxns.filter(t => (t.merchant_name || '').toLowerCase() === merchant);
+        if (!matches.length) return null;
+        const latest = matches.reduce((a, b) => (b.txn_date > a.txn_date ? b : a));
+        return { isManual: true, merchant_name: latest.merchant_name, last_amount: latest.amount, mapped_line_name: merchantMappingByName[merchant]?.mapped_line_name };
+      }).filter(Boolean);
 
       const list = document.getElementById('spend-subscriptions-list');
       const empty = document.getElementById('spend-subscriptions-empty');
 
-      if (error || !filtered.length) {
+      if (error || (!filtered.length && !manualEntries.length)) {
         list.innerHTML = '';
         empty.style.display = 'block';
         return;
       }
       empty.style.display = 'none';
 
-      list.innerHTML = filtered.map((s, idx) => {
+      const realRowsHtml = filtered.map((s, idx) => {
         // plaid_account_id on the stream is what makes this possible —
         // added specifically so a subscription billed to a credit card
         // (as opposed to pulled straight from checking) is visibly
@@ -906,6 +956,19 @@
         </div>
       `;
       }).join('');
+
+      const manualRowsHtml = manualEntries.map((s, idx) => `
+        <div class="spend-sub-row spend-sub-row-manual spend-row-in" style="animation-delay:${(filtered.length + idx) * 45}ms">
+          <span class="spend-sub-name">${(s.merchant_name || 'Recurring charge').replace(/</g,'&lt;')}<span class="spend-sub-manual-badge" title="You flagged this as recurring — Plaid hasn't detected a repeat yet">Flagged by you</span></span>
+          <span class="spend-sub-amt">${money(s.last_amount || 0)}</span>
+          <button type="button" class="spend-txn-recurring-btn active" data-merchant="${(s.merchant_name || '').replace(/"/g,'&quot;')}" title="Unmark as recurring">${RECURRING_ICON_SVG}</button>
+          <button type="button" class="spend-sub-map-btn" data-stream-id="" data-stream-name="${(s.merchant_name || '').replace(/"/g,'&quot;')}" data-manual-merchant="${(s.merchant_name || '').replace(/"/g,'&quot;')}">
+            ${s.mapped_line_name ? `→ ${s.mapped_line_name.replace(/</g,'&lt;')}` : 'Map to budget'}
+          </button>
+        </div>
+      `).join('');
+
+      list.innerHTML = realRowsHtml + manualRowsHtml;
     }
 
     let mfaEnrollFactorId = null;
@@ -1463,6 +1526,21 @@
     let mapBudgetTargetType = null; // 'stream' | 'merchant'
     let mapBudgetTargetId = null; // stream id, or merchant name for the merchant case
 
+    function setupManualRecurringToggle() {
+      // Delegated for the same reason as the map-to-budget listener
+      // right below — rows get recreated on every render. Bound on
+      // both lists since the toggle appears both on individual
+      // transactions and on the synthetic "flagged by you" rows in
+      // the Recurring charges list.
+      ['spend-txn-list', 'spend-subscriptions-list'].forEach(id => {
+        document.getElementById(id).addEventListener('click', async (e) => {
+          const btn = e.target.closest('.spend-txn-recurring-btn');
+          if (!btn) return;
+          await toggleManualRecurring(btn.dataset.merchant);
+        });
+      });
+    }
+
     function setupMapToBudget() {
       // Delegated on the static list containers — rows get recreated on
       // every render (refresh, a fresh sync, search filtering), so
@@ -1471,8 +1549,17 @@
       document.getElementById('spend-subscriptions-list').addEventListener('click', async (e) => {
         const btn = e.target.closest('.spend-sub-map-btn');
         if (!btn) return;
-        mapBudgetTargetType = 'stream';
-        mapBudgetTargetId = btn.dataset.streamId;
+        // Synthetic "flagged by you" rows have no real recurring_streams
+        // id to map against — route those through the merchant-name
+        // path instead, same as mapping straight from the transaction
+        // list.
+        if (btn.dataset.manualMerchant) {
+          mapBudgetTargetType = 'merchant';
+          mapBudgetTargetId = btn.dataset.manualMerchant;
+        } else {
+          mapBudgetTargetType = 'stream';
+          mapBudgetTargetId = btn.dataset.streamId;
+        }
         await openMapBudgetOverlay(`Which Bills line does "${btn.dataset.streamName}" belong to?`, btn.textContent.trim().startsWith('→'));
       });
 

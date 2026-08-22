@@ -1626,9 +1626,19 @@
       // by merchant name is an approximation, good enough for a "here's
       // roughly what repeats" glance, not something anything downstream
       // depends on for accuracy.
-      const recurringMerchants = new Set(
-        (streamRows || []).map(s => (s.merchant_name || s.description || '').toLowerCase()).filter(Boolean)
-      );
+      //
+      // Plaid's own pattern detection generally needs to see a charge
+      // repeat before it'll call it recurring — a merchant charged for
+      // the first time this week won't be in streamRows yet even if the
+      // user already knows it's a subscription. manual_recurring_merchants
+      // (toggled from Spending's transaction list, stored in
+      // user_metadata so it's not tied to one browser) closes that gap
+      // without waiting on Plaid to catch up.
+      const manualRecurring = (currentUserMetadata.manual_recurring_merchants || []).map(m => m.toLowerCase());
+      const recurringMerchants = new Set([
+        ...(streamRows || []).map(s => (s.merchant_name || s.description || '').toLowerCase()).filter(Boolean),
+        ...manualRecurring,
+      ]);
 
       // Plaid convention: positive = money left the account. Only actual
       // spend counts toward "Spent last 7 days" — a refund/credit showing
