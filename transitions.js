@@ -140,6 +140,15 @@
       el.dataset.rawValue = toValue;
       return;
     }
+    // Written synchronously, before the first animation frame — a
+    // backgrounded/hidden tab throttles or fully pauses
+    // requestAnimationFrame, and a freshly-built element (e.g. budget's
+    // cashflow grid, built with empty <span>s for animateNumber to fill
+    // in) would otherwise show nothing at all until a frame finally
+    // runs. This guarantees at least the correct starting value is
+    // visible even in the worst case; the tween still takes over
+    // normally once frames are actually flowing.
+    el.textContent = formatFn(fromValue);
     var ms = duration || 650;
     var startTime = performance.now();
     function tick(now) {
