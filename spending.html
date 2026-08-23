@@ -632,7 +632,7 @@
       const spends = (txns || []).filter(t => Number(t.amount) > 0 && t.txn_type !== 'transfer');
       const total = round2(spends.reduce((s, t) => s + Number(t.amount), 0));
 
-      document.getElementById('spend-total-value').textContent = money(total);
+      ArkoTransitions.animateNumber(document.getElementById('spend-total-value'), total, money);
       renderCategoryBreakdown(spends, total);
       currentSpendTxns = spends;
       renderTransactionList();

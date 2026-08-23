@@ -972,24 +972,48 @@
       const rolloverMap = computeRolloverChain();
       const rolloverInfo = rolloverMap[current.id] || { rollover: 0, leftWithRollover: leftActual };
 
+      // Built once and updated in place thereafter (CATS is a fixed
+      // constant, never changes shape) so the figures can count up via
+      // ArkoTransitions.animateNumber instead of snapping — a full
+      // innerHTML rebuild on every call would destroy the elements'
+      // dataset.rawValue the animation relies on to know where to
+      // count up from.
       const grid = document.getElementById('cashflow-grid');
-      grid.innerHTML = `
-        <div class="cashflow-item cf-rollover">
-          <span class="cf-label">Rollover (+)</span>
-          <span class="cf-value ${rolloverInfo.rollover >= 0 ? 'positive' : 'negative'}">${money(rolloverInfo.rollover)}</span>
-        </div>
-      ` + CATS.map(c => `
-        <div class="cashflow-item">
-          <span class="cf-label">${c.label}${SIGN[c.key] < 0 ? ' (–)' : ' (+)'}</span>
-          <span class="cf-value">${money(totals[c.key].actual)}</span>
-        </div>
-      `).join('') + `
-        <div class="cashflow-item cf-left">
-          <span class="cf-label">Left</span>
-          <span class="cf-value ${rolloverInfo.leftWithRollover >= 0 ? 'positive' : 'negative'}">${money(rolloverInfo.leftWithRollover)}</span>
-          <span class="cf-sub-hint">budgeted: ${money(leftBudget)}</span>
-        </div>
-      `;
+      if (!grid.dataset.built) {
+        grid.innerHTML = `
+          <div class="cashflow-item cf-rollover">
+            <span class="cf-label">Rollover (+)</span>
+            <span class="cf-value" id="cf-value-rollover"></span>
+          </div>
+        ` + CATS.map(c => `
+          <div class="cashflow-item">
+            <span class="cf-label">${c.label}${SIGN[c.key] < 0 ? ' (–)' : ' (+)'}</span>
+            <span class="cf-value" id="cf-value-${c.key}"></span>
+          </div>
+        `).join('') + `
+          <div class="cashflow-item cf-left">
+            <span class="cf-label">Left</span>
+            <span class="cf-value" id="cf-value-left"></span>
+            <span class="cf-sub-hint" id="cf-left-budgeted-hint"></span>
+          </div>
+        `;
+        grid.dataset.built = '1';
+      }
+
+      const rolloverEl = document.getElementById('cf-value-rollover');
+      rolloverEl.classList.toggle('positive', rolloverInfo.rollover >= 0);
+      rolloverEl.classList.toggle('negative', rolloverInfo.rollover < 0);
+      ArkoTransitions.animateNumber(rolloverEl, rolloverInfo.rollover, money);
+
+      CATS.forEach(c => {
+        ArkoTransitions.animateNumber(document.getElementById('cf-value-' + c.key), totals[c.key].actual, money);
+      });
+
+      const leftEl = document.getElementById('cf-value-left');
+      leftEl.classList.toggle('positive', rolloverInfo.leftWithRollover >= 0);
+      leftEl.classList.toggle('negative', rolloverInfo.leftWithRollover < 0);
+      ArkoTransitions.animateNumber(leftEl, rolloverInfo.leftWithRollover, money);
+      document.getElementById('cf-left-budgeted-hint').textContent = `budgeted: ${money(leftBudget)}`;
 
       renderCharts();
     }

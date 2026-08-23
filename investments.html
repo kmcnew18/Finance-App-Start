@@ -379,23 +379,9 @@
       };
     }
 
-    // Animates a number from whatever it last displayed up to a new value,
-    // eased out so it settles rather than ticking linearly — used for the
-    // ring's center total so it counts up smoothly on load and whenever a
-    // holding is toggled, instead of just snapping to the new figure.
-    function animateNumber(el, toValue, formatFn, duration = 650) {
-      const fromValue = parseFloat(el.dataset.rawValue || '0');
-      if (Math.abs(toValue - fromValue) < 0.005) { el.textContent = formatFn(toValue); el.dataset.rawValue = toValue; return; }
-      const startTime = performance.now();
-      function tick(now) {
-        const t = Math.min(1, (now - startTime) / duration);
-        const eased = 1 - Math.pow(1 - t, 3);
-        el.textContent = formatFn(fromValue + (toValue - fromValue) * eased);
-        if (t < 1) requestAnimationFrame(tick);
-        else el.dataset.rawValue = toValue;
-      }
-      requestAnimationFrame(tick);
-    }
+    // Count-up animation now lives in transitions.js (ArkoTransitions.animateNumber)
+    // so every page's headline figure can share it, not just this ring total.
+    const animateNumber = (el, toValue, formatFn, duration) => ArkoTransitions.animateNumber(el, toValue, formatFn, duration);
 
     let currentHoldings = []; // [{ securityId, name, ticker, value, logoUrl, color }]
     let currentPeriod = 'all';

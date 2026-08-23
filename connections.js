@@ -608,10 +608,10 @@ function renderNetWorth() {
   const netWorth = round2(assets - liabilities);
 
   const nwEl = document.getElementById('networth-value');
-  nwEl.textContent = money(netWorth);
+  ArkoTransitions.animateNumber(nwEl, netWorth, money);
   nwEl.classList.toggle('negative', netWorth < 0);
-  document.getElementById('assets-total').textContent = money(assets);
-  document.getElementById('liabilities-total').textContent = money(liabilities);
+  ArkoTransitions.animateNumber(document.getElementById('assets-total'), assets, money);
+  ArkoTransitions.animateNumber(document.getElementById('liabilities-total'), liabilities, money);
 }
 
 function renderAccountGroups() {

@@ -1181,10 +1181,10 @@
       const customTotal = customCategoryCards.reduce((s, c) => s + c.total, 0);
       const total = combined.savings + combined.investment + combined.expenses + combined.checking + customTotal;
 
-      document.getElementById('val-savings').textContent = money(combined.savings);
-      document.getElementById('val-investment').textContent = money(combined.investment);
-      document.getElementById('val-expenses').textContent = money(combined.expenses);
-      document.getElementById('val-checking').textContent = money(combined.checking);
+      ArkoTransitions.animateNumber(document.getElementById('val-savings'), combined.savings, money);
+      ArkoTransitions.animateNumber(document.getElementById('val-investment'), combined.investment, money);
+      ArkoTransitions.animateNumber(document.getElementById('val-expenses'), combined.expenses, money);
+      ArkoTransitions.animateNumber(document.getElementById('val-checking'), combined.checking, money);
 
       ['savings', 'investment', 'expenses', 'checking'].forEach(key => {
         const card = document.querySelector(`.card[data-cat="${key}"]`);
@@ -1197,7 +1197,7 @@
         const swatch = card.querySelector('.card-color-btn');
         if (swatch) { swatch.style.background = accentColor; swatch.style.color = accentColor; }
       });
-      document.getElementById('val-total').textContent = money(total);
+      ArkoTransitions.animateNumber(document.getElementById('val-total'), total, money);
 
       ['savings', 'investment', 'expenses', 'checking'].forEach(cat => {
         const hintEl = document.getElementById('sync-hint-' + cat);

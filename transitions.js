@@ -126,7 +126,33 @@
     go(link.href);
   }, true);
 
-  window.ArkoTransitions = { go: go };
+  // Animates a number from whatever it last displayed up to a new
+  // value, eased out so it settles rather than ticking linearly.
+  // Originally lived only in investments.html for its ring total;
+  // shared here so every page's headline figure (net worth, category
+  // totals, cash flow summary, total spent) can count up on load and
+  // whenever the underlying value changes, instead of just snapping.
+  function animateNumber(el, toValue, formatFn, duration) {
+    if (!el) return;
+    var fromValue = parseFloat(el.dataset.rawValue || '0');
+    if (reduceMotion || Math.abs(toValue - fromValue) < 0.005) {
+      el.textContent = formatFn(toValue);
+      el.dataset.rawValue = toValue;
+      return;
+    }
+    var ms = duration || 650;
+    var startTime = performance.now();
+    function tick(now) {
+      var t = Math.min(1, (now - startTime) / ms);
+      var eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = formatFn(fromValue + (toValue - fromValue) * eased);
+      if (t < 1) requestAnimationFrame(tick);
+      else el.dataset.rawValue = toValue;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  window.ArkoTransitions = { go: go, animateNumber: animateNumber };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', watchForReveal);
