@@ -21,22 +21,6 @@ body {
   line-height: 1.55;
 }
 
-/* Shared once here instead of copy-pasted inline per page — the same
-   fix dashboard.css already applied for its own pages, after the
-   inline-per-page version there meant Spendings silently ended up
-   missing it. Add <div class="wip-banner">...</div> to any page that
-   loads this stylesheet and wants the banner. */
-.wip-banner {
-  text-align: center;
-  padding: 5px 20px;
-  background: transparent;
-  border-bottom: 1px solid rgba(139,111,71,0.25);
-  font-family: 'Public Sans', sans-serif;
-  font-size: 11px;
-  color: #b3ae9f;
-  letter-spacing: .15px;
-}
-
 h1, h2, h3, h4 {
   font-family: 'Fraunces', Georgia, serif;
   font-weight: 500;

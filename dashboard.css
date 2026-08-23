@@ -130,20 +130,6 @@ h1, h2, h3 {
 .wordmark img { height: 28px; width: auto; }
 .wordmark-brand { font-family: 'Jura', 'Fraunces', serif; letter-spacing: 0.08em; color: var(--tan); }
 
-/* Shared here (not just per-page) so any page loading dashboard.css gets
-   this automatically — previously only defined inline on each page
-   individually, which is exactly how Spendings ended up missing it. */
-.wip-banner {
-  text-align: center;
-  padding: 5px 20px;
-  background: transparent;
-  border-bottom: 1px solid rgba(139,111,71,0.25);
-  font-family: 'Public Sans', sans-serif;
-  font-size: 11px;
-  color: #b3ae9f;
-  letter-spacing: .15px;
-}
-
 .nav-auth { display: flex; align-items: center; gap: 10px; }
 .user-email { font-size: 0.78rem; color: var(--silver-dim); opacity: 0.75; }
 
