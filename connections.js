@@ -6,6 +6,7 @@ let currentUserId = null;
 let currentUserEmail = null;
 let isPaidUser = false;
 let userTier = 1;
+const APP_TIMEZONE = 'America/Chicago';
 
 function computeEffectiveTier(billing) {
   if (!billing) return 1;
@@ -326,6 +327,7 @@ async function init() {
   setupManageCategories();
   setupFeedback();
   setupIdleTimeout();
+  setupNetWorthHistoryToggle();
 
   // MFA is no longer required just to look at Connections — balances
   // and account names here aren't materially more sensitive than what
@@ -612,6 +614,35 @@ function renderNetWorth() {
   nwEl.classList.toggle('negative', netWorth < 0);
   ArkoTransitions.animateNumber(document.getElementById('assets-total'), assets, money);
   ArkoTransitions.animateNumber(document.getElementById('liabilities-total'), liabilities, money);
+
+  recordNetWorthSnapshot(assets, liabilities);
+  renderNetWorthHistoryChart();
+}
+
+// Writes today's snapshot every time net worth is (re)computed — on
+// page load, after a Plaid sync, and after any manual account
+// add/edit/delete, since renderNetWorth() (via renderAll()) already
+// runs after all of those. Net worth includes manually-entered
+// accounts alongside Plaid-synced ones, so this can't live purely on
+// the server side the way investments' portfolio snapshot does — a
+// hook in the Plaid sync endpoint would never see manual-account
+// changes. Upserted on (user_id, snapshot_date), so re-running this
+// several times in one day just overwrites the same row rather than
+// creating duplicates — cheap enough to do unconditionally instead of
+// only on the days something happened to sync.
+let lastRecordedSnapshotKey = null;
+async function recordNetWorthSnapshot(assets, liabilities) {
+  const snapshotDate = new Date().toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE });
+  const key = `${snapshotDate}:${assets}:${liabilities}`;
+  if (key === lastRecordedSnapshotKey) return; // nothing changed since the last write this session
+  lastRecordedSnapshotKey = key;
+  const { error } = await supabaseClient.from('net_worth_snapshots').upsert({
+    user_id: currentUserId,
+    snapshot_date: snapshotDate,
+    total_assets: assets,
+    total_liabilities: liabilities,
+  }, { onConflict: 'user_id,snapshot_date' });
+  if (error) console.error('Could not record net worth snapshot:', error);
 }
 
 function renderAccountGroups() {
@@ -768,6 +799,8 @@ function accountCardHtml(a, t) {
 // ================= CHARTS =================
 let allocationChart = null;
 let assetsLiabilitiesChart = null;
+let networthHistoryChart = null;
+let networthHistoryDays = 90;
 
 function chartFont() { return { family: "'Public Sans', sans-serif", size: 11 }; }
 
@@ -851,6 +884,76 @@ function renderAssetsLiabilitiesChart() {
         tooltip: { callbacks: { label: (item) => money(item.parsed.y) } }
       }
     }
+  });
+}
+
+async function renderNetWorthHistoryChart() {
+  const canvas = document.getElementById('chart-networth-history');
+  const emptyNote = document.getElementById('chart-networth-history-empty');
+  if (!canvas) return;
+
+  let query = supabaseClient
+    .from('net_worth_snapshots')
+    .select('snapshot_date, total_assets, total_liabilities')
+    .eq('user_id', currentUserId)
+    .order('snapshot_date', { ascending: true });
+  if (networthHistoryDays > 0) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - networthHistoryDays);
+    query = query.gte('snapshot_date', cutoff.toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE }));
+  }
+  const { data: rows, error } = await query;
+
+  if (networthHistoryChart) { networthHistoryChart.destroy(); networthHistoryChart = null; }
+  // A single day of history is a real data point but not a "trend" —
+  // same threshold budget.html's own trend chart uses before it'll
+  // draw a line, so this doesn't imply movement from just one snapshot.
+  const hasEnoughData = !error && rows && rows.length >= 2;
+  canvas.style.display = hasEnoughData ? 'block' : 'none';
+  emptyNote.style.display = hasEnoughData ? 'none' : 'flex';
+  if (!hasEnoughData) return;
+
+  const labels = rows.map(r => new Date(r.snapshot_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+  const data = rows.map(r => round2((Number(r.total_assets) || 0) - (Number(r.total_liabilities) || 0)));
+
+  networthHistoryChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Net worth',
+        data,
+        borderColor: '#63D9AA',
+        backgroundColor: 'rgba(99,217,170,0.12)',
+        pointBackgroundColor: '#63D9AA',
+        pointRadius: rows.length > 40 ? 0 : 3,
+        tension: 0.25,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 700, easing: 'easeOutCubic' },
+      scales: {
+        x: { ticks: { color: '#7C8489', font: chartFont(), maxTicksLimit: 8 }, grid: { display: false } },
+        y: { ticks: { color: '#7C8489', font: chartFont(), callback: (v) => '$' + v }, grid: { color: 'rgba(232,225,211,0.08)' } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (item) => money(item.parsed.y) } }
+      }
+    }
+  });
+}
+
+function setupNetWorthHistoryToggle() {
+  document.getElementById('networth-period-toggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('.vault-chart-period-btn');
+    if (!btn) return;
+    document.querySelectorAll('#networth-period-toggle .vault-chart-period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    networthHistoryDays = Number(btn.dataset.days);
+    renderNetWorthHistoryChart();
   });
 }
 

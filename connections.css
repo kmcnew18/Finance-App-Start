@@ -183,7 +183,28 @@
   color: var(--silver-dim);
   margin-bottom: 10px;
 }
+.vault-chart-box.vault-chart-wide { grid-column: 1 / -1; }
 .vault-chart-canvas-wrap { position: relative; height: 220px; }
+.vault-chart-canvas-wrap.vault-chart-canvas-wide { height: 200px; }
+.vault-chart-box-head { display: flex; align-items: center; justify-content: space-between; }
+.vault-chart-period-toggle { display: flex; gap: 4px; }
+.vault-chart-period-btn {
+  background: none;
+  border: 1px solid var(--vault-line);
+  color: var(--silver-dim);
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.vault-chart-period-btn.active {
+  background: rgba(63,174,133,0.14);
+  border-color: rgba(63,174,133,0.4);
+  color: var(--emerald-bright);
+}
+.vault-chart-period-btn:hover:not(.active) { color: var(--tan); border-color: var(--emerald-dim); }
 .vault-chart-empty-note {
   position: absolute; inset: 0;
   display: none; align-items: center; justify-content: center;

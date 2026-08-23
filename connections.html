@@ -155,6 +155,21 @@
             <div class="vault-chart-empty-note" id="chart-assets-liabilities-empty">Connect an account to see this.</div>
           </div>
         </div>
+        <div class="vault-chart-box vault-chart-wide">
+          <div class="vault-chart-box-head">
+            <span class="vault-chart-box-title">Net worth over time</span>
+            <div class="vault-chart-period-toggle" id="networth-period-toggle">
+              <button type="button" class="vault-chart-period-btn" data-days="30">1M</button>
+              <button type="button" class="vault-chart-period-btn active" data-days="90">3M</button>
+              <button type="button" class="vault-chart-period-btn" data-days="365">1Y</button>
+              <button type="button" class="vault-chart-period-btn" data-days="0">All</button>
+            </div>
+          </div>
+          <div class="vault-chart-canvas-wrap vault-chart-canvas-wide">
+            <canvas id="chart-networth-history"></canvas>
+            <div class="vault-chart-empty-note" id="chart-networth-history-empty">Check back after a day or two to see your trend.</div>
+          </div>
+        </div>
       </div>
     </section>
 
