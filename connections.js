@@ -802,6 +802,7 @@ function renderAllocationChart() {
     data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#0E1613', borderWidth: 2 }] },
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '62%',
+      animation: { duration: 700, easing: 'easeOutCubic', animateRotate: true, animateScale: true },
       plugins: {
         legend: { position: 'bottom', labels: { color: '#B3B6B9', font: chartFont(), boxWidth: 10, padding: 12 } },
         tooltip: { callbacks: { label: (item) => `${item.label}: ${money(item.parsed)}` } }
@@ -840,6 +841,7 @@ function renderAssetsLiabilitiesChart() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      animation: { duration: 700, easing: 'easeOutCubic' },
       scales: {
         x: { ticks: { color: '#7C8489', font: chartFont() }, grid: { display: false } },
         y: { beginAtZero: true, ticks: { color: '#7C8489', font: chartFont(), callback: (v) => '$' + v }, grid: { color: 'rgba(232,225,211,0.08)' } }
