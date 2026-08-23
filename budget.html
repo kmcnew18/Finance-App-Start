@@ -1286,7 +1286,7 @@
           animation: { duration: 700, easing: 'easeOutCubic' },
           scales: {
             x: { ticks: { color: CHART_COLORS.tickColor, font: chartFont() }, grid: { display: false } },
-            y: { beginAtZero: true, ticks: { color: CHART_COLORS.tickColor, font: chartFont(), callback: (v) => '$' + v }, grid: { color: CHART_COLORS.gridLine } }
+            y: { beginAtZero: true, ticks: { color: CHART_COLORS.tickColor, font: chartFont(), callback: (v) => '$' + v.toLocaleString('en-US') }, grid: { color: CHART_COLORS.gridLine } }
           },
           plugins: {
             legend: { position: 'bottom', labels: { color: CHART_COLORS.legendColor, font: chartFont(), boxWidth: 10, padding: 12 } },
@@ -1339,7 +1339,7 @@
           animation: { duration: 700, easing: 'easeOutCubic' },
           scales: {
             x: { ticks: { color: CHART_COLORS.tickColor, font: chartFont() }, grid: { display: false } },
-            y: { ticks: { color: CHART_COLORS.tickColor, font: chartFont(), callback: (v) => '$' + v }, grid: { color: CHART_COLORS.gridLine } }
+            y: { ticks: { color: CHART_COLORS.tickColor, font: chartFont(), callback: (v) => '$' + v.toLocaleString('en-US') }, grid: { color: CHART_COLORS.gridLine } }
           },
           plugins: {
             legend: { display: false },

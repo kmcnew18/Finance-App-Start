@@ -452,13 +452,17 @@
 .category-panel.accent-savings h2 { color: #8CB4E0; }
 .category-panel.accent-debt h2 { color: #CE9BDE; }
 .category-panel-head {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 4px; gap: 4px 10px;
 }
 .category-panel h2 { font-family: 'Fraunces', serif; font-size: 1.1rem; color: var(--brass-bright); }
 .category-panel .cat-subtotal {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.82rem;
   color: var(--silver-dim);
+  /* Large budget/actual totals (many lines, or a big one-off expense)
+     could otherwise sit flush against the title with no room — this
+     lets it drop to its own line under the title instead of getting
+     silently clipped by the page's overflow-x:hidden. */
 }
 .category-panel .cat-subtotal b { color: var(--tan); font-weight: 600; }
 
@@ -628,6 +632,10 @@
   font-size: 0.78rem;
   color: var(--tan);
 }
+/* A real debt balance (auto loan, mortgage-adjacent) realistically
+   runs into 6 figures — APR stays at the narrower default width since
+   it's always a small 0-100-ish percentage. */
+.debt-extra-field input.debt-balance-input { width: 108px; }
 .debt-extra-field input:focus { outline: none; border-color: var(--brass-dim); }
 .debt-priority-badge {
   background: rgba(184,147,74,0.16);
@@ -765,7 +773,7 @@
 .expense-log-showtoggle:hover { color: var(--brass-bright); text-decoration: underline; }
 .expense-log-entry {
   display: grid;
-  grid-template-columns: 70px 1fr 90px 22px;
+  grid-template-columns: 70px 1fr 100px 22px;
   gap: 8px;
   align-items: center;
   padding: 5px 8px;
@@ -776,7 +784,7 @@
 .expense-log-entry:hover { background: rgba(184,147,74,0.06); }
 .expense-entry-date { color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; }
 .expense-entry-note { color: var(--tan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
-.expense-entry-amount { color: var(--brass-bright); font-family: 'IBM Plex Mono', monospace; text-align: right; }
+.expense-entry-amount { color: var(--brass-bright); font-family: 'IBM Plex Mono', monospace; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .expense-entry-delete {
   background: none; border: none; color: var(--silver-dim);
   font-size: 0.95rem; line-height: 1; cursor: pointer; justify-self: center;
@@ -1035,11 +1043,15 @@
 
   .ledger-col-heads,
   .ledger-row {
-    grid-template-columns: 1fr 74px 74px 44px 22px;
+    /* Budget/Actual widened from 74px — a realistic large expense or
+       income line (e.g. "9999.99") was right at the edge of what 74px
+       could show at this font size; Paid/delete trimmed slightly to
+       make room without growing the row overall. */
+    grid-template-columns: 1fr 84px 84px 40px 20px;
     gap: 6px;
   }
   .ledger-row input[type="number"] {
-    padding: 6px 5px;
+    padding: 6px 4px;
     font-size: 0.74rem;
   }
 }

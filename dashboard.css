@@ -903,8 +903,8 @@ h1, h2, h3 {
 .txn-review-row[data-transfer="true"]::before { background: var(--transfer-glow, #E0B96E); }
 .txn-review-row:hover { background: rgba(255,255,255,0.045); border-color: rgba(232,225,211,0.18); }
 
-.txn-review-info { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; gap: 10px; }
-.txn-review-merchant { font-weight: 600; color: var(--tan); font-size: 0.92rem; }
+.txn-review-info { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; margin-bottom: 7px; gap: 4px 10px; }
+.txn-review-merchant { font-weight: 600; color: var(--tan); font-size: 0.92rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .skipped-activity-head-row {
   display: flex;
@@ -1244,7 +1244,17 @@ h1, h2, h3 {
   color: transparent;
 }
 .card-label { font-size: 0.78rem; color: var(--silver-dim); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
-.card-value { font-size: 1.6rem; font-weight: 600; font-family: 'Fraunces', serif; }
+/* A 6-7 figure balance is wider than a card's ~130-170px column at the
+   base size — .card clips overflow (for its decorative top bar), so
+   without this a large value would simply lose digits rather than
+   wrap. clamp() shrinks it gradually with viewport width; overflow-wrap
+   is the last-resort safety net if it's still too wide to fit one line. */
+.card-value {
+  font-size: clamp(1.1rem, 4vw, 1.6rem);
+  font-weight: 600;
+  font-family: 'Fraunces', serif;
+  overflow-wrap: anywhere;
+}
 .card-value-manual {
   cursor: pointer;
   border-bottom: 1px dashed transparent;

@@ -309,7 +309,14 @@
   font-size: 0.76rem;
   color: var(--silver-dim);
   font-family: 'IBM Plex Mono', monospace;
+  text-align: center;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
+/* "of $X" is kept as one unbreakable unit — a large target amount
+   still wraps onto its own line under the current amount instead of
+   splitting awkwardly right after "of". */
+.sav-goal-of-target { white-space: nowrap; }
 .sav-goal-of { opacity: 0.6; margin: 0 2px; }
 
 .sav-goal-bar-track {
@@ -452,6 +459,7 @@
 @media (max-width: 600px) {
   .sav-goals-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
   .sav-theme-grid { grid-template-columns: 1fr; }
+  .sav-goal-amounts { font-size: 0.7rem; }
 }
 
 /* Within Savings, keyboard focus reads in teal rather than the

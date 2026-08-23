@@ -877,7 +877,7 @@ function renderAssetsLiabilitiesChart() {
       animation: { duration: 700, easing: 'easeOutCubic' },
       scales: {
         x: { ticks: { color: '#7C8489', font: chartFont() }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: '#7C8489', font: chartFont(), callback: (v) => '$' + v }, grid: { color: 'rgba(232,225,211,0.08)' } }
+        y: { beginAtZero: true, ticks: { color: '#7C8489', font: chartFont(), callback: (v) => '$' + v.toLocaleString('en-US') }, grid: { color: 'rgba(232,225,211,0.08)' } }
       },
       plugins: {
         legend: { display: false },
@@ -936,7 +936,7 @@ async function renderNetWorthHistoryChart() {
       animation: { duration: 700, easing: 'easeOutCubic' },
       scales: {
         x: { ticks: { color: '#7C8489', font: chartFont(), maxTicksLimit: 8 }, grid: { display: false } },
-        y: { ticks: { color: '#7C8489', font: chartFont(), callback: (v) => '$' + v }, grid: { color: 'rgba(232,225,211,0.08)' } }
+        y: { ticks: { color: '#7C8489', font: chartFont(), callback: (v) => '$' + v.toLocaleString('en-US') }, grid: { color: 'rgba(232,225,211,0.08)' } }
       },
       plugins: {
         legend: { display: false },

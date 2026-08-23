@@ -679,7 +679,7 @@
           <div class="sav-goal-illust-wrap">${goalIllustrationSvg(g.theme, pct, theme.accent, theme.accentBright)}</div>
           <span class="sav-goal-name">${g.name.replace(/</g,'&lt;')}</span>
           ${goalStatusChipHtml(g, target)}
-          <span class="sav-goal-amounts">${money(g.current)} <span class="sav-goal-of">of</span> ${money(target)}</span>
+          <span class="sav-goal-amounts">${money(g.current)} <span class="sav-goal-of-target"><span class="sav-goal-of">of</span> ${money(target)}</span></span>
           <div class="sav-goal-bar-track"><div class="sav-goal-bar-fill" style="width:${pct}%; background:${theme.accent};"></div></div>
           <span class="sav-goal-pct" style="color:${theme.accentBright};">${pct}%</span>
         </button>`;

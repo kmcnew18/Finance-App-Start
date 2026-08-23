@@ -298,7 +298,15 @@
   text-shadow: 0 0 22px rgba(168,143,216,0.32);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+  max-width: 190px;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
+/* A large portfolio total (6-7+ figures) is wider than the ring's own
+   hole at the base size — shrinks in two steps rather than overlapping
+   the colored arcs. See the totalLen check in renderRing(). */
+.inv-ring-total.inv-ring-total-compact { font-size: 1.7rem; }
+.inv-ring-total.inv-ring-total-tiny { font-size: 1.32rem; }
 .inv-period-select {
   pointer-events: auto;
   display: flex;

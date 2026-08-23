@@ -694,7 +694,17 @@
       // are computed from this visible subset, not the full portfolio.
       const visibleHoldings = currentHoldings.filter(h => !hiddenSecurityIds.has(h.securityId));
       const total = round2(visibleHoldings.reduce((s, h) => s + h.value, 0));
-      animateNumber(document.getElementById('inv-ring-total'), total, money);
+      const ringTotalEl = document.getElementById('inv-ring-total');
+      // A large portfolio total can run to 7+ figures — at the base font
+      // size that's wider than the ring's own hole, overlapping the
+      // colored arcs instead of just looking cramped. Sized off the
+      // target string length (known synchronously) rather than the
+      // animated intermediate values, since the ring shouldn't visibly
+      // resize mid-count-up.
+      const totalLen = money(total).length;
+      ringTotalEl.classList.toggle('inv-ring-total-compact', totalLen > 9 && totalLen <= 11);
+      ringTotalEl.classList.toggle('inv-ring-total-tiny', totalLen > 11);
+      animateNumber(ringTotalEl, total, money);
 
       // Slices under 5% of the visible total get folded into one grey
       // "Other" segment instead of each claiming their own badge — with
