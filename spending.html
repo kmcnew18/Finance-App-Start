@@ -156,6 +156,7 @@
     <section class="spend-section">
       <h2 class="spend-section-title">Subscriptions</h2>
       <p class="spend-section-sub">Recurring charges detected from your connected accounts. Manage which ones feed your budget from the Connections page.</p>
+      <p class="spend-sub-total" id="spend-subscriptions-total" style="display:none;"></p>
       <div id="spend-subscriptions-list" class="spend-subscriptions-list"></div>
       <p class="spend-empty-note" id="spend-subscriptions-empty" style="display:none;">No subscriptions detected yet.</p>
     </section>
@@ -889,13 +890,29 @@
 
       const list = document.getElementById('spend-subscriptions-list');
       const empty = document.getElementById('spend-subscriptions-empty');
+      const totalEl = document.getElementById('spend-subscriptions-total');
 
       if (error || !filtered.length) {
         list.innerHTML = '';
         empty.style.display = 'block';
+        totalEl.style.display = 'none';
         return;
       }
       empty.style.display = 'none';
+
+      // Normalizes each stream's own billing cadence to a monthly cost
+      // so streams on different schedules can be summed meaningfully —
+      // Plaid's recurring-stream frequency enum, not something this
+      // app controls the values of, so anything unrecognized falls
+      // back to treating it as already-monthly rather than guessing.
+      const MONTHLY_MULTIPLIER = { WEEKLY: 52 / 12, BIWEEKLY: 26 / 12, SEMI_MONTHLY: 2, MONTHLY: 1, ANNUALLY: 1 / 12 };
+      const monthlyTotal = filtered.reduce((sum, s) => {
+        const amt = Number(s.last_amount || s.average_amount || 0);
+        const mult = MONTHLY_MULTIPLIER[s.frequency] ?? 1;
+        return sum + amt * mult;
+      }, 0);
+      totalEl.style.display = 'block';
+      totalEl.textContent = `${money(monthlyTotal)}/mo total across ${filtered.length} subscription${filtered.length === 1 ? '' : 's'}`;
 
       list.innerHTML = filtered.map((s, idx) => {
         // plaid_account_id on the stream is what makes this possible —

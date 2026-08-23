@@ -136,6 +136,13 @@
 }
 .spend-section-title { font-family: 'Fraunces', serif; font-size: 1.05rem; color: var(--tan); margin-bottom: 4px; }
 .spend-section-sub { font-size: 0.78rem; color: var(--silver-dim); margin-bottom: 14px; }
+.spend-sub-total {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--spend-accent);
+  margin: -6px 0 14px;
+}
 .spend-empty-note { font-size: 0.85rem; color: var(--silver-dim); padding: 8px 0; }
 
 .spend-chart-wrap {
