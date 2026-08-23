@@ -1,0 +1,31 @@
+/* ============= SITE-WIDE PAGE TRANSITIONS =============
+   A shared exit/entrance beat layered on top of — not replacing —
+   each page's own internal entrance animations (cardEnterUp,
+   ledgerFadeUp, invContentIn, etc). Because this is a plain
+   multi-page app with no client-side router, every navigation is a
+   real full-page load; these two classes just give that load a
+   deliberate motion instead of a hard cut. See transitions.js for
+   the click-interceptor and reveal-watcher that apply them. */
+
+.arko-page-exit {
+  animation: arkoPageExit 0.2s cubic-bezier(.4,0,1,1) forwards;
+}
+@keyframes arkoPageExit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-6px) scale(0.98); }
+}
+
+.arko-page-enter {
+  animation: arkoPageEnter 0.32s cubic-bezier(.2,.8,.25,1) both;
+}
+@keyframes arkoPageEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arko-page-exit,
+  .arko-page-enter {
+    animation: none !important;
+  }
+}
