@@ -161,6 +161,7 @@
         Select all
       </label>
       <span class="log-filter-count" id="log-filter-count"></span>
+      <button type="button" id="export-csv-btn" class="btn-ghost">Export CSV</button>
       <button type="button" id="delete-selected-btn" class="btn-danger">Delete selected</button>
     </div>
 
@@ -506,6 +507,16 @@
       };
     }
 
+    function getFilteredLogRows() {
+      const f = getActiveFilters();
+      return allLogRows.filter(r => {
+        if (f.search && !(r.notes || '').toLowerCase().includes(f.search)) return false;
+        if (f.monthKey && r.entry_date.slice(0, 7) !== f.monthKey) return false;
+        if (f.type && r.action_type !== f.type) return false;
+        return true;
+      });
+    }
+
     function renderLogTable() {
       const tbody = document.getElementById('log-body');
       const countEl = document.getElementById('log-filter-count');
@@ -521,12 +532,7 @@
         return;
       }
 
-      const rows = allLogRows.filter(r => {
-        if (f.search && !(r.notes || '').toLowerCase().includes(f.search)) return false;
-        if (f.monthKey && r.entry_date.slice(0, 7) !== f.monthKey) return false;
-        if (f.type && r.action_type !== f.type) return false;
-        return true;
-      });
+      const rows = getFilteredLogRows();
 
       countEl.textContent = anyFilterActive ? `${rows.length} of ${allLogRows.length} shown` : '';
 
@@ -799,6 +805,40 @@
 
     document.getElementById('select-all').addEventListener('change', (e) => {
       document.querySelectorAll('.row-select').forEach(cb => cb.checked = e.target.checked);
+    });
+
+    function csvEscape(value) {
+      const str = String(value ?? '');
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    }
+
+    document.getElementById('export-csv-btn').addEventListener('click', async () => {
+      const rows = getFilteredLogRows();
+      if (!rows.length) { await arkoAlert('No entries to export.'); return; }
+
+      const header = ['Date', 'Amount', ...logColumns.map(c => c.label), 'Notes'];
+      const lines = [header.map(csvEscape).join(',')];
+      rows.forEach(r => {
+        const categoryValues = logColumns.map(col => {
+          const val = col.type === 'default'
+            ? Number(r[col.key] || 0)
+            : (r.custom_category_id === col.id ? Number(r.custom_category_amount || 0) : 0);
+          return val.toFixed(2);
+        });
+        const line = [r.entry_date, Number(r.amount || 0).toFixed(2), ...categoryValues, r.notes || ''];
+        lines.push(line.map(csvEscape).join(','));
+      });
+
+      const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const filenameDate = new Date().toLocaleDateString('en-CA');
+      a.download = `arko-log-${filenameDate}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     });
 
     document.getElementById('delete-selected-btn').addEventListener('click', async () => {
