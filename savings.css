@@ -465,3 +465,26 @@
   outline: 2px solid #6EC4B8;
   outline-offset: 2px;
 }
+
+.sav-pacing {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--silver-dim);
+  margin-bottom: 14px;
+}
+.sav-pacing-status { font-weight: 700; }
+.sav-pacing-ahead, .sav-goal-status-chip.sav-pacing-ahead { color: var(--emerald-bright); }
+.sav-pacing-ontrack, .sav-goal-status-chip.sav-pacing-ontrack { color: #6EC4B8; }
+.sav-pacing-behind, .sav-goal-status-chip.sav-pacing-behind { color: var(--error); }
+
+.sav-goal-status-chip {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: currentColor;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+}

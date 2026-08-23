@@ -678,6 +678,7 @@
         <button type="button" class="sav-goal-card" data-goal-id="${g.id}" style="--goal-glow:${theme.glowRgb};">
           <div class="sav-goal-illust-wrap">${goalIllustrationSvg(g.theme, pct, theme.accent, theme.accentBright)}</div>
           <span class="sav-goal-name">${g.name.replace(/</g,'&lt;')}</span>
+          ${goalStatusChipHtml(g, target)}
           <span class="sav-goal-amounts">${money(g.current)} <span class="sav-goal-of">of</span> ${money(target)}</span>
           <div class="sav-goal-bar-track"><div class="sav-goal-bar-fill" style="width:${pct}%; background:${theme.accent};"></div></div>
           <span class="sav-goal-pct" style="color:${theme.accentBright};">${pct}%</span>
@@ -714,6 +715,66 @@
       </label>`;
     }
 
+    function fmtGoalDate(iso) {
+      return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // Pacing is deliberately simple: this app doesn't keep a
+    // contribution-history time series for goals (only a running
+    // total), so "ahead/behind schedule" compares actual progress
+    // against a straight-line expectation between when the goal was
+    // created and its target date, rather than an actual recent
+    // contribution rate. The "save $X/week" figure is the one number
+    // that's unambiguous either way — how much is left, divided by how
+    // much time is left. Returns null when there's no target date to
+    // pace against, or once the goal is already fully funded.
+    function computeGoalPacing(g, target) {
+      if (!g.target_date) return null;
+      const today = new Date();
+      const targetDate = new Date(g.target_date + 'T00:00:00');
+      const daysLeft = Math.ceil((targetDate - today) / 86400000);
+      const current = Number(g.current) || 0;
+      const remaining = Math.max(0, round2(target - current));
+
+      if (remaining <= 0) return { done: true, daysLeft };
+      if (daysLeft <= 0) return { overdue: true, remaining };
+
+      const weeklyPaceNeeded = remaining / (daysLeft / 7);
+      let status = null;
+      if (g.created_at) {
+        const totalDays = (targetDate - new Date(g.created_at)) / 86400000;
+        if (totalDays > 0) {
+          const elapsedDays = (today - new Date(g.created_at)) / 86400000;
+          const expectedPct = Math.max(0, Math.min(100, (elapsedDays / totalDays) * 100));
+          const actualPct = target > 0 ? (current / target) * 100 : 0;
+          status = actualPct >= expectedPct + 5 ? 'ahead' : actualPct <= expectedPct - 5 ? 'behind' : 'ontrack';
+        }
+      }
+      return { weeklyPaceNeeded, status };
+    }
+
+    function goalPacingHtml(g, target) {
+      const p = computeGoalPacing(g, target);
+      if (!p) return '';
+      if (p.done) return `<p class="sav-pacing sav-pacing-ahead">Already at your target${p.daysLeft > 0 ? ` — ${p.daysLeft}d before ${fmtGoalDate(g.target_date)}` : ', goal complete'}.</p>`;
+      if (p.overdue) return `<p class="sav-pacing sav-pacing-behind">Target date (${fmtGoalDate(g.target_date)}) has passed — ${money(p.remaining)} still to go.</p>`;
+      const statusLabel = { ahead: 'Ahead of schedule', behind: 'Behind schedule', ontrack: 'On track' }[p.status];
+      const statusHtml = statusLabel ? `<span class="sav-pacing-status sav-pacing-${p.status}">${statusLabel}</span> · ` : '';
+      return `<p class="sav-pacing">${statusHtml}save ${money(p.weeklyPaceNeeded)}/week to hit ${fmtGoalDate(g.target_date)}</p>`;
+    }
+
+    // Compact version for the goal card itself — just the status word,
+    // no dollar figure (there's no room for a full sentence on a card).
+    function goalStatusChipHtml(g, target) {
+      const p = computeGoalPacing(g, target);
+      if (!p) return '';
+      if (p.done) return '';
+      if (p.overdue) return `<span class="sav-goal-status-chip sav-pacing-behind">Past due</span>`;
+      if (!p.status) return '';
+      const statusLabel = { ahead: 'Ahead', behind: 'Behind', ontrack: 'On track' }[p.status];
+      return `<span class="sav-goal-status-chip sav-pacing-${p.status}">${statusLabel}</span>`;
+    }
+
     function openGoalDetail(goalId) {
       const g = goals.find(x => x.id === goalId);
       if (!g) return;
@@ -745,6 +806,7 @@
       body.innerHTML = `
         <div class="sav-detail-illust">${goalIllustrationSvg(g.theme, pct, THEMES[g.theme].accent, THEMES[g.theme].accentBright)}</div>
         <p class="mfa-modal-sub" style="text-align:center; margin-bottom:4px;">${money(g.current)} of ${money(target)} · ${pct}%</p>
+        ${goalPacingHtml(g, target)}
         ${hasConnections ? `
           <p class="mfa-modal-sub" style="margin-top:14px;">Linked accounts</p>
           <div class="sav-linked-list">
@@ -772,6 +834,10 @@
         <div class="mfa-field" style="margin-top:16px;">
           <label>Target amount</label>
           <input type="number" id="sav-target-input" step="0.01" value="${target}" />
+        </div>
+        <div class="mfa-field" style="margin-top:10px;">
+          <label>Target date (optional)</label>
+          <input type="date" id="sav-target-date-input" value="${g.target_date || ''}" />
         </div>
         <button type="button" class="mfa-verify-btn" id="sav-target-save-btn" style="margin-top:10px;">Update target</button>
         <button type="button" class="btn-danger" id="sav-delete-goal-btn" style="margin-top:18px; width:100%;">Delete this goal</button>
@@ -889,9 +955,10 @@
       const targetSaveBtn = document.getElementById('sav-target-save-btn');
       targetSaveBtn.addEventListener('click', async () => {
         const newTarget = round2(Math.max(0, parseFloat(document.getElementById('sav-target-input').value) || 0));
+        const newTargetDate = document.getElementById('sav-target-date-input').value || null;
         targetSaveBtn.disabled = true;
         targetSaveBtn.textContent = 'Updating…';
-        await supabaseClient.from('savings_goals').update({ target_amount: newTarget }).eq('id', g.id);
+        await supabaseClient.from('savings_goals').update({ target_amount: newTarget, target_date: newTargetDate }).eq('id', g.id);
         await loadGoals();
         openGoalDetail(g.id);
       });
@@ -985,6 +1052,10 @@
           <label for="new-goal-target">Target amount</label>
           <input type="number" id="new-goal-target" step="0.01" placeholder="0.00" />
         </div>
+        <div class="mfa-field" style="margin-top:12px;">
+          <label for="new-goal-date">Target date (optional)</label>
+          <input type="date" id="new-goal-date" min="${new Date().toISOString().slice(0,10)}" />
+        </div>
         <button type="button" class="mfa-verify-btn" id="new-goal-save-btn" style="margin-top:14px;">Create goal</button>
         <p class="mfa-modal-sub" id="new-goal-error" style="color:var(--error); display:none; margin-top:8px;"></p>
       `;
@@ -992,11 +1063,12 @@
       document.getElementById('new-goal-save-btn').addEventListener('click', async () => {
         const name = document.getElementById('new-goal-name').value.trim();
         const target = round2(Math.max(0, parseFloat(document.getElementById('new-goal-target').value) || 0));
+        const targetDate = document.getElementById('new-goal-date').value || null;
         const errorEl = document.getElementById('new-goal-error');
         if (!name) { errorEl.textContent = 'Give it a name first.'; errorEl.style.display = 'block'; return; }
 
         const { error } = await supabaseClient.from('savings_goals').insert({
-          user_id: currentUserId, name, theme, target_amount: target, sort_order: goals.length,
+          user_id: currentUserId, name, theme, target_amount: target, target_date: targetDate, sort_order: goals.length,
         });
         if (error) { errorEl.textContent = 'Could not create: ' + error.message; errorEl.style.display = 'block'; return; }
 
