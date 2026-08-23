@@ -407,6 +407,11 @@
       { key: 'debt',     label: 'Debt',     checkbox: 'Paid' },
     ];
     const SIGN = { income: 1, bills: -1, expenses: -1, savings: -1, debt: -1 };
+    // Bills/Expenses/Debt are the only categories where spending more
+    // than budgeted is actually a problem worth warning about — Savings
+    // shares the same SIGN (both reduce "Left") but exceeding a savings
+    // budget means putting away more than planned, not overspending.
+    const OVERSPEND_CATS = new Set(['bills', 'expenses', 'debt']);
 
     const LOG_LABELS = {
       income: 'income',
@@ -732,21 +737,36 @@
       recalcSummary();
     }
 
+    function c_isOverspent(cat, line) {
+      return OVERSPEND_CATS.has(cat) && (Number(line.actual) || 0) > (Number(line.budget) || 0) && (Number(line.actual) || 0) > 0;
+    }
+
+    function overspendBadgeHtml(isOverspent, line) {
+      if (!isOverspent) return '';
+      return `<span class="row-overspend-badge" title="Over budget by ${money((Number(line.actual) || 0) - (Number(line.budget) || 0))}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      </span>`;
+    }
+
+    // Live-updates the badge/row-highlight in place after an
+    // input/blur, instead of re-rendering the whole panel (which would
+    // steal focus from whatever the user is still typing in).
+    function updateOverspendBadge(rowEl, cat, line) {
+      const isOverspent = c_isOverspent(cat, line);
+      rowEl.classList.toggle('ledger-row-overspent', isOverspent);
+      const cell = rowEl.querySelector('.row-actual-cell');
+      const existing = cell.querySelector('.row-overspend-badge');
+      if (existing) existing.remove();
+      if (isOverspent) cell.insertAdjacentHTML('beforeend', overspendBadgeHtml(true, line));
+    }
+
     function rowTemplate(cat, line, locked, idx) {
       const c = CATS.find(x => x.key === cat);
       const checkboxCell = c.checkbox
         ? `<label class="log-check"><input type="checkbox" class="row-input" data-field="done" ${line.done ? 'checked' : ''} ${locked ? 'disabled' : ''} /><span class="check-box"></span></label>`
         : '';
-      // Overspend only means something for the "spend down" categories —
-      // Bills/Expenses/Debt going over is a real warning, while
-      // Income/Savings going over their budget is the opposite of a
-      // problem (earned/saved more than planned).
-      const isOverspent = SIGN[cat] < 0 && (Number(line.actual) || 0) > (Number(line.budget) || 0) && (Number(line.actual) || 0) > 0;
-      const overspendBadge = isOverspent
-        ? `<span class="row-overspend-badge" title="Over budget by ${money((Number(line.actual) || 0) - (Number(line.budget) || 0))}">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-           </span>`
-        : '';
+      const isOverspent = c_isOverspent(cat, line);
+      const overspendBadge = overspendBadgeHtml(isOverspent, line);
       const rowDelay = Math.min(idx || 0, 12) * 30;
       const rowHtml = `
         <div class="ledger-row ledger-row-in ${isOverspent ? 'ledger-row-overspent' : ''}" data-id="${line.id}" style="animation-delay:${rowDelay}ms;">
@@ -838,6 +858,7 @@
                 const doneInput = rowEl.querySelector('input[data-field="done"]');
                 if (doneInput) doneInput.checked = true;
               }
+              if (field === 'budget' || field === 'actual') updateOverspendBadge(rowEl, cat, line);
             }
             recalcSummary();
             queueSave();
@@ -983,7 +1004,7 @@
         if (a) a.textContent = money(totals[c.key].actual);
       });
 
-      const overspentCats = CATS.filter(c => SIGN[c.key] < 0 && totals[c.key].actual > totals[c.key].budget && totals[c.key].actual > 0);
+      const overspentCats = CATS.filter(c => OVERSPEND_CATS.has(c.key) && totals[c.key].actual > totals[c.key].budget && totals[c.key].actual > 0);
       const overspendEl = document.getElementById('overspend-summary');
       if (overspentCats.length) {
         overspendEl.style.display = 'block';
