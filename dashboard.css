@@ -122,10 +122,11 @@ h1, h2, h3 {
   gap: 16px;
 }
 
-/* A quiet, ambient glow in the brand's vintage-blue — same text-shadow
-   recipe already used on the page titles (budget/connections/spending),
-   not a new pattern. */
-.wordmark { font-family: 'Fraunces', serif; font-size: 1.25rem; font-weight: 600; color: var(--silver); display: flex; align-items: center; gap: 8px; transition: opacity 0.15s ease; text-shadow: 0 0 14px rgba(46,84,114,0.4); }
+/* The neon blue from the brand mark's inner chevron (matches style.css's
+   --neon-tier2, #4FC3E8 — the pricing cards' "built to pop" accent, not
+   the muted vintage-blue used elsewhere). Layered tight-to-wide like a
+   real neon tube rather than one soft shadow. */
+.wordmark { font-family: 'Fraunces', serif; font-size: 1.25rem; font-weight: 600; color: var(--silver); display: flex; align-items: center; gap: 8px; transition: opacity 0.15s ease; text-shadow: 0 0 6px rgba(79,195,232,0.85), 0 0 18px rgba(79,195,232,0.5), 0 0 34px rgba(79,195,232,0.25); }
 .wordmark:hover { opacity: 0.8; }
 .wordmark img { height: 28px; width: auto; }
 .wordmark-brand { font-family: 'Jura', 'Fraunces', serif; letter-spacing: 0.08em; color: var(--tan); }
