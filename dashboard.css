@@ -3196,3 +3196,37 @@ textarea:focus-visible,
 @media (max-width: 500px) {
   .activity-panel { width: 100%; max-width: 100%; }
 }
+
+.low-balance-badge {
+  align-self: flex-start;
+  background: rgba(224,139,125,0.14);
+  border: 1px solid rgba(224,139,125,0.4);
+  color: var(--error);
+  border-radius: 20px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 2px 9px;
+}
+
+.low-balance-intro { font-size: 0.82rem; color: var(--silver-dim); line-height: 1.5; margin-bottom: 16px; }
+.low-balance-fields { display: flex; flex-direction: column; gap: 12px; }
+.low-balance-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--tan);
+}
+.low-balance-field input {
+  width: 110px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--tan);
+}
+.low-balance-field input:focus { outline: none; border-color: var(--vintage-blue-light); }

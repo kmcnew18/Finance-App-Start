@@ -73,6 +73,7 @@
             <button type="button" id="legal-policies-btn" class="dropdown-item">Legal & Policies</button>
             <button type="button" id="help-faq-btn" class="dropdown-item">Help & FAQ</button>
             <div class="dropdown-divider"></div>
+            <button type="button" id="low-balance-btn" class="dropdown-item">Low balance alerts</button>
             <button type="button" id="view-skipped-btn" class="dropdown-item">View skipped activity</button>
             <button type="button" id="find-missing-logs-btn" class="dropdown-item">Find missing log entries</button>
             <button type="button" id="reset-categories-btn" class="dropdown-item">Reset category totals</button>
@@ -152,6 +153,7 @@
           <button type="button" class="card-color-btn" data-color-cat="savings" title="Change color"></button>
           <span class="card-label">Savings</span>
           <span class="card-value" id="val-savings">$0.00</span>
+          <span class="low-balance-badge" id="low-balance-badge-savings" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-savings"></span>
           <input type="number" class="card-value-input" id="edit-savings" data-cat="savings" step="0.01" />
         </div>
@@ -160,6 +162,7 @@
           <button type="button" class="card-color-btn" data-color-cat="investment" title="Change color"></button>
           <span class="card-label">Investment</span>
           <span class="card-value" id="val-investment">$0.00</span>
+          <span class="low-balance-badge" id="low-balance-badge-investment" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-investment"></span>
           <input type="number" class="card-value-input" id="edit-investment" data-cat="investment" step="0.01" />
         </div>
@@ -168,6 +171,7 @@
           <button type="button" class="card-color-btn" data-color-cat="expenses" title="Change color"></button>
           <span class="card-label">Expenses</span>
           <span class="card-value" id="val-expenses">$0.00</span>
+          <span class="low-balance-badge" id="low-balance-badge-expenses" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-expenses"></span>
           <input type="number" class="card-value-input" id="edit-expenses" data-cat="expenses" step="0.01" />
         </div>
@@ -176,6 +180,7 @@
           <button type="button" class="card-color-btn" data-color-cat="checking" title="Change color"></button>
           <span class="card-label">Checking</span>
           <span class="card-value" id="val-checking">$0.00</span>
+          <span class="low-balance-badge" id="low-balance-badge-checking" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-checking"></span>
           <input type="number" class="card-value-input" id="edit-checking" data-cat="checking" step="0.01" />
         </div>
@@ -343,6 +348,29 @@
       </div>
       <div class="mfa-modal-actions">
         <button type="button" class="mfa-cancel-btn" id="mfa-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LOW BALANCE ALERTS ================= -->
+  <div class="mfa-overlay" id="low-balance-overlay">
+    <div class="mfa-modal">
+      <div class="mfa-modal-head">
+        <h2>Low balance alerts</h2>
+        <button type="button" class="mfa-modal-close" id="low-balance-close">×</button>
+      </div>
+      <div class="mfa-modal-body">
+        <p class="low-balance-intro">Get a heads-up on this page when a category's balance drops below a threshold you set. Leave a field blank to turn off the alert for that category.</p>
+        <div class="low-balance-fields" id="low-balance-fields">
+          <label class="low-balance-field">Savings <input type="number" class="low-balance-input" data-cat="savings" min="0" step="0.01" placeholder="Off" /></label>
+          <label class="low-balance-field">Investment <input type="number" class="low-balance-input" data-cat="investment" min="0" step="0.01" placeholder="Off" /></label>
+          <label class="low-balance-field">Expenses <input type="number" class="low-balance-input" data-cat="expenses" min="0" step="0.01" placeholder="Off" /></label>
+          <label class="low-balance-field">Checking <input type="number" class="low-balance-input" data-cat="checking" min="0" step="0.01" placeholder="Off" /></label>
+        </div>
+      </div>
+      <div class="mfa-modal-actions">
+        <button type="button" class="mfa-verify-btn" id="low-balance-save-btn">Save</button>
+        <button type="button" class="mfa-cancel-btn" id="low-balance-cancel-btn">Cancel</button>
       </div>
     </div>
   </div>
@@ -1196,6 +1224,10 @@
         if (label) label.style.color = accentColor;
         const swatch = card.querySelector('.card-color-btn');
         if (swatch) { swatch.style.background = accentColor; swatch.style.color = accentColor; }
+
+        const threshold = (currentUserMetadata.low_balance_thresholds || {})[key];
+        const badge = document.getElementById('low-balance-badge-' + key);
+        if (badge) badge.style.display = (threshold != null && combined[key] < threshold) ? 'inline-block' : 'none';
       });
       ArkoTransitions.animateNumber(document.getElementById('val-total'), total, money);
 
@@ -1410,6 +1442,7 @@
       setupEnvelopePicker();
       setupSkippedActivity();
       await setupManualEntryToggle();
+      setupLowBalanceAlerts();
       setupMissingLogsOverlay();
       setupRecentActivityPanel();
       setupManageSubscription();
@@ -2704,6 +2737,53 @@
           return;
         }
         if (data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
+      });
+    }
+
+    // ================= LOW BALANCE ALERTS =================
+    // Off by default, per category, same cross-device user_metadata
+    // pattern as the manual-entry toggle above — no schema needed since
+    // this is just a user preference, not app data.
+    function setupLowBalanceAlerts() {
+      const overlay = document.getElementById('low-balance-overlay');
+      const openBtn = document.getElementById('low-balance-btn');
+      const closeBtn = document.getElementById('low-balance-close');
+      const cancelBtn = document.getElementById('low-balance-cancel-btn');
+      const saveBtn = document.getElementById('low-balance-save-btn');
+      const inputs = document.querySelectorAll('.low-balance-input');
+
+      function openOverlay() {
+        const thresholds = currentUserMetadata.low_balance_thresholds || {};
+        inputs.forEach(input => {
+          const val = thresholds[input.dataset.cat];
+          input.value = val != null ? val : '';
+        });
+        document.getElementById('settings-dropdown').classList.remove('open');
+        overlay.classList.add('open');
+      }
+      function closeOverlay() { overlay.classList.remove('open'); }
+
+      openBtn.addEventListener('click', openOverlay);
+      closeBtn.addEventListener('click', closeOverlay);
+      cancelBtn.addEventListener('click', closeOverlay);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeOverlay(); });
+
+      saveBtn.addEventListener('click', async () => {
+        const thresholds = {};
+        inputs.forEach(input => {
+          const val = parseFloat(input.value);
+          if (!isNaN(val) && val >= 0) thresholds[input.dataset.cat] = val;
+        });
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+        currentUserMetadata = { ...currentUserMetadata, low_balance_thresholds: thresholds };
+        const { data, error } = await supabaseClient.auth.updateUser({ data: currentUserMetadata });
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+        if (error) { await arkoAlert('Could not save your alert settings: ' + error.message); return; }
+        if (data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
+        closeOverlay();
+        renderTotals();
       });
     }
 
