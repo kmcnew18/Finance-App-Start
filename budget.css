@@ -524,6 +524,41 @@
 .ledger-row .row-check-cell { display: flex; justify-content: center; }
 .ledger-row .row-check-cell:empty { visibility: hidden; }
 
+/* Wraps the Actual input so the overspend badge can overlay its
+   corner without adding a column to the row's fixed grid track — the
+   badge sits just outside the input's own box, in the row's gap, so
+   it never competes with the input for its 108px of width. */
+.row-actual-cell { position: relative; }
+.row-overspend-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ledger-panel);
+  border: 1px solid rgba(224,139,125,0.5);
+  color: var(--error);
+  cursor: default;
+}
+.row-overspend-badge svg { width: 10px; height: 10px; }
+.ledger-row.ledger-row-overspent input[type="number"][data-field="actual"] {
+  border-color: rgba(224,139,125,0.45);
+}
+
+.overspend-summary {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(224,139,125,0.08);
+  border: 1px solid rgba(224,139,125,0.25);
+  color: var(--error);
+  font-size: 0.8rem;
+}
+
 .row-delete {
   background: transparent;
   border: none;
