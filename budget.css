@@ -82,8 +82,20 @@
 .budget-title-row h1 {
   font-family: 'Fraunces', serif;
   font-size: 1.7rem;
-  color: var(--parchment);
+  font-weight: 500;
+  color: var(--tan);
   letter-spacing: 0.01em;
+  text-shadow: 0 0 24px rgba(184,147,74,0.35);
+  position: relative;
+}
+.budget-title-row h1::after {
+  content: '';
+  display: block;
+  width: 46px;
+  height: 2px;
+  margin-top: 8px;
+  background: linear-gradient(90deg, var(--brass-bright), transparent);
+  border-radius: 2px;
 }
 .budget-title-row .budget-eyebrow {
   display: block;

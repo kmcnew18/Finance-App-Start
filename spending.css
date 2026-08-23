@@ -6,6 +6,9 @@
   --spend-accent: #E0806A;
 }
 
+.spend-title { text-shadow: 0 0 24px rgba(224,128,106,0.35); }
+.spend-title::after { background: linear-gradient(90deg, var(--spend-accent), transparent) !important; }
+
 /* Shared row-entrance animation — transaction rows, category rows, and
    subscription rows all use this same class + a per-row inline
    animation-delay set in JS, matching the stagger pattern already
