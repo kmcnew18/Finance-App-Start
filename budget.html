@@ -483,11 +483,26 @@
       return out;
     }
 
-    function cloneTemplateForNewPeriod(templateCategories) {
+    function cloneTemplateForNewPeriod(templateCategories, priorCategories) {
       const out = {};
       CATS.forEach(c => {
         const lines = (templateCategories && templateCategories[c.key]) || [];
-        out[c.key] = lines.map(l => ({ id: uid(), name: l.name, budget: l.budget || 0, actual: 0, done: false }));
+        const priorLines = (priorCategories && priorCategories[c.key]) || [];
+        out[c.key] = lines.map(l => {
+          const line = { id: uid(), name: l.name, budget: l.budget || 0, actual: 0, done: false };
+          if (c.key === 'debt') {
+            line.apr = l.apr ?? null;
+            // Balance carries forward from the period actually being
+            // left (already net of any payments made this period),
+            // matched by name since lines get fresh ids each period —
+            // the template's own balance is only ever a starting point
+            // for a user's very first period, never something to reset
+            // to each month.
+            const priorMatch = priorLines.find(pl => pl.name === l.name);
+            line.balance = (priorMatch && priorMatch.balance != null) ? priorMatch.balance : (l.balance ?? null);
+          }
+          return line;
+        });
       });
       return out;
     }
@@ -634,9 +649,9 @@
       return data || [];
     }
 
-    async function createPeriod(startISO, endISO) {
+    async function createPeriod(startISO, endISO, priorCategories) {
       const template = await fetchDefaultTemplate();
-      const categories = template ? cloneTemplateForNewPeriod(template) : blankCategories(SEED);
+      const categories = template ? cloneTemplateForNewPeriod(template, priorCategories) : blankCategories(SEED);
       const { data, error } = await supabaseClient
         .from('budget_periods')
         .insert({ user_id: currentUserId, start_date: startISO, end_date: endISO, status: 'active', categories })
@@ -760,13 +775,80 @@
       if (isOverspent) cell.insertAdjacentHTML('beforeend', overspendBadgeHtml(true, line));
     }
 
-    function rowTemplate(cat, line, locked, idx) {
+    // Avalanche method: pay the highest-interest debt first. Only
+    // worth highlighting when there's an actual choice to make (2+
+    // debts with both an APR and a real balance on file) — a single
+    // debt line has nothing to be "prioritized" over.
+    function computeAvalanchePriorityId(debtLines) {
+      const eligible = (debtLines || []).filter(l => l.apr != null && l.balance != null && l.balance > 0);
+      if (eligible.length < 2) return null;
+      return eligible.reduce((a, b) => (Number(b.apr) > Number(a.apr) ? b : a)).id;
+    }
+
+    // Standard amortization: months to zero out `balance` at `aprPct`
+    // APR making a fixed `monthlyPayment` each month. Returns null when
+    // there's not enough data to estimate anything, or Infinity when
+    // the payment doesn't even cover the interest accruing each month
+    // (the balance would grow, not shrink, at this payment level).
+    function computeDebtPayoffMonths(balance, aprPct, monthlyPayment) {
+      const bal = Number(balance) || 0;
+      const payment = Number(monthlyPayment) || 0;
+      if (bal <= 0 || payment <= 0) return null;
+      const monthlyRate = (Number(aprPct) || 0) / 100 / 12;
+      if (monthlyRate <= 0) return Math.ceil(bal / payment);
+      const interestOnly = bal * monthlyRate;
+      if (payment <= interestOnly) return Infinity;
+      return Math.ceil(-Math.log(1 - (bal * monthlyRate) / payment) / Math.log(1 + monthlyRate));
+    }
+
+    // Live-updates the payoff estimate + avalanche-priority badge for
+    // every debt line in place, without touching the APR/Balance
+    // inputs themselves (which would steal focus mid-edit) — the
+    // priority badge is cross-line (depends on every debt's APR/
+    // balance, not just the one just edited), so this re-evaluates
+    // the whole category rather than just the one row.
+    function refreshDebtExtras(cat) {
+      const container = document.getElementById('rows-' + cat);
+      const lines = current.categories[cat] || [];
+      const avalanchePriorityId = computeAvalanchePriorityId(lines);
+      lines.forEach(line => {
+        const wrap = container.querySelector(`.debt-extra-wrap[data-id="${line.id}"]`);
+        if (!wrap) return;
+        const existingBadge = wrap.querySelector('.debt-priority-badge');
+        const existingEstimate = wrap.querySelector('.debt-payoff-estimate');
+        if (existingBadge) existingBadge.remove();
+        if (existingEstimate) existingEstimate.remove();
+        if (line.id === avalanchePriorityId) {
+          wrap.insertAdjacentHTML('beforeend', `<span class="debt-priority-badge" title="Highest interest rate among your debts — paying this down first (the avalanche method) saves the most in interest overall">Avalanche priority</span>`);
+        }
+        wrap.insertAdjacentHTML('beforeend', payoffEstimateHtml(line));
+      });
+    }
+
+    function payoffEstimateHtml(line) {
+      // budget doubles as "assumed monthly payment" here — it's already
+      // what the user told Budget they intend to pay toward this line
+      // each period, so it's the one number in this data model that
+      // actually represents a recurring payment amount.
+      const months = computeDebtPayoffMonths(line.balance, line.apr, line.budget);
+      if (months == null) return '';
+      if (months === Infinity) {
+        return `<span class="debt-payoff-estimate debt-payoff-warning">At this budgeted payment, the balance won't shrink — it doesn't cover the interest.</span>`;
+      }
+      const years = Math.floor(months / 12);
+      const remMonths = months % 12;
+      const label = years > 0 ? `${years}y ${remMonths}mo` : `${months}mo`;
+      return `<span class="debt-payoff-estimate">≈ ${label} to pay off at this rate</span>`;
+    }
+
+    function rowTemplate(cat, line, locked, idx, avalanchePriorityId) {
       const c = CATS.find(x => x.key === cat);
       const checkboxCell = c.checkbox
         ? `<label class="log-check"><input type="checkbox" class="row-input" data-field="done" ${line.done ? 'checked' : ''} ${locked ? 'disabled' : ''} /><span class="check-box"></span></label>`
         : '';
       const isOverspent = c_isOverspent(cat, line);
       const overspendBadge = overspendBadgeHtml(isOverspent, line);
+      const isAvalanchePriority = cat === 'debt' && line.id === avalanchePriorityId;
       const rowDelay = Math.min(idx || 0, 12) * 30;
       const rowHtml = `
         <div class="ledger-row ledger-row-in ${isOverspent ? 'ledger-row-overspent' : ''}" data-id="${line.id}" style="animation-delay:${rowDelay}ms;">
@@ -823,7 +905,19 @@
           ${toggleHtml}` : ''}
         </div>`;
 
-      return rowHtml + expenseExtra;
+      const debtExtra = cat === 'debt' ? `
+        <div class="debt-extra-wrap" data-id="${line.id}">
+          <label class="debt-extra-field">APR
+            <input type="number" class="debt-apr-input row-input" data-id="${line.id}" data-field="apr" value="${line.apr != null ? line.apr : ''}" placeholder="e.g. 22.99" step="0.01" min="0" ${locked ? 'disabled' : ''} />%
+          </label>
+          <label class="debt-extra-field">Balance
+            <input type="number" class="debt-balance-input row-input" data-id="${line.id}" data-field="balance" value="${line.balance != null ? line.balance : ''}" placeholder="0.00" step="0.01" min="0" ${locked ? 'disabled' : ''} />
+          </label>
+          ${isAvalanchePriority ? `<span class="debt-priority-badge" title="Highest interest rate among your debts — paying this down first (the avalanche method) saves the most in interest overall">Avalanche priority</span>` : ''}
+          ${payoffEstimateHtml(line)}
+        </div>` : '';
+
+      return rowHtml + expenseExtra + debtExtra;
     }
 
     function renderCategoryPanel(cat) {
@@ -832,7 +926,8 @@
       panel.classList.toggle('locked', locked);
       const container = document.getElementById('rows-' + cat);
       const lines = current.categories[cat] || [];
-      container.innerHTML = lines.map((l, idx) => rowTemplate(cat, l, locked, idx)).join('');
+      const avalanchePriorityId = cat === 'debt' ? computeAvalanchePriorityId(lines) : null;
+      container.innerHTML = lines.map((l, idx) => rowTemplate(cat, l, locked, idx, avalanchePriorityId)).join('');
 
       container.querySelectorAll('.ledger-row').forEach(rowEl => {
         const id = rowEl.dataset.id;
@@ -859,6 +954,7 @@
                 if (doneInput) doneInput.checked = true;
               }
               if (field === 'budget' || field === 'actual') updateOverspendBadge(rowEl, cat, line);
+              if (field === 'budget' && cat === 'debt') refreshDebtExtras(cat);
             }
             recalcSummary();
             queueSave();
@@ -887,6 +983,23 @@
           updateScrollSpy();
         });
       });
+
+      if (cat === 'debt') {
+        // APR/Balance live outside .ledger-row (in the debt-extra-wrap
+        // sibling below it), so they need their own delegated listener
+        // rather than falling under the generic .row-input handler above.
+        container.querySelectorAll('.debt-apr-input, .debt-balance-input').forEach(input => {
+          input.addEventListener('input', () => {
+            const id = input.dataset.id;
+            const line = current.categories.debt.find(l => l.id === id);
+            if (!line) return;
+            const field = input.dataset.field;
+            line[field] = input.value === '' ? null : parseFloat(input.value);
+            refreshDebtExtras(cat);
+            queueSave();
+          });
+        });
+      }
 
       panel.querySelector('.add-line-btn').onclick = () => {
         if (isLocked()) return;
@@ -956,6 +1069,12 @@
             line.entries.push({ id: uid(), amount, note: noteInput.value.trim(), date: todayISO() });
             line.actual = round2((Number(line.actual) || 0) + amount);
             if (c_shouldMarkPaid(cat, line)) line.done = true;
+            // A logged payment against a debt line is unambiguous — a
+            // real payment of this amount happened, so the balance
+            // actually owed drops by the same amount. Raw edits to the
+            // Actual field itself (elsewhere) deliberately don't do
+            // this, since that field also gets used for corrections.
+            if (cat === 'debt' && line.balance != null) line.balance = Math.max(0, round2(line.balance - amount));
 
             renderCategoryPanel(cat);
             recalcSummary();
@@ -976,6 +1095,8 @@
             if (!await arkoConfirm(`Remove this ${money(entry.amount)} entry${entry.note ? ' ("' + entry.note + '")' : ''}?`)) return;
             line.entries = line.entries.filter(e => e.id !== entryId);
             line.actual = Math.max(0, round2((Number(line.actual) || 0) - entry.amount));
+            // Undo the balance decrement this entry's payment applied.
+            if (cat === 'debt' && line.balance != null) line.balance = round2(line.balance + entry.amount);
 
             renderCategoryPanel(cat);
             recalcSummary();
@@ -2320,6 +2441,7 @@
 
       if (!Array.isArray(line.entries)) line.entries = [];
       let addedCount = 0;
+      let addedTotal = 0;
 
       ids.forEach(id => {
         const row = logMirrorRows.find(r => r.id === id);
@@ -2330,6 +2452,7 @@
         line.entries.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
         line.actual = round2((Number(line.actual) || 0) + amount);
         addedCount++;
+        addedTotal += amount;
       });
 
       if (addedCount === 0) {
@@ -2338,6 +2461,7 @@
       }
 
       if (c_shouldMarkPaid(cat, line)) line.done = true;
+      if (cat === 'debt' && line.balance != null) line.balance = Math.max(0, round2(line.balance - addedTotal));
 
       renderCategoryPanel(cat);
       recalcSummary();
@@ -2493,7 +2617,17 @@
       document.getElementById('save-default-btn').addEventListener('click', async () => {
         const template = {};
         CATS.forEach(c => {
-          template[c.key] = (current.categories[c.key] || []).map(l => ({ name: l.name, budget: l.budget || 0 }));
+          template[c.key] = (current.categories[c.key] || []).map(l => {
+            const line = { name: l.name, budget: l.budget || 0 };
+            // apr carries forward like budget does — it's a fact about
+            // the debt itself, not something that resets each period.
+            // balance deliberately isn't captured here: it's carried
+            // forward from the period actually being left (see
+            // cloneTemplateForNewPeriod), not reset to whatever it was
+            // when this template was last saved.
+            if (c.key === 'debt' && l.apr != null) line.apr = l.apr;
+            return line;
+          });
         });
         const { error } = await supabaseClient
           .from('budget_defaults')
@@ -2507,7 +2641,7 @@
         const start = firstOfMonthISO(today);
         const end = lastOfMonthISO(today);
         if (!await arkoConfirm(`Create a new period for ${fmtDate(start)} – ${fmtDate(end)}, filled in from your saved default layout?`)) return;
-        const created = await createPeriod(start, end);
+        const created = await createPeriod(start, end, current.categories);
         if (!created) return;
         periods.unshift(created);
         current = created;

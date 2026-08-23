@@ -596,6 +596,54 @@
   border-bottom: 1px dashed var(--ledger-line-soft);
 }
 .expense-log-wrap:last-child { border-bottom: none; }
+/* Debt lines append a further .debt-extra-wrap after this one, so it's
+   no longer the true last element per line — the separator moves to
+   whichever one actually ends the line instead of doubling up. */
+.expense-log-wrap:has(+ .debt-extra-wrap) { border-bottom: none; padding-bottom: 0; }
+
+.debt-extra-wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--ledger-line-soft);
+}
+.debt-extra-wrap:last-child { border-bottom: none; padding-bottom: 0; }
+.debt-extra-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--silver-dim);
+}
+.debt-extra-field input {
+  width: 76px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--ledger-line);
+  border-radius: 6px;
+  padding: 5px 7px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--tan);
+}
+.debt-extra-field input:focus { outline: none; border-color: var(--brass-dim); }
+.debt-priority-badge {
+  background: rgba(184,147,74,0.16);
+  border: 1px solid rgba(184,147,74,0.4);
+  color: var(--brass-bright);
+  border-radius: 20px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+}
+.debt-payoff-estimate {
+  font-size: 0.72rem;
+  color: var(--silver-dim);
+}
+.debt-payoff-estimate.debt-payoff-warning { color: var(--error); }
 .expense-log-actions { display: flex; gap: 8px; }
 .expense-log-toggle {
   background: none;
