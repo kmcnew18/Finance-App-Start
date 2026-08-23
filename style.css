@@ -131,6 +131,10 @@ h1, h2, h3, h4 {
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--brown);
+  /* A quiet, ambient glow in the brand's vintage-blue — same
+     text-shadow recipe already used on the page titles (budget/
+     connections/spending), not a new pattern. */
+  text-shadow: 0 0 14px rgba(46,84,114,0.4);
 }
 
 .wordmark-brand {

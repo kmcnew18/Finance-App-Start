@@ -122,7 +122,10 @@ h1, h2, h3 {
   gap: 16px;
 }
 
-.wordmark { font-family: 'Fraunces', serif; font-size: 1.25rem; font-weight: 600; color: var(--silver); display: flex; align-items: center; gap: 8px; transition: opacity 0.15s ease; }
+/* A quiet, ambient glow in the brand's vintage-blue — same text-shadow
+   recipe already used on the page titles (budget/connections/spending),
+   not a new pattern. */
+.wordmark { font-family: 'Fraunces', serif; font-size: 1.25rem; font-weight: 600; color: var(--silver); display: flex; align-items: center; gap: 8px; transition: opacity 0.15s ease; text-shadow: 0 0 14px rgba(46,84,114,0.4); }
 .wordmark:hover { opacity: 0.8; }
 .wordmark img { height: 28px; width: auto; }
 .wordmark-brand { font-family: 'Jura', 'Fraunces', serif; letter-spacing: 0.08em; color: var(--tan); }
