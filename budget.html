@@ -501,6 +501,7 @@
             const priorMatch = priorLines.find(pl => pl.name === l.name);
             line.balance = (priorMatch && priorMatch.balance != null) ? priorMatch.balance : (l.balance ?? null);
           }
+          if (c.key === 'bills') line.dueDay = l.dueDay ?? null;
           return line;
         });
       });
@@ -841,6 +842,30 @@
       return `<span class="debt-payoff-estimate">≈ ${label} to pay off at this rate</span>`;
     }
 
+    // Next occurrence of dueDay (a plain day-of-month, 1-31) from
+    // today — rolls into next month once this month's date has
+    // passed. A paid bill (line.done) has nothing left to be "due,"
+    // so it never shows a badge regardless of date.
+    function computeBillDueInfo(line) {
+      if (!line.dueDay || line.done) return null;
+      const day = Math.min(31, Math.max(1, Number(line.dueDay)));
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let candidate = new Date(today.getFullYear(), today.getMonth(), day);
+      if (candidate < today) candidate = new Date(today.getFullYear(), today.getMonth() + 1, day);
+      const daysUntil = Math.round((candidate - today) / 86400000);
+      if (daysUntil > 7) return null;
+      return { daysUntil };
+    }
+
+    function dueDayBadgeHtml(line) {
+      const info = computeBillDueInfo(line);
+      if (!info) return '';
+      const label = info.daysUntil <= 0 ? 'Due today' : info.daysUntil === 1 ? 'Due tomorrow' : `Due in ${info.daysUntil}d`;
+      const urgent = info.daysUntil <= 2;
+      return `<span class="bill-due-badge${urgent ? ' bill-due-urgent' : ''}">${label}</span>`;
+    }
+
     function rowTemplate(cat, line, locked, idx, avalanchePriorityId) {
       const c = CATS.find(x => x.key === cat);
       const checkboxCell = c.checkbox
@@ -917,7 +942,15 @@
           ${payoffEstimateHtml(line)}
         </div>` : '';
 
-      return rowHtml + expenseExtra + debtExtra;
+      const billExtra = cat === 'bills' ? `
+        <div class="debt-extra-wrap" data-id="${line.id}">
+          <label class="debt-extra-field">Due day
+            <input type="number" class="bill-dueday-input row-input" data-id="${line.id}" data-field="dueDay" value="${line.dueDay != null ? line.dueDay : ''}" placeholder="e.g. 15" min="1" max="31" step="1" ${locked ? 'disabled' : ''} />
+          </label>
+          ${dueDayBadgeHtml(line)}
+        </div>` : '';
+
+      return rowHtml + expenseExtra + debtExtra + billExtra;
     }
 
     function renderCategoryPanel(cat) {
@@ -996,6 +1029,27 @@
             const field = input.dataset.field;
             line[field] = input.value === '' ? null : parseFloat(input.value);
             refreshDebtExtras(cat);
+            queueSave();
+          });
+        });
+      }
+
+      if (cat === 'bills') {
+        // Same reasoning as debt's APR/Balance above — lives outside
+        // .ledger-row, needs its own listener. Unlike avalanche
+        // priority, a due-day badge is independent per line (doesn't
+        // depend on any other bill), so this only ever touches the one
+        // row that changed, not the whole category.
+        container.querySelectorAll('.bill-dueday-input').forEach(input => {
+          input.addEventListener('input', () => {
+            const id = input.dataset.id;
+            const line = current.categories.bills.find(l => l.id === id);
+            if (!line) return;
+            line.dueDay = input.value === '' ? null : parseInt(input.value, 10);
+            const wrap = container.querySelector(`.debt-extra-wrap[data-id="${id}"]`);
+            const existingBadge = wrap && wrap.querySelector('.bill-due-badge');
+            if (existingBadge) existingBadge.remove();
+            if (wrap) wrap.insertAdjacentHTML('beforeend', dueDayBadgeHtml(line));
             queueSave();
           });
         });
@@ -2626,6 +2680,9 @@
             // cloneTemplateForNewPeriod), not reset to whatever it was
             // when this template was last saved.
             if (c.key === 'debt' && l.apr != null) line.apr = l.apr;
+            // dueDay is a fixed fact about a bill (which day it's due),
+            // same reasoning as apr above — carries forward every period.
+            if (c.key === 'bills' && l.dueDay != null) line.dueDay = l.dueDay;
             return line;
           });
         });

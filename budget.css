@@ -652,6 +652,21 @@
   color: var(--silver-dim);
 }
 .debt-payoff-estimate.debt-payoff-warning { color: var(--error); }
+.bill-due-badge {
+  background: rgba(110,143,163,0.14);
+  border: 1px solid rgba(110,143,163,0.4);
+  color: var(--vintage-blue-light);
+  border-radius: 20px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+}
+.bill-due-badge.bill-due-urgent {
+  background: rgba(224,139,125,0.16);
+  border-color: rgba(224,139,125,0.4);
+  color: var(--error);
+}
 .expense-log-actions { display: flex; gap: 8px; }
 .expense-log-toggle {
   background: none;
