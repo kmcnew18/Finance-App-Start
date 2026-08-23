@@ -200,8 +200,8 @@
         gearDropdown.classList.remove('open');
         openManageSubscription();
       });
-      document.getElementById('legal-policies-btn').addEventListener('click', () => { window.location.href = 'legal.html'; });
-      document.getElementById('help-faq-btn').addEventListener('click', () => { window.location.href = 'index.html#faq'; });
+      document.getElementById('legal-policies-btn').addEventListener('click', () => { ArkoTransitions.go('legal.html'); });
+      document.getElementById('help-faq-btn').addEventListener('click', () => { ArkoTransitions.go('index.html#faq'); });
     }
 
     // ================= MANAGE SUBSCRIPTION =================
@@ -237,7 +237,7 @@
           ${data.tier < 3 || isTrial ? `<button type="button" class="mfa-verify-btn" id="manage-sub-see-plans-btn">See plans</button>` : ''}
         `;
         const seePlansBtn = document.getElementById('manage-sub-see-plans-btn');
-        if (seePlansBtn) seePlansBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
+        if (seePlansBtn) seePlansBtn.addEventListener('click', () => { ArkoTransitions.go('paywall.html'); });
         return;
       }
 
@@ -262,7 +262,7 @@
           <button type="button" class="mfa-remove-factor-btn" id="manage-sub-cancel-btn" style="width:100%;">Cancel subscription</button>
         `;
         const upgradeBtn = document.getElementById('manage-sub-upgrade-btn');
-        if (upgradeBtn) upgradeBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
+        if (upgradeBtn) upgradeBtn.addEventListener('click', () => { ArkoTransitions.go('paywall.html'); });
         document.getElementById('manage-sub-cancel-btn').addEventListener('click', () => changeSubscription('cancel'));
       }
     }
@@ -315,14 +315,14 @@
 
       setupLedgerMenu();
       setupSettingsGear();
-      document.getElementById('logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.href = 'login.html'; });
+      document.getElementById('logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); ArkoTransitions.go('login.html'); });
       document.getElementById('manage-sub-close').addEventListener('click', () => {
         document.getElementById('manage-sub-overlay').classList.remove('open');
       });
       document.getElementById('manage-sub-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'manage-sub-overlay') document.getElementById('manage-sub-overlay').classList.remove('open');
       });
-      document.getElementById('view-log-button').addEventListener('click', () => { window.location.href = 'dashboard.html'; });
+      document.getElementById('view-log-button').addEventListener('click', () => { ArkoTransitions.go('dashboard.html'); });
       setupNewGoalFlow();
       setupGoalDetailOverlay();
 
@@ -1082,7 +1082,7 @@
       `;
 
       inner.querySelectorAll('.ledger-tool-item[data-href]').forEach(btn => {
-        btn.addEventListener('click', () => { if (!btn.disabled) window.location.href = btn.dataset.href; });
+        btn.addEventListener('click', () => { if (!btn.disabled) ArkoTransitions.go(btn.dataset.href); });
       });
     }
 

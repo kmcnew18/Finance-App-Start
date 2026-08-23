@@ -43,8 +43,8 @@
     <nav class="nav">
       <span class="wordmark"><span class="wordmark-brand">Arko</span> | Early Access</span>
       <div class="nav-auth" id="nav-auth">
-        <button type="button" class="btn-login" onclick="window.location.href='login.html'">Log in</button>
-        <button type="button" class="btn-signup" onclick="window.location.href='signup.html'">Sign up</button>
+        <button type="button" class="btn-login" onclick="ArkoTransitions.go('login.html')">Log in</button>
+        <button type="button" class="btn-signup" onclick="ArkoTransitions.go('signup.html')">Sign up</button>
       </div>
     </nav>
 
@@ -55,7 +55,7 @@
         <h1>All your money,<br>finally in one place.</h1>
         <p class="subhead">Budget by hand, or connect your accounts and let balances, spending, and net worth update themselves. Free to start — no card required.</p>
 
-        <button type="button" class="hero-cta" onclick="window.location.href='signup.html'">
+        <button type="button" class="hero-cta" onclick="ArkoTransitions.go('signup.html')">
           <span>Start free</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
         </button>
@@ -206,7 +206,7 @@
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Budget allocation & expense breakdown charts</li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>No Plaid connection required</li>
         </ul>
-        <button type="button" class="price-cta" onclick="window.location.href='signup.html'">Start free</button>
+        <button type="button" class="price-cta" onclick="ArkoTransitions.go('signup.html')">Start free</button>
       </div>
 
       <!-- TIER 2 -->
@@ -222,7 +222,7 @@
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Up to 6 connected accounts</li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Auto-updating balances tied to real accounts</li>
         </ul>
-        <button type="button" class="price-cta" onclick="window.location.href='signup.html'">Start free trial</button>
+        <button type="button" class="price-cta" onclick="ArkoTransitions.go('signup.html')">Start free trial</button>
       </div>
 
       <!-- TIER 3 -->
@@ -242,7 +242,7 @@
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Investment portfolio view</li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>First access to future features</li>
         </ul>
-        <button type="button" class="price-cta" onclick="window.location.href='signup.html'">Start free trial</button>
+        <button type="button" class="price-cta" onclick="ArkoTransitions.go('signup.html')">Start free trial</button>
       </div>
     </div>
 
@@ -276,7 +276,7 @@
         // Not logged in, or came here for a specific section -> reveal the landing page
         if (session) {
           document.getElementById('nav-auth').innerHTML =
-            '<button type="button" class="btn-signup" onclick="window.location.href=\'dashboard.html\'">Back to Dashboard</button>';
+            '<button type="button" class="btn-signup" onclick="ArkoTransitions.go(\'dashboard.html\')">Back to Dashboard</button>';
         }
         document.body.classList.remove('auth-checking');
       }

@@ -93,7 +93,7 @@ function showFeaturePreview(featureId) {
   const cta = document.getElementById('feature-preview-cta');
   cta.style.background = data.color;
   cta.style.color = '#171422';
-  cta.onclick = () => { window.location.href = `paywall.html?need=${data.tier}`; };
+  cta.onclick = () => { ArkoTransitions.go(`paywall.html?need=${data.tier}`); };
 
   document.getElementById('feature-preview-overlay').classList.add('open');
 }
@@ -216,7 +216,7 @@ function renderManageSubBody(data) {
       ${data.tier < 3 || isTrial ? `<button type="button" class="mfa-verify-btn" id="manage-sub-see-plans-btn">See plans</button>` : ''}
     `;
     const seePlansBtn = document.getElementById('manage-sub-see-plans-btn');
-    if (seePlansBtn) seePlansBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
+    if (seePlansBtn) seePlansBtn.addEventListener('click', () => { ArkoTransitions.go('paywall.html'); });
     return;
   }
 
@@ -241,7 +241,7 @@ function renderManageSubBody(data) {
       <button type="button" class="mfa-remove-factor-btn" id="manage-sub-cancel-btn" style="width:100%;">Cancel subscription</button>
     `;
     const upgradeBtn = document.getElementById('manage-sub-upgrade-btn');
-    if (upgradeBtn) upgradeBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
+    if (upgradeBtn) upgradeBtn.addEventListener('click', () => { ArkoTransitions.go('paywall.html'); });
     document.getElementById('manage-sub-cancel-btn').addEventListener('click', () => changeSubscription('cancel'));
   }
 }
@@ -1533,7 +1533,7 @@ function setupSettingsGear() {
 
 document.getElementById('logout-button').addEventListener('click', async () => {
   await supabaseClient.auth.signOut();
-  window.location.href = 'login.html';
+  ArkoTransitions.go('login.html');
 });
 
 // ================= PREMIUM FEATURE MENU =================
@@ -1669,13 +1669,13 @@ function renderLedgerMenu() {
       const tool = PREMIUM_TOOLS.find(t => t.id === btn.dataset.toolId);
       const isLocked = tool && userTier < tool.requiredTier;
       if (isLocked) { closeLedgerMenu(); showFeaturePreview(tool.id); return; }
-      window.location.href = btn.dataset.href;
+      ArkoTransitions.go(btn.dataset.href);
     });
   });
 
   if (userTier < 3) {
     const unlockBtn = document.getElementById('ledger-unlock-cta');
-    if (unlockBtn) unlockBtn.addEventListener('click', () => { window.location.href = 'paywall.html'; });
+    if (unlockBtn) unlockBtn.addEventListener('click', () => { ArkoTransitions.go('paywall.html'); });
   }
 
   document.getElementById('send-feedback-btn').addEventListener('click', () => {
@@ -2016,8 +2016,8 @@ function setupMfaOverlay() {
     document.getElementById('settings-dropdown').classList.remove('open');
     openManageSubscription();
   });
-  document.getElementById('legal-policies-btn').addEventListener('click', () => { window.location.href = 'legal.html'; });
-  document.getElementById('help-faq-btn').addEventListener('click', () => { window.location.href = 'index.html#faq'; });
+  document.getElementById('legal-policies-btn').addEventListener('click', () => { ArkoTransitions.go('legal.html'); });
+  document.getElementById('help-faq-btn').addEventListener('click', () => { ArkoTransitions.go('index.html#faq'); });
   document.getElementById('manage-sub-close').addEventListener('click', () => {
     document.getElementById('manage-sub-overlay').classList.remove('open');
   });

@@ -479,12 +479,12 @@
     document.getElementById('checkout-back-btn').addEventListener('click', backToPlans);
 
     document.getElementById('paywall-back-button').addEventListener('click', () => {
-      window.location.href = 'dashboard.html';
+      ArkoTransitions.go('dashboard.html');
     });
 
     document.getElementById('paywall-logout-button').addEventListener('click', async () => {
       await supabaseClient.auth.signOut();
-      window.location.href = 'login.html';
+      ArkoTransitions.go('login.html');
     });
 
     (async () => {
