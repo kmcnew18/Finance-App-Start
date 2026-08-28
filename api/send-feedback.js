@@ -1,6 +1,13 @@
 // /api/send-feedback.js
 //
-// Sends a feedback submission to contact@arkofinance.com via Resend.
+// Sends a feedback submission to contact@mail.arkofinance.com via
+// Resend. Deliberately mail.arkofinance.com, not the bare
+// arkofinance.com — the root domain has no MX record at all (its DNS
+// is just the A/CNAME pointing at Vercel for the site itself), so
+// mail addressed to contact@arkofinance.com had nowhere to actually
+// land and sat stuck in "delivery delayed." mail.arkofinance.com
+// already has a working inbound MX record (AWS SES) from the
+// existing Resend domain setup.
 // No database write — this is deliberately just an email, not a stored
 // record, since feedback doesn't need to live in the app's own data.
 //
@@ -65,7 +72,7 @@ module.exports = async (req, res) => {
     // Resend actually accepted the email.
     const { data, error } = await resend.emails.send({
       from: 'Arko Feedback <feedback@mail.arkofinance.com>',
-      to: 'contact@arkofinance.com',
+      to: 'contact@mail.arkofinance.com',
       reply_to: userEmail,
       subject: `[${typeLabel}] Feedback from ${fromName}`,
       text: [
