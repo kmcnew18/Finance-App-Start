@@ -312,6 +312,15 @@ h1, h2, h3 {
 .card:focus-within .sync-hint {
   opacity: 1;
 }
+/* The combined-total text refreshCategoryLinkBadges appends into this
+   same line for a grouped card needs to actually be visible without
+   hovering — that's the whole point of showing it — so grouped cards
+   opt their sync-hint out of the hover-reveal above entirely, same
+   position and no extra height either way. */
+.card.card-linked .sync-hint {
+  opacity: 1;
+  pointer-events: auto;
+}
 .envelope-adjust-link {
   display: inline-block;
   margin-left: 0;
@@ -623,38 +632,41 @@ h1, h2, h3 {
 
 /* Grouped categories — a dashed outline sits outside the card's own
    box-shadow (so it never fights the accent-color glow/hover-lift
-   cascade above), plus a small icon-only marker in the same
-   absolutely-positioned top corner as the drag handle/menu/color
-   controls — deliberately icon-only and absolutely positioned (not
-   in normal flex flow) so a grouped card never grows taller or wider
-   than an ungrouped one; the group's members and combined total are
-   one hover away via the title tooltip instead of sitting on the
-   card face. Always visible rather than hover-gated like its
-   neighbors, since group membership is meant to be readable at a
-   glance. --link-accent is set inline per card by
-   refreshCategoryLinkBadges — one of a handful of fixed colors
-   cycled per distinct group, so two separate groups never read as
-   the same one; the fallback here only ever shows if that JS hasn't
-   run yet. */
+   cascade above), plus a small icon riding inline right after the
+   card's own label text (inside .card-label, which is now a flex
+   row) rather than absolutely positioned in a corner. The top-right
+   corner is already claimed by the drag handle/menu/color controls,
+   and the top-left by this same label text, so an absolutely
+   positioned badge in either spot either overlapped an existing
+   control or the label itself depending on card width; living inside
+   the label's own line takes no extra vertical space (so a grouped
+   card never grows taller than an ungrouped one) and only needs
+   whatever horizontal room the label's short text leaves — reliably
+   free, unlike either corner. The group's members and combined total
+   are one hover away via the title tooltip; the actual combined
+   number also gets appended to the sync-hint line below (see
+   refreshCategoryLinkBadges) since that line already varies in
+   content per card without affecting row height. --link-accent is
+   set inline per card — one of a handful of fixed colors cycled per
+   distinct group, so two separate groups never read as the same one;
+   the fallback here only ever shows if that JS hasn't run yet. */
 .card.card-linked {
   outline: 1.5px dashed color-mix(in srgb, var(--link-accent, #6E8FA3) 65%, transparent);
   outline-offset: 3px;
 }
 .card-link-badge {
-  position: absolute;
-  top: 10px; right: 84px;
-  width: 20px; height: 20px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--link-accent, #6E8FA3) 16%, transparent);
-  border: 1px solid color-mix(in srgb, var(--link-accent, #6E8FA3) 45%, transparent);
+  width: 15px; height: 15px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--link-accent, #6E8FA3) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--link-accent, #6E8FA3) 50%, transparent);
   color: var(--link-accent, #6E8FA3);
-  z-index: 2;
   cursor: default;
 }
-.card-link-badge svg { width: 11px; height: 11px; flex-shrink: 0; }
+.card-link-badge svg { width: 9px; height: 9px; flex-shrink: 0; }
 
 .link-cat-options {
   display: flex;
@@ -667,22 +679,56 @@ h1, h2, h3 {
 .link-cat-option {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 8px 6px;
+  gap: 10px;
+  padding: 9px 10px;
   border-radius: 8px;
+  border: 1px solid transparent;
   cursor: pointer;
   font-size: 0.85rem;
   color: var(--tan);
-  transition: background 0.14s ease;
+  transition: background 0.14s ease, border-color 0.14s ease;
 }
-.link-cat-option:hover { background: rgba(255,255,255,0.05); }
-.link-cat-option input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--vintage-blue-light);
-  cursor: pointer;
+.link-cat-option:hover { background: rgba(255,255,255,0.05); border-color: rgba(110,143,163,0.2); }
+.link-cat-option:has(.link-cat-check:checked) {
+  background: rgba(110,143,163,0.1);
+  border-color: rgba(110,143,163,0.35);
 }
+.link-cat-check {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+.link-cat-check-box {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(110,143,163,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vintage-blue-light);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.link-cat-check-box svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.link-cat-check:checked + .link-cat-check-box {
+  background: rgba(110,143,163,0.28);
+  border-color: var(--vintage-blue-light);
+}
+.link-cat-check:checked + .link-cat-check-box svg { opacity: 1; transform: scale(1); }
+.link-cat-check:focus-visible + .link-cat-check-box { outline: 2px solid var(--vintage-blue-light); outline-offset: 2px; }
+.link-cat-name { flex: 1; }
 
 .color-picker-swatches {
   display: grid;
@@ -1380,7 +1426,16 @@ h1, h2, h3 {
   background-clip: text;
   color: transparent;
 }
-.card-label { font-size: 0.78rem; color: var(--silver-dim); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
+.card-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--silver-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+}
 /* A 6-7 figure balance is wider than a card's ~130-170px column at the
    base size — .card clips overflow (for its decorative top bar), so
    without this a large value would simply lose digits rather than

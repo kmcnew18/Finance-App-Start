@@ -160,8 +160,7 @@
             <button type="button" class="card-menu-item" data-action="link" data-cat-key="savings">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="savings" title="Change color"></button>
-          <span class="card-link-badge" id="card-link-badge-savings" style="display:none;"></span>
-          <span class="card-label">Savings</span>
+          <span class="card-label"><span class="card-label-text">Savings</span><span class="card-link-badge" id="card-link-badge-savings" style="display:none;"></span></span>
           <span class="card-value" id="val-savings">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-savings" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-savings"></span>
@@ -177,8 +176,7 @@
             <button type="button" class="card-menu-item" data-action="link" data-cat-key="investment">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="investment" title="Change color"></button>
-          <span class="card-link-badge" id="card-link-badge-investment" style="display:none;"></span>
-          <span class="card-label">Investment</span>
+          <span class="card-label"><span class="card-label-text">Investment</span><span class="card-link-badge" id="card-link-badge-investment" style="display:none;"></span></span>
           <span class="card-value" id="val-investment">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-investment" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-investment"></span>
@@ -194,8 +192,7 @@
             <button type="button" class="card-menu-item" data-action="link" data-cat-key="expenses">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="expenses" title="Change color"></button>
-          <span class="card-link-badge" id="card-link-badge-expenses" style="display:none;"></span>
-          <span class="card-label">Expenses</span>
+          <span class="card-label"><span class="card-label-text">Expenses</span><span class="card-link-badge" id="card-link-badge-expenses" style="display:none;"></span></span>
           <span class="card-value" id="val-expenses">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-expenses" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-expenses"></span>
@@ -211,8 +208,7 @@
             <button type="button" class="card-menu-item" data-action="link" data-cat-key="checking">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="checking" title="Change color"></button>
-          <span class="card-link-badge" id="card-link-badge-checking" style="display:none;"></span>
-          <span class="card-label">Checking</span>
+          <span class="card-label"><span class="card-label-text">Checking</span><span class="card-link-badge" id="card-link-badge-checking" style="display:none;"></span></span>
           <span class="card-value" id="val-checking">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-checking" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-checking"></span>
@@ -1348,8 +1344,9 @@
         <div class="link-cat-options">
           ${options.map(c => `
             <label class="link-cat-option">
-              <input type="checkbox" value="${c.id}" ${currentGroup.includes(c.id) ? 'checked' : ''} />
-              <span>${c.name.replace(/</g,'&lt;')}</span>
+              <input type="checkbox" class="link-cat-check" value="${c.id}" ${currentGroup.includes(c.id) ? 'checked' : ''} />
+              <span class="link-cat-check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="link-cat-name">${c.name.replace(/</g,'&lt;')}</span>
             </label>
           `).join('')}
         </div>
@@ -1408,6 +1405,21 @@
         badge.style.setProperty('--link-accent', color);
         badge.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg>`;
         if (card) { card.classList.add('card-linked'); card.style.setProperty('--link-accent', color); }
+
+        // The combined total itself rides in the existing sync-hint
+        // line (already flexible/variable-height per card — some show
+        // "Adjust set-aside," some show nothing) rather than a new
+        // fixed element, so it stays visible without reserving space
+        // that would make grouped cards taller than ungrouped ones.
+        // Appended, not replacing whatever's already there — this
+        // runs after the base hint text is already set for this
+        // render pass, so it's always additive to the fresh content,
+        // never stale from a previous grouping.
+        const hintEl = document.getElementById('sync-hint-' + id);
+        if (hintEl) {
+          const groupText = `Grouped ${money(combined)}`;
+          hintEl.innerHTML = hintEl.innerHTML ? `${hintEl.innerHTML} · ${groupText}` : groupText;
+        }
       });
     }
 
@@ -1482,7 +1494,11 @@
         card.style.borderLeft = `3px solid ${accentColor}`;
         card.style.setProperty('--cat-accent', accentColor);
         const label = card.querySelector('.card-label');
-        if (label) { label.style.color = accentColor; label.textContent = CATEGORY_LABELS[key]; }
+        if (label) {
+          label.style.color = accentColor;
+          const labelText = label.querySelector('.card-label-text');
+          if (labelText) labelText.textContent = CATEGORY_LABELS[key];
+        }
         const swatch = card.querySelector('.card-color-btn');
         if (swatch) { swatch.style.background = accentColor; swatch.style.color = accentColor; }
         const menuBtn = card.querySelector('.card-menu-btn');
@@ -1616,10 +1632,9 @@
             <button type="button" class="card-menu-item danger" data-action="delete" data-cat-id="${cat.id}">Delete</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor}; color:${accentColor};"></button>
-          <span class="card-link-badge" id="card-link-badge-${cat.id}" style="display:none;"></span>
-          <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
+          <span class="card-label" style="color:${accentColor};"><span class="card-label-text">${cat.name.replace(/</g,'&lt;')}</span><span class="card-link-badge" id="card-link-badge-${cat.id}" style="display:none;"></span></span>
           ${valueHtml}
-          <span class="sync-hint">${hintText + adjustLink}</span>
+          <span class="sync-hint" id="sync-hint-${cat.id}">${hintText + adjustLink}</span>
         `;
         totalCard.parentNode.insertBefore(card, totalCard);
       });
