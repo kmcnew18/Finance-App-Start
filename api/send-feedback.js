@@ -57,7 +57,13 @@ module.exports = async (req, res) => {
     const typeLabel = TYPE_LABELS[type] || 'Feedback';
     const fromName = name && name.trim() ? name.trim() : 'Anonymous';
 
-    await resend.emails.send({
+    // The SDK never throws for an API-level rejection (bad "from"
+    // domain, unverified sender, etc.) — it always resolves with
+    // {data, error}, even on failure. Only network-level problems
+    // (caught below) throw. Skipping this check was the bug: the
+    // endpoint reported success unconditionally regardless of whether
+    // Resend actually accepted the email.
+    const { data, error } = await resend.emails.send({
       from: 'Arko Feedback <feedback@mail.arkofinance.com>',
       to: 'contact@arkofinance.com',
       reply_to: userEmail,
@@ -71,6 +77,13 @@ module.exports = async (req, res) => {
       ].join('\n'),
     });
 
+    if (error) {
+      console.error('send-feedback: Resend rejected the send:', error);
+      res.status(502).json({ error: 'Could not send feedback right now' });
+      return;
+    }
+
+    console.log('send-feedback: sent, Resend id:', data?.id);
     res.status(200).json({ success: true });
   } catch (err) {
     console.error('send-feedback error:', err);
