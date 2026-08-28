@@ -623,39 +623,38 @@ h1, h2, h3 {
 
 /* Grouped categories — a dashed outline sits outside the card's own
    box-shadow (so it never fights the accent-color glow/hover-lift
-   cascade above), plus a small always-visible badge naming the group
-   size and its combined total. Not hover-gated like the drag handle/
-   menu/color controls — this is meant to be readable at a glance,
-   from anywhere the card ends up after a reorder, rather than tucked
-   away. --link-accent is set inline per card by refreshCategoryLink-
-   Badges — one of a handful of fixed colors cycled per distinct
-   group, so two separate groups never read as the same one; the
-   fallback here only ever shows if that JS hasn't run yet. */
+   cascade above), plus a small icon-only marker in the same
+   absolutely-positioned top corner as the drag handle/menu/color
+   controls — deliberately icon-only and absolutely positioned (not
+   in normal flex flow) so a grouped card never grows taller or wider
+   than an ungrouped one; the group's members and combined total are
+   one hover away via the title tooltip instead of sitting on the
+   card face. Always visible rather than hover-gated like its
+   neighbors, since group membership is meant to be readable at a
+   glance. --link-accent is set inline per card by
+   refreshCategoryLinkBadges — one of a handful of fixed colors
+   cycled per distinct group, so two separate groups never read as
+   the same one; the fallback here only ever shows if that JS hasn't
+   run yet. */
 .card.card-linked {
   outline: 1.5px dashed color-mix(in srgb, var(--link-accent, #6E8FA3) 65%, transparent);
   outline-offset: 3px;
 }
 .card-link-badge {
-  /* In normal flex flow (not absolute like the drag handle/menu/color
-     controls above it) — the card's other content is a vertical flex
-     stack, so this just takes its own row above the label instead of
-     needing manual positioning that could overlap it. */
-  align-self: flex-start;
-  display: inline-flex;
+  position: absolute;
+  top: 10px; right: 84px;
+  width: 20px; height: 20px;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px 3px 6px;
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--link-accent, #6E8FA3) 14%, transparent);
+  justify-content: center;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--link-accent, #6E8FA3) 16%, transparent);
   border: 1px solid color-mix(in srgb, var(--link-accent, #6E8FA3) 45%, transparent);
   color: var(--link-accent, #6E8FA3);
-  font-size: 0.64rem;
-  font-weight: 700;
   z-index: 2;
   cursor: default;
 }
 .card-link-badge svg { width: 11px; height: 11px; flex-shrink: 0; }
-.card-link-badge-amt { color: var(--tan); font-variant-numeric: tabular-nums; }
 
 .link-cat-options {
   display: flex;
