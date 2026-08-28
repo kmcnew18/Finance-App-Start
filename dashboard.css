@@ -639,8 +639,11 @@ h1, h2, h3 {
 }
 .card-link-badge {
   display: inline-block;
-  flex: 1;
+  /* No flex-grow — the pill only ever wants exactly the room its own
+     text needs, never more. */
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%;
   padding: 2px 7px;
   border-radius: 20px;
   background: color-mix(in srgb, var(--link-accent, #6E8FA3) 18%, transparent);
@@ -1416,8 +1419,9 @@ h1, h2, h3 {
 }
 .card-label {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px 6px;
   min-width: 0;
   font-size: 0.78rem;
   color: var(--silver-dim);
@@ -1425,6 +1429,23 @@ h1, h2, h3 {
   letter-spacing: 0.07em;
   font-weight: 600;
 }
+/* Reserves the drag-handle/menu/color cluster's horizontal footprint
+   (right:10 through right:60, ~80px total) on a grouped card so its
+   pill can't render underneath those hover-revealed controls — they're
+   only visible on hover, so without this the overlap was invisible
+   at rest and only showed up when actually opening the menu. Combined
+   with flex-wrap above: when a category's own name already fills
+   most of a line (Investment, Checking...) there's rarely room left
+   for the pill anyway, so it drops to its own line below instead of
+   getting squeezed to 1-2 characters — which also means the pill
+   lands clear of the icon cluster automatically, since that line
+   sits lower than where those icons are positioned. The one
+   consequence: a grouped card's label can take two lines instead of
+   one, which (via the grid's default row-stretch) makes that whole
+   row of cards a little taller than a row with no grouped cards in
+   it — never an individual card looking mismatched next to its
+   neighbors, just the row as a whole. */
+.card.card-linked .card-label { margin-right: 82px; }
 /* .card-link-badge is the one thing here allowed to shrink (it's
    flex:1 + min-width:0 in its own rule above and ellipsis-truncates)
    — .card-label-text never does, so a long category name is never

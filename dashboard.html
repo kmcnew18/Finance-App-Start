@@ -1266,13 +1266,18 @@
     // group in rather than splitting them off (see saveCategoryGroup).
     let linkCategoryTargetId = null;
 
-    // One neutral color for every group, rather than a different hue
-    // per group — a rainbow of accent colors ended up clashing with
-    // each card's own accent glow instead of reading as a clean,
-    // consistent "this is grouped" marker. Kept as an array (cycled
-    // via modulo below) so a future per-group palette is a one-line
-    // change if wanted again later.
-    const LINK_COLORS = ['#6E8FA3'];
+    // A small set of muted, already-established tones (not a full
+    // rainbow — that clashed with each card's own accent glow and
+    // read as busy) cycled one per distinct group, so two groups
+    // active at once still look visibly different from each other
+    // instead of every pairing reading as "grouped with something,
+    // not sure what." All three are already used elsewhere in this
+    // exact stylesheet (vintage-blue-light, the card-payment accent,
+    // the transfer-glow gold) — reused here rather than inventing new
+    // hex values, and picked specifically to avoid the two colors
+    // reserved elsewhere in this file (violet for a future Investment
+    // icon, teal for a future Savings icon).
+    const LINK_COLORS = ['#6E8FA3', '#8F7AA8', '#E0B96E'];
 
     // Every linkable category as { id, name } — id is the stable key
     // for a default ('savings' etc.) or the real row id for a custom
