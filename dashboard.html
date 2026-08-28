@@ -152,7 +152,15 @@
       <section class="overview-cards">
         <div class="card" data-cat="savings" data-cat-key="savings" draggable="true">
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
+          <button type="button" class="card-menu-btn" title="More options" aria-label="More options for Savings">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="12" cy="19" r="1.7"></circle></svg>
+          </button>
+          <div class="card-menu-dropdown">
+            <button type="button" class="card-menu-item" data-action="rename" data-cat-key="savings">Rename</button>
+            <button type="button" class="card-menu-item" data-action="link" data-cat-key="savings">Link to another category</button>
+          </div>
           <button type="button" class="card-color-btn" data-color-cat="savings" title="Change color"></button>
+          <span class="card-link-badge" id="card-link-badge-savings" style="display:none;"></span>
           <span class="card-label">Savings</span>
           <span class="card-value" id="val-savings">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-savings" style="display:none;">Low balance</span>
@@ -161,7 +169,15 @@
         </div>
         <div class="card" data-cat="investment" data-cat-key="investment" draggable="true">
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
+          <button type="button" class="card-menu-btn" title="More options" aria-label="More options for Investment">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="12" cy="19" r="1.7"></circle></svg>
+          </button>
+          <div class="card-menu-dropdown">
+            <button type="button" class="card-menu-item" data-action="rename" data-cat-key="investment">Rename</button>
+            <button type="button" class="card-menu-item" data-action="link" data-cat-key="investment">Link to another category</button>
+          </div>
           <button type="button" class="card-color-btn" data-color-cat="investment" title="Change color"></button>
+          <span class="card-link-badge" id="card-link-badge-investment" style="display:none;"></span>
           <span class="card-label">Investment</span>
           <span class="card-value" id="val-investment">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-investment" style="display:none;">Low balance</span>
@@ -170,7 +186,15 @@
         </div>
         <div class="card" data-cat="expenses" data-cat-key="expenses" draggable="true">
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
+          <button type="button" class="card-menu-btn" title="More options" aria-label="More options for Expenses">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="12" cy="19" r="1.7"></circle></svg>
+          </button>
+          <div class="card-menu-dropdown">
+            <button type="button" class="card-menu-item" data-action="rename" data-cat-key="expenses">Rename</button>
+            <button type="button" class="card-menu-item" data-action="link" data-cat-key="expenses">Link to another category</button>
+          </div>
           <button type="button" class="card-color-btn" data-color-cat="expenses" title="Change color"></button>
+          <span class="card-link-badge" id="card-link-badge-expenses" style="display:none;"></span>
           <span class="card-label">Expenses</span>
           <span class="card-value" id="val-expenses">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-expenses" style="display:none;">Low balance</span>
@@ -179,7 +203,15 @@
         </div>
         <div class="card" data-cat="checking" data-cat-key="checking" draggable="true">
           <span class="card-drag-handle" title="Drag to reorder">⠿</span>
+          <button type="button" class="card-menu-btn" title="More options" aria-label="More options for Checking">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="12" cy="19" r="1.7"></circle></svg>
+          </button>
+          <div class="card-menu-dropdown">
+            <button type="button" class="card-menu-item" data-action="rename" data-cat-key="checking">Rename</button>
+            <button type="button" class="card-menu-item" data-action="link" data-cat-key="checking">Link to another category</button>
+          </div>
           <button type="button" class="card-color-btn" data-color-cat="checking" title="Change color"></button>
+          <span class="card-link-badge" id="card-link-badge-checking" style="display:none;"></span>
           <span class="card-label">Checking</span>
           <span class="card-value" id="val-checking">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-checking" style="display:none;">Low balance</span>
@@ -426,6 +458,17 @@
         <button type="button" class="mfa-modal-close" id="rename-category-close">×</button>
       </div>
       <div class="mfa-modal-body" id="rename-category-body"></div>
+    </div>
+  </div>
+
+  <!-- ================= LINK CATEGORIES ================= -->
+  <div class="mfa-overlay" id="link-category-overlay">
+    <div class="mfa-modal" style="max-width: 380px;">
+      <div class="mfa-modal-head">
+        <h2>Link category</h2>
+        <button type="button" class="mfa-modal-close" id="link-category-close">×</button>
+      </div>
+      <div class="mfa-modal-body" id="link-category-body"></div>
     </div>
   </div>
 
@@ -1068,13 +1111,22 @@
     }
 
     // ================= RENAME / DELETE CUSTOM CATEGORY =================
-    // Deliberately scoped to custom categories only — the four default
+    // Deleting is scoped to custom categories only — the four default
     // categories are matched by exact name ("savings", "investment", etc.)
     // all over this file and in the Add/Subtract/Transfer panels, and
     // finance_totals has dedicated columns for them, so renaming or
-    // deleting one of those from here would silently break far more
-    // than this menu could safely account for.
+    // deleting the underlying budget_categories row for one of those
+    // from here would silently break far more than this menu could
+    // safely account for. Renaming a default, though, is safe as a
+    // pure display-label override — CATEGORY_LABELS is only ever read
+    // for presentation (card text, dropdown option text, envelope
+    // naming); the actual DEFAULT_NAME_KEYS matching in
+    // loadConnectedTotals() compares against the database row's real
+    // name, which this never touches. renameCategoryTargetKey (set
+    // instead of renameCategoryTargetId when the target is a default)
+    // is what tells saveRenameCategory which of the two paths to take.
     let renameCategoryTargetId = null;
+    let renameCategoryTargetKey = null;
 
     function closeAllCardMenus() {
       document.querySelectorAll('.card-menu-dropdown.open').forEach(el => el.classList.remove('open'));
@@ -1104,7 +1156,8 @@
         if (renameItem) {
           e.stopPropagation();
           closeAllCardMenus();
-          renameCategoryTargetId = renameItem.dataset.catId;
+          renameCategoryTargetId = renameItem.dataset.catId || null;
+          renameCategoryTargetKey = renameItem.dataset.catKey || null;
           renderRenameCategoryForm();
           document.getElementById('rename-category-overlay').classList.add('open');
           return;
@@ -1117,18 +1170,30 @@
           deleteCustomCategory(deleteItem.dataset.catId);
           return;
         }
+
+        const linkItem = e.target.closest('.card-menu-item[data-action="link"]');
+        if (linkItem) {
+          e.stopPropagation();
+          closeAllCardMenus();
+          linkCategoryTargetId = linkItem.dataset.catId || linkItem.dataset.catKey;
+          renderLinkCategoryForm();
+          document.getElementById('link-category-overlay').classList.add('open');
+          return;
+        }
       });
     }
 
     const RESERVED_CATEGORY_NAMES = ['savings', 'investment', 'expenses', 'checking'];
 
     function renderRenameCategoryForm() {
-      const cat = customCategoryCards.find(c => c.id === renameCategoryTargetId);
+      const currentName = renameCategoryTargetKey
+        ? CATEGORY_LABELS[renameCategoryTargetKey]
+        : (customCategoryCards.find(c => c.id === renameCategoryTargetId)?.name || '');
       const body = document.getElementById('rename-category-body');
       body.innerHTML = `
         <div class="mfa-field">
           <label for="rename-category-name">Category name</label>
-          <input type="text" id="rename-category-name" maxlength="30" value="${(cat ? cat.name : '').replace(/"/g,'&quot;')}" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
+          <input type="text" id="rename-category-name" maxlength="30" value="${currentName.replace(/"/g,'&quot;')}" style="text-align:left; letter-spacing:normal; font-family:'Public Sans',sans-serif; text-transform:none;" />
         </div>
         <button type="button" class="mfa-verify-btn" id="rename-category-save-btn" style="margin-top:12px;">Save</button>
         <p class="mfa-modal-sub" id="rename-category-error" style="color:var(--error); display:none; margin-top:8px;"></p>
@@ -1146,6 +1211,27 @@
       errorEl.style.display = 'none';
       const name = input.value.trim();
       if (!name) { errorEl.textContent = 'Give it a name first.'; errorEl.style.display = 'block'; return; }
+
+      if (renameCategoryTargetKey) {
+        // Display-label-only path for a default category — see the
+        // comment above renameCategoryTargetId for why this never
+        // touches budget_categories for these four.
+        const collision = Object.entries(CATEGORY_LABELS).some(([k, label]) => k !== renameCategoryTargetKey && label.toLowerCase() === name.toLowerCase());
+        if (collision) { errorEl.textContent = `Another category is already named "${name}" — pick something else.`; errorEl.style.display = 'block'; return; }
+
+        CATEGORY_LABELS[renameCategoryTargetKey] = name;
+        const labelOverrides = { ...(currentUserMetadata.category_display_labels || {}), [renameCategoryTargetKey]: name };
+        currentUserMetadata = { ...currentUserMetadata, category_display_labels: labelOverrides };
+        const { data, error } = await supabaseClient.auth.updateUser({ data: currentUserMetadata });
+        if (error) { errorEl.textContent = 'Could not save: ' + error.message; errorEl.style.display = 'block'; return; }
+        if (data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
+
+        logAuditEvent('category_renamed', { newName: name, key: renameCategoryTargetKey });
+        document.getElementById('rename-category-overlay').classList.remove('open');
+        renderTotals();
+        return;
+      }
+
       if (RESERVED_CATEGORY_NAMES.includes(name.toLowerCase())) {
         errorEl.textContent = `"${name}" is a reserved category name — pick something else.`;
         errorEl.style.display = 'block';
@@ -1167,6 +1253,154 @@
       });
       document.getElementById('rename-category-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'rename-category-overlay') document.getElementById('rename-category-overlay').classList.remove('open');
+      });
+    }
+
+    // ================= LINK CATEGORIES =================
+    // Purely a display relationship — "these two belong together"
+    // (e.g. Checking and an Expenses category set aside from it) — not
+    // a data merge. Nothing about how totals, splits, or envelopes are
+    // computed changes; linked cards just get a matching visual marker
+    // and a small combined-total line so the pairing is visible at a
+    // glance without touching any of the real per-category math.
+    // Stored as a symmetric map on user_metadata (same no-migration
+    // mechanism as everything else on this page): category_links[A] = B
+    // and category_links[B] = A together, so either side's lookup is
+    // O(1) and there's never a dangling one-directional link. A
+    // category can only ever be linked to one other at a time — simple
+    // pairs, not open-ended groups.
+    let linkCategoryTargetId = null;
+
+    // Every linkable category as { id, name } — id is the stable key
+    // for a default ('savings' etc.) or the real row id for a custom
+    // one, matching what's already used as the map's keys elsewhere
+    // (envelopesByCategoryId, categoryIdByKey).
+    function getAllCategoryEntries() {
+      const defaults = Object.keys(CATEGORY_LABELS).map(key => ({ id: key, name: CATEGORY_LABELS[key] }));
+      const customs = customCategoryCards.map(c => ({ id: c.id, name: c.name }));
+      return defaults.concat(customs);
+    }
+    function getCategoryName(id) {
+      const entry = getAllCategoryEntries().find(c => c.id === id);
+      return entry ? entry.name : '';
+    }
+    function getCategoryTotal(id) {
+      if (CATEGORY_LABELS[id]) {
+        return round2(totals[id] + connectedTotals[id]);
+      }
+      return customCategoryCards.find(c => c.id === id)?.total || 0;
+    }
+    function getCategoryLink(id) {
+      return (currentUserMetadata.category_links || {})[id] || null;
+    }
+
+    async function setCategoryLink(a, b) {
+      // Clear out any existing partner on either side first — a link
+      // is always exactly one pair, so forming a new one silently
+      // retires whatever either side was previously linked to instead
+      // of leaving a stale one-directional half-link behind.
+      const links = { ...(currentUserMetadata.category_links || {}) };
+      const prevA = links[a];
+      const prevB = links[b];
+      if (prevA) delete links[prevA];
+      if (prevB) delete links[prevB];
+      links[a] = b;
+      links[b] = a;
+      currentUserMetadata = { ...currentUserMetadata, category_links: links };
+      const { data, error } = await supabaseClient.auth.updateUser({ data: currentUserMetadata });
+      if (error) return error;
+      if (data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
+      return null;
+    }
+
+    async function removeCategoryLink(a) {
+      const links = { ...(currentUserMetadata.category_links || {}) };
+      const b = links[a];
+      delete links[a];
+      if (b) delete links[b];
+      currentUserMetadata = { ...currentUserMetadata, category_links: links };
+      const { data, error } = await supabaseClient.auth.updateUser({ data: currentUserMetadata });
+      if (error) return error;
+      if (data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
+      return null;
+    }
+
+    function renderLinkCategoryForm() {
+      const body = document.getElementById('link-category-body');
+      const existingPartner = getCategoryLink(linkCategoryTargetId);
+
+      if (existingPartner) {
+        body.innerHTML = `
+          <p class="mfa-modal-sub">Currently linked with <strong>${getCategoryName(existingPartner).replace(/</g,'&lt;')}</strong>.</p>
+          <button type="button" class="mfa-verify-btn" id="link-category-unlink-btn" style="margin-top:12px; background:var(--error); border-color:var(--error);">Unlink</button>
+        `;
+        document.getElementById('link-category-unlink-btn').addEventListener('click', async () => {
+          const error = await removeCategoryLink(linkCategoryTargetId);
+          if (error) { await arkoAlert('Could not unlink: ' + error.message); return; }
+          logAuditEvent('categories_unlinked', {});
+          document.getElementById('link-category-overlay').classList.remove('open');
+          renderTotals();
+        });
+        return;
+      }
+
+      const options = getAllCategoryEntries().filter(c => c.id !== linkCategoryTargetId);
+      if (!options.length) {
+        body.innerHTML = `<p class="mfa-modal-sub">No other categories to link with yet.</p>`;
+        return;
+      }
+      body.innerHTML = `
+        <div class="mfa-field">
+          <label for="link-category-select">Link with</label>
+          <select id="link-category-select" style="width:100%;">
+            ${options.map(c => `<option value="${c.id}">${c.name.replace(/</g,'&lt;')}</option>`).join('')}
+          </select>
+        </div>
+        <p class="mfa-modal-sub" style="margin-top:8px;">Purely visual — marks the two as belonging together and shows their combined total. Doesn't change how either one's own total is tracked.</p>
+        <button type="button" class="mfa-verify-btn" id="link-category-save-btn" style="margin-top:12px;">Link</button>
+        <p class="mfa-modal-sub" id="link-category-error" style="color:var(--error); display:none; margin-top:8px;"></p>
+      `;
+      document.getElementById('link-category-save-btn').addEventListener('click', async () => {
+        const select = document.getElementById('link-category-select');
+        const errorEl = document.getElementById('link-category-error');
+        const error = await setCategoryLink(linkCategoryTargetId, select.value);
+        if (error) { errorEl.textContent = 'Could not link: ' + error.message; errorEl.style.display = 'block'; return; }
+        logAuditEvent('categories_linked', {});
+        document.getElementById('link-category-overlay').classList.remove('open');
+        renderTotals();
+      });
+    }
+
+    function setupLinkCategory() {
+      document.getElementById('link-category-close').addEventListener('click', () => {
+        document.getElementById('link-category-overlay').classList.remove('open');
+      });
+      document.getElementById('link-category-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'link-category-overlay') document.getElementById('link-category-overlay').classList.remove('open');
+      });
+    }
+
+    // Updates every card's link badge — shared by renderTotals (default
+    // cards) and renderCustomCategoryCards (custom cards) so both card
+    // types stay in sync with the same data in one place. Safe to call
+    // even for a card the DOM doesn't have yet.
+    function refreshCategoryLinkBadges() {
+      getAllCategoryEntries().forEach(({ id }) => {
+        const badge = document.getElementById('card-link-badge-' + id);
+        const card = badge ? badge.closest('.card') : null;
+        const partner = getCategoryLink(id);
+        if (!badge) return;
+        if (!partner) {
+          badge.style.display = 'none';
+          badge.title = '';
+          if (card) card.classList.remove('card-linked');
+          return;
+        }
+        const combined = round2(getCategoryTotal(id) + getCategoryTotal(partner));
+        badge.style.display = 'inline-flex';
+        badge.title = `Linked with ${getCategoryName(partner)} · ${money(combined)} combined`;
+        badge.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg><span class="card-link-badge-amt">${money(combined)}</span>`;
+        if (card) card.classList.add('card-linked');
       });
     }
 
@@ -1241,9 +1475,11 @@
         card.style.borderLeft = `3px solid ${accentColor}`;
         card.style.setProperty('--cat-accent', accentColor);
         const label = card.querySelector('.card-label');
-        if (label) label.style.color = accentColor;
+        if (label) { label.style.color = accentColor; label.textContent = CATEGORY_LABELS[key]; }
         const swatch = card.querySelector('.card-color-btn');
         if (swatch) { swatch.style.background = accentColor; swatch.style.color = accentColor; }
+        const menuBtn = card.querySelector('.card-menu-btn');
+        if (menuBtn) menuBtn.setAttribute('aria-label', 'More options for ' + CATEGORY_LABELS[key]);
 
         const threshold = (currentUserMetadata.low_balance_thresholds || {})[key];
         const badge = document.getElementById('low-balance-badge-' + key);
@@ -1277,6 +1513,7 @@
       });
 
       renderCustomCategoryCards();
+      refreshCategoryLinkBadges();
       refreshChargeDropdowns();
     }
 
@@ -1368,9 +1605,11 @@
           </button>
           <div class="card-menu-dropdown">
             <button type="button" class="card-menu-item" data-action="rename" data-cat-id="${cat.id}">Rename</button>
+            <button type="button" class="card-menu-item" data-action="link" data-cat-id="${cat.id}">Link to another category</button>
             <button type="button" class="card-menu-item danger" data-action="delete" data-cat-id="${cat.id}">Delete</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor}; color:${accentColor};"></button>
+          <span class="card-link-badge" id="card-link-badge-${cat.id}" style="display:none;"></span>
           <span class="card-label" style="color:${accentColor};">${cat.name.replace(/</g,'&lt;')}</span>
           ${valueHtml}
           <span class="sync-hint">${hintText + adjustLink}</span>
@@ -1409,6 +1648,11 @@
       currentUserId = session.user.id;
       currentUserEmail = session.user.email;
       currentUserMetadata = session.user.user_metadata || {};
+      // Display-label overrides for the four default categories — see
+      // the comment above renameCategoryTargetId. Applied once, up
+      // front, so every render from here on (cards, split-picker
+      // dropdowns, envelope naming) already sees the renamed labels.
+      Object.assign(CATEGORY_LABELS, currentUserMetadata.category_display_labels || {});
       document.getElementById('user-email').textContent = session.user.email;
       const { data: billing } = await supabaseClient
         .from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
@@ -1458,6 +1702,7 @@
       setupColorPicker();
       setupCategoryMenu();
       setupRenameCategory();
+      setupLinkCategory();
       setupManualCategoryEdit();
       setupEnvelopePicker();
       setupSkippedActivity();

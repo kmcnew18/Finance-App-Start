@@ -557,11 +557,13 @@ h1, h2, h3 {
   box-shadow: 0 0 6px color-mix(in srgb, currentColor 85%, transparent), 0 0 16px color-mix(in srgb, currentColor 60%, transparent);
 }
 
-/* Kebab menu (Rename / Delete) — custom categories only. Default
+/* Kebab menu (Rename, plus Delete on custom cards only). Default
    categories (Savings/Investment/Expenses/Checking) are wired into
    too much else (the Add/Subtract/Transfer panels, finance_totals'
-   own columns) to safely rename or delete from here, so they keep
-   just the color swatch; this menu only ever renders on custom cards. */
+   own columns) to safely delete or actually rename the underlying
+   category from here — their "Rename" only overrides the display
+   label (see renameCategoryTargetKey in dashboard.html), so they get
+   this menu with no Delete item instead of the full custom-card one. */
 .card-menu-btn {
   position: absolute;
   top: 10px; right: 60px;
@@ -618,6 +620,36 @@ h1, h2, h3 {
 .card-menu-item:hover { background: rgba(255,255,255,0.06); }
 .card-menu-item.danger { color: var(--error); }
 .card-menu-item.danger:hover { background: rgba(224,139,125,0.12); }
+
+/* Linked categories — a dashed outline sits outside the card's own
+   box-shadow (so it never fights the accent-color glow/hover-lift
+   cascade above), plus a small always-visible badge naming the
+   partner and the two categories' combined total. Not hover-gated
+   like the drag handle/menu/color controls — this is meant to be
+   readable at a glance, from anywhere the card ends up after a
+   reorder, rather than tucked away. */
+.card.card-linked { outline: 1.5px dashed rgba(110,143,163,0.55); outline-offset: 3px; }
+.card-link-badge {
+  /* In normal flex flow (not absolute like the drag handle/menu/color
+     controls above it) — the card's other content is a vertical flex
+     stack, so this just takes its own row above the label instead of
+     needing manual positioning that could overlap it. */
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 20px;
+  background: rgba(110,143,163,0.14);
+  border: 1px solid rgba(110,143,163,0.4);
+  color: var(--vintage-blue-light);
+  font-size: 0.64rem;
+  font-weight: 700;
+  z-index: 2;
+  cursor: default;
+}
+.card-link-badge svg { width: 11px; height: 11px; flex-shrink: 0; }
+.card-link-badge-amt { color: var(--tan); font-variant-numeric: tabular-nums; }
 
 .color-picker-swatches {
   display: grid;
