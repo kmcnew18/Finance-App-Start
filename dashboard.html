@@ -891,6 +891,24 @@
       renderTotals();
     }
 
+    // Same balance-adjustment primitive as the quick-add chips above,
+    // but allows a negative delta (a split logged as "subtract" pulls
+    // the matching amount back out of the set-aside) and has no picker
+    // DOM to update — used by the split-review "also add to set-aside"
+    // checkbox instead of the manual envelope picker.
+    async function adjustEnvelopeBalance(envelopeId, delta) {
+      if (!delta || !isFinite(delta)) return;
+      const { data: envelope, error: fetchError } = await supabaseClient
+        .from('account_category_splits')
+        .select('envelope_balance')
+        .eq('id', envelopeId)
+        .maybeSingle();
+      if (fetchError || !envelope) { console.error('adjustEnvelopeBalance: envelope not found', envelopeId); return; }
+      const newAmount = round2(Math.max(0, Number(envelope.envelope_balance || 0) + delta));
+      const { error } = await supabaseClient.from('account_category_splits').update({ envelope_balance: newAmount }).eq('id', envelopeId);
+      if (error) console.error('adjustEnvelopeBalance:', error.message);
+    }
+
     async function saveEnvelopeAmount(envelopeId) {
       const input = document.querySelector(`.envelope-picker-input[data-envelope-id="${envelopeId}"]`);
       if (!input) return;
@@ -1855,6 +1873,36 @@
       return `<optgroup label="Set-aside categories">${manualCats.map(c => `<option value="manual:${c.id}">${c.name.replace(/</g,'&lt;')}</option>`).join('')}</optgroup>`;
     }
 
+    // Offered only when a default category (Savings/Investment/
+    // Expenses/Checking) has exactly one envelope set aside for it —
+    // the same unambiguous-match rule "Adjust set-aside" already uses
+    // — so a split into that category can optionally keep the
+    // set-aside amount in sync instead of needing a separate manual
+    // correction afterward. Checked by default since that's the
+    // behavior people picking this category almost always want, but
+    // it's a visible, per-split, one-click-to-undo checkbox rather
+    // than a silent side effect — leaving it unchecked (or picking a
+    // different category) behaves exactly like before this existed.
+    function envelopeToggleHtml(categoryKey) {
+      const envs = envelopesByCategoryId[categoryKey] || [];
+      if (envs.length !== 1) return '';
+      const env = envs[0];
+      return `<label class="txn-split-envelope-toggle">`
+        + `<input type="checkbox" class="txn-split-envelope-check" data-envelope-id="${env.id}" checked />`
+        + `Also add to set-aside — ${env.accountName.replace(/</g,'&lt;')} (${money(env.amount)})</label>`;
+    }
+
+    // Re-renders one split row's envelope-toggle line to match its
+    // select's current category — called on initial add and whenever
+    // that row's category changes, so the checkbox only ever shows up
+    // for whichever category is actually selected right now.
+    function refreshEnvelopeToggle(groupEl) {
+      const select = groupEl && groupEl.querySelector('.txn-simple-split-select');
+      const wrap = groupEl && groupEl.querySelector('.txn-split-envelope-wrap');
+      if (!select || !wrap) return;
+      wrap.innerHTML = envelopeToggleHtml(select.value);
+    }
+
     // Every set-aside with money actually in it, across every category
     // — not scoped to what the transaction happened to get auto-
     // categorized as. "Charge to set-aside" needs to work regardless
@@ -1918,13 +1966,16 @@
               </select>
               <div class="txn-simple-split-wrap">
                 <div class="txn-transfer-split-rows" id="txn-simple-split-rows-${r.id}" data-id="${r.id}" data-kind="simple" data-total="${r.amount}">
-                  <div class="txn-transfer-split-row">
-                    <select class="txn-simple-split-select">
-                      ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
-                        `<option value="${key}" ${key === categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
-                      ${setAsideOptionsHtml()}
-                    </select>
-                    <input type="number" class="txn-transfer-split-amount" step="0.01" value="${r.amount}" />
+                  <div class="txn-split-row-group">
+                    <div class="txn-transfer-split-row">
+                      <select class="txn-simple-split-select">
+                        ${Object.entries(CATEGORY_LABELS).map(([key, label]) =>
+                          `<option value="${key}" ${key === categoryKey ? 'selected' : ''}>${label}</option>`).join('')}
+                        ${setAsideOptionsHtml()}
+                      </select>
+                      <input type="number" class="txn-transfer-split-amount" step="0.01" value="${r.amount}" />
+                    </div>
+                    <div class="txn-split-envelope-wrap">${envelopeToggleHtml(categoryKey)}</div>
                   </div>
                 </div>
                 <button type="button" class="txn-transfer-add-split" data-id="${r.id}" data-kind="simple">+ Split into another category</button>
@@ -2030,7 +2081,18 @@
             <input type="number" class="txn-transfer-split-amount" step="0.01" value="" />
             <button type="button" class="txn-transfer-remove-split">×</button>
           `;
-          rowsWrap.appendChild(row);
+          if (kind === 'simple') {
+            const group = document.createElement('div');
+            group.className = 'txn-split-row-group';
+            group.appendChild(row);
+            const envWrap = document.createElement('div');
+            envWrap.className = 'txn-split-envelope-wrap';
+            group.appendChild(envWrap);
+            rowsWrap.appendChild(group);
+            refreshEnvelopeToggle(group);
+          } else {
+            rowsWrap.appendChild(row);
+          }
           updateSplitTotal(id, kind);
         });
       });
@@ -2038,12 +2100,18 @@
         const id = wrap.dataset.id;
         const kind = wrap.dataset.kind || 'transfer';
         wrap.addEventListener('input', () => updateSplitTotal(id, kind));
+        wrap.addEventListener('change', (e) => {
+          if (kind === 'simple' && e.target.classList.contains('txn-simple-split-select')) {
+            refreshEnvelopeToggle(e.target.closest('.txn-split-row-group'));
+          }
+        });
         wrap.addEventListener('click', (e) => {
           if (e.target.classList.contains('txn-transfer-remove-split')) {
             // Always leave at least one row — removing the last one
             // would leave nothing to actually log against.
             if (wrap.querySelectorAll('.txn-transfer-split-row').length > 1) {
-              e.target.closest('.txn-transfer-split-row').remove();
+              const toRemove = kind === 'simple' ? e.target.closest('.txn-split-row-group') : e.target.closest('.txn-transfer-split-row');
+              toRemove.remove();
               updateSplitTotal(id, kind);
             }
           }
@@ -2097,17 +2165,19 @@
       });
     }
 
-    // Envelope amounts change only through deliberate action now —
-    // "Charge to set-aside," the split picker's set-aside option, and
-    // "Adjust set-aside" — never automatically as a side effect of a
-    // normal approval. This used to also happen silently whenever a
-    // transaction's account and category happened to match an
-    // envelope's, which meant an envelope could drain without ever
-    // being explicitly charged, making the explicit charge button feel
+    // Envelope amounts change only through deliberate, visible action
+    // now — "Charge to set-aside," "Adjust set-aside," or (for a plain
+    // split into a default category that has exactly one envelope) the
+    // "Also add to set-aside" checkbox next to that split row — never
+    // as a hidden side effect just because a transaction's account and
+    // category happened to match an envelope's. That used to happen
+    // silently, which meant an envelope could drain without ever being
+    // explicitly charged, making the explicit charge button feel
     // redundant for the accounts it happened to auto-match, and making
     // it unclear why the number changed for anyone who didn't click
-    // it. One deliberate path is simpler to reason about and matches
-    // what the button on the card actually promises.
+    // it. Every path that touches an envelope now has its own visible
+    // control the user actively checks or clicks, defaulting to
+    // whatever's most useful but never acting invisibly.
 
     async function approveTxnReview(reviewId) {
       const review = pendingReviews.find(r => r.id === reviewId);
@@ -2169,10 +2239,14 @@
       // manual_amount rather than one of the four default columns.
       const simpleSplitWrap = document.getElementById('txn-simple-split-rows-' + reviewId);
       const simpleSplitRows = simpleSplitWrap ? Array.from(simpleSplitWrap.querySelectorAll('.txn-transfer-split-row')) : [];
-      const allSplits = simpleSplitRows.map(row => ({
-        cat: row.querySelector('.txn-simple-split-select').value,
-        amt: round2(parseFloat(row.querySelector('.txn-transfer-split-amount').value) || 0),
-      })).filter(s => s.amt > 0);
+      const allSplits = simpleSplitRows.map(row => {
+        const envCheck = row.closest('.txn-split-row-group')?.querySelector('.txn-split-envelope-check');
+        return {
+          cat: row.querySelector('.txn-simple-split-select').value,
+          amt: round2(parseFloat(row.querySelector('.txn-transfer-split-amount').value) || 0),
+          envelopeId: (envCheck && envCheck.checked) ? envCheck.dataset.envelopeId : null,
+        };
+      }).filter(s => s.amt > 0);
 
       if (!allSplits.length) { await arkoAlert('Add at least one category with an amount.'); return; }
       const defaultSplits = allSplits.filter(s => !s.cat.startsWith('manual:'));
@@ -2194,6 +2268,17 @@
         defaultSplits.forEach(s => { logRow[s.cat] = round2((logRow[s.cat] || 0) + s.amt); });
         const defaultAmount = round2(defaultSplits.reduce((s, x) => s + x.amt, 0));
         await logEntry({ amount: defaultAmount, ...logRow, notes: note, action_type: logActionType, entryDate: review.txn_date, sourceReviewId: review.id });
+
+        // "Also add to set-aside" checkbox, per split row — mirrors the
+        // direction of the log entry itself: a deposit ("add") grows
+        // the set-aside along with the category total, a withdrawal
+        // ("subtract") pulls the same amount back out, same as
+        // chargeReviewToEnvelope does for a direct charge.
+        for (const s of defaultSplits) {
+          if (!s.envelopeId) continue;
+          const delta = action === 'subtract' ? -s.amt : s.amt;
+          await adjustEnvelopeBalance(s.envelopeId, delta);
+        }
       }
 
       // Set-aside portion — each gets its own manual_amount adjustment

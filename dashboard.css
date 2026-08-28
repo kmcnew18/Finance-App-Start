@@ -1140,6 +1140,26 @@ h1, h2, h3 {
 }
 .txn-transfer-add-split:hover { color: var(--tan); }
 .txn-transfer-split-total { font-size: 0.72rem; font-weight: 600; margin: 0; }
+.txn-split-row-group { display: flex; flex-direction: column; gap: 4px; }
+.txn-split-envelope-wrap:empty { display: none; }
+.txn-split-envelope-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 0 2px;
+  font-size: 0.7rem;
+  color: var(--silver-dim);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.txn-split-envelope-toggle:hover { color: var(--tan); }
+.txn-split-envelope-toggle input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--vintage-blue-light);
+  cursor: pointer;
+}
 .txn-transfer-toggle {
   align-self: flex-start;
   margin-top: 2px;
