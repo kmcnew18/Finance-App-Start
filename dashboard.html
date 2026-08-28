@@ -157,7 +157,7 @@
           </button>
           <div class="card-menu-dropdown">
             <button type="button" class="card-menu-item" data-action="rename" data-cat-key="savings">Rename</button>
-            <button type="button" class="card-menu-item" data-action="link" data-cat-key="savings">Link to another category</button>
+            <button type="button" class="card-menu-item" data-action="link" data-cat-key="savings">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="savings" title="Change color"></button>
           <span class="card-link-badge" id="card-link-badge-savings" style="display:none;"></span>
@@ -174,7 +174,7 @@
           </button>
           <div class="card-menu-dropdown">
             <button type="button" class="card-menu-item" data-action="rename" data-cat-key="investment">Rename</button>
-            <button type="button" class="card-menu-item" data-action="link" data-cat-key="investment">Link to another category</button>
+            <button type="button" class="card-menu-item" data-action="link" data-cat-key="investment">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="investment" title="Change color"></button>
           <span class="card-link-badge" id="card-link-badge-investment" style="display:none;"></span>
@@ -191,7 +191,7 @@
           </button>
           <div class="card-menu-dropdown">
             <button type="button" class="card-menu-item" data-action="rename" data-cat-key="expenses">Rename</button>
-            <button type="button" class="card-menu-item" data-action="link" data-cat-key="expenses">Link to another category</button>
+            <button type="button" class="card-menu-item" data-action="link" data-cat-key="expenses">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="expenses" title="Change color"></button>
           <span class="card-link-badge" id="card-link-badge-expenses" style="display:none;"></span>
@@ -208,7 +208,7 @@
           </button>
           <div class="card-menu-dropdown">
             <button type="button" class="card-menu-item" data-action="rename" data-cat-key="checking">Rename</button>
-            <button type="button" class="card-menu-item" data-action="link" data-cat-key="checking">Link to another category</button>
+            <button type="button" class="card-menu-item" data-action="link" data-cat-key="checking">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="checking" title="Change color"></button>
           <span class="card-link-badge" id="card-link-badge-checking" style="display:none;"></span>
@@ -465,7 +465,7 @@
   <div class="mfa-overlay" id="link-category-overlay">
     <div class="mfa-modal" style="max-width: 380px;">
       <div class="mfa-modal-head">
-        <h2>Link category</h2>
+        <h2>Group category</h2>
         <button type="button" class="mfa-modal-close" id="link-category-close">×</button>
       </div>
       <div class="mfa-modal-body" id="link-category-body"></div>
@@ -1256,20 +1256,26 @@
       });
     }
 
-    // ================= LINK CATEGORIES =================
-    // Purely a display relationship — "these two belong together"
-    // (e.g. Checking and an Expenses category set aside from it) — not
-    // a data merge. Nothing about how totals, splits, or envelopes are
-    // computed changes; linked cards just get a matching visual marker
-    // and a small combined-total line so the pairing is visible at a
-    // glance without touching any of the real per-category math.
-    // Stored as a symmetric map on user_metadata (same no-migration
-    // mechanism as everything else on this page): category_links[A] = B
-    // and category_links[B] = A together, so either side's lookup is
-    // O(1) and there's never a dangling one-directional link. A
-    // category can only ever be linked to one other at a time — simple
-    // pairs, not open-ended groups.
+    // ================= GROUP CATEGORIES =================
+    // Purely a display relationship — "these belong together" (e.g.
+    // Checking and an Expenses category set aside from it) — not a
+    // data merge. Nothing about how totals, splits, or envelopes are
+    // computed changes; grouped cards just get a matching visual
+    // marker (a distinct color per group, so two separate groups never
+    // read as the same one) and a small combined-total line, without
+    // touching any of the real per-category math. Stored on
+    // user_metadata as category_groups: an array of id arrays, each
+    // 2+ members. A category belongs to at most one group at a time —
+    // picking someone already in a different group merges that whole
+    // group in rather than splitting them off (see saveCategoryGroup).
     let linkCategoryTargetId = null;
+
+    // Distinguishable, already-in-palette colors, cycled one per group
+    // in a stable sort order (so the same groups always get the same
+    // colors across renders) — deliberately skips ACCENT_COLORS.violet
+    // and .teal, both reserved elsewhere in this file for future
+    // Investment/Savings icons.
+    const LINK_COLORS = ['#6E8FA3', '#D89A52', '#D87BA0', '#B4C468', '#8091E0', '#E0806A'];
 
     // Every linkable category as { id, name } — id is the stable key
     // for a default ('savings' etc.) or the real row id for a custom
@@ -1290,35 +1296,39 @@
       }
       return customCategoryCards.find(c => c.id === id)?.total || 0;
     }
-    function getCategoryLink(id) {
-      return (currentUserMetadata.category_links || {})[id] || null;
+    // The full group `id` belongs to (including itself), or null if
+    // it isn't in one.
+    function getCategoryGroup(id) {
+      const groups = currentUserMetadata.category_groups || [];
+      return groups.find(g => g.includes(id)) || null;
+    }
+    // Every distinct group, each sorted internally and the list itself
+    // sorted by joined ids — a stable order independent of storage/
+    // insertion order, so LINK_COLORS assignment doesn't shuffle every
+    // time a group is edited elsewhere.
+    function getAllLinkGroups() {
+      const groups = currentUserMetadata.category_groups || [];
+      return groups.map(g => [...g].sort()).sort((a, b) => a.join('|').localeCompare(b.join('|')));
     }
 
-    async function setCategoryLink(a, b) {
-      // Clear out any existing partner on either side first — a link
-      // is always exactly one pair, so forming a new one silently
-      // retires whatever either side was previously linked to instead
-      // of leaving a stale one-directional half-link behind.
-      const links = { ...(currentUserMetadata.category_links || {}) };
-      const prevA = links[a];
-      const prevB = links[b];
-      if (prevA) delete links[prevA];
-      if (prevB) delete links[prevB];
-      links[a] = b;
-      links[b] = a;
-      currentUserMetadata = { ...currentUserMetadata, category_links: links };
-      const { data, error } = await supabaseClient.auth.updateUser({ data: currentUserMetadata });
-      if (error) return error;
-      if (data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
-      return null;
-    }
+    // Recomputes `id`'s group as itself plus every id in `selectedIds`.
+    // Any selected id that already belongs to a different group pulls
+    // that whole group's membership in too, rather than yanking it out
+    // from under people it was already grouped with. An empty
+    // `selectedIds` just removes `id` from whatever group it was in.
+    async function saveCategoryGroup(id, selectedIds) {
+      const existing = (currentUserMetadata.category_groups || []).map(g => [...g]);
+      let next = existing.map(g => g.filter(m => m !== id)).filter(g => g.length >= 2);
 
-    async function removeCategoryLink(a) {
-      const links = { ...(currentUserMetadata.category_links || {}) };
-      const b = links[a];
-      delete links[a];
-      if (b) delete links[b];
-      currentUserMetadata = { ...currentUserMetadata, category_links: links };
+      const newMembers = new Set([id, ...selectedIds]);
+      next = next.filter(g => {
+        const overlaps = g.some(m => newMembers.has(m));
+        if (overlaps) { g.forEach(m => newMembers.add(m)); return false; }
+        return true;
+      });
+      if (newMembers.size >= 2) next.push(Array.from(newMembers));
+
+      currentUserMetadata = { ...currentUserMetadata, category_groups: next };
       const { data, error } = await supabaseClient.auth.updateUser({ data: currentUserMetadata });
       if (error) return error;
       if (data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
@@ -1327,45 +1337,31 @@
 
     function renderLinkCategoryForm() {
       const body = document.getElementById('link-category-body');
-      const existingPartner = getCategoryLink(linkCategoryTargetId);
-
-      if (existingPartner) {
-        body.innerHTML = `
-          <p class="mfa-modal-sub">Currently linked with <strong>${getCategoryName(existingPartner).replace(/</g,'&lt;')}</strong>.</p>
-          <button type="button" class="mfa-verify-btn" id="link-category-unlink-btn" style="margin-top:12px; background:var(--error); border-color:var(--error);">Unlink</button>
-        `;
-        document.getElementById('link-category-unlink-btn').addEventListener('click', async () => {
-          const error = await removeCategoryLink(linkCategoryTargetId);
-          if (error) { await arkoAlert('Could not unlink: ' + error.message); return; }
-          logAuditEvent('categories_unlinked', {});
-          document.getElementById('link-category-overlay').classList.remove('open');
-          renderTotals();
-        });
-        return;
-      }
-
+      const currentGroup = getCategoryGroup(linkCategoryTargetId) || [];
       const options = getAllCategoryEntries().filter(c => c.id !== linkCategoryTargetId);
       if (!options.length) {
-        body.innerHTML = `<p class="mfa-modal-sub">No other categories to link with yet.</p>`;
+        body.innerHTML = `<p class="mfa-modal-sub">No other categories to group with yet.</p>`;
         return;
       }
       body.innerHTML = `
-        <div class="mfa-field">
-          <label for="link-category-select">Link with</label>
-          <select id="link-category-select" style="width:100%;">
-            ${options.map(c => `<option value="${c.id}">${c.name.replace(/</g,'&lt;')}</option>`).join('')}
-          </select>
+        <p class="mfa-modal-sub">Choose every category that belongs with this one. Purely visual — marks them as a group and shows the combined total; doesn't change how any of their own totals are tracked.</p>
+        <div class="link-cat-options">
+          ${options.map(c => `
+            <label class="link-cat-option">
+              <input type="checkbox" value="${c.id}" ${currentGroup.includes(c.id) ? 'checked' : ''} />
+              <span>${c.name.replace(/</g,'&lt;')}</span>
+            </label>
+          `).join('')}
         </div>
-        <p class="mfa-modal-sub" style="margin-top:8px;">Purely visual — marks the two as belonging together and shows their combined total. Doesn't change how either one's own total is tracked.</p>
-        <button type="button" class="mfa-verify-btn" id="link-category-save-btn" style="margin-top:12px;">Link</button>
+        <button type="button" class="mfa-verify-btn" id="link-category-save-btn" style="margin-top:8px;">Save</button>
         <p class="mfa-modal-sub" id="link-category-error" style="color:var(--error); display:none; margin-top:8px;"></p>
       `;
       document.getElementById('link-category-save-btn').addEventListener('click', async () => {
-        const select = document.getElementById('link-category-select');
         const errorEl = document.getElementById('link-category-error');
-        const error = await setCategoryLink(linkCategoryTargetId, select.value);
-        if (error) { errorEl.textContent = 'Could not link: ' + error.message; errorEl.style.display = 'block'; return; }
-        logAuditEvent('categories_linked', {});
+        const checked = Array.from(body.querySelectorAll('.link-cat-option input:checked')).map(el => el.value);
+        const error = await saveCategoryGroup(linkCategoryTargetId, checked);
+        if (error) { errorEl.textContent = 'Could not save: ' + error.message; errorEl.style.display = 'block'; return; }
+        logAuditEvent('categories_grouped', { count: checked.length });
         document.getElementById('link-category-overlay').classList.remove('open');
         renderTotals();
       });
@@ -1380,27 +1376,38 @@
       });
     }
 
-    // Updates every card's link badge — shared by renderTotals (default
-    // cards) and renderCustomCategoryCards (custom cards) so both card
-    // types stay in sync with the same data in one place. Safe to call
-    // even for a card the DOM doesn't have yet.
+    // Updates every card's group badge/outline — shared by renderTotals
+    // (default cards) and renderCustomCategoryCards (custom cards) so
+    // both card types stay in sync with the same data in one place.
+    // Safe to call even for a card the DOM doesn't have yet.
     function refreshCategoryLinkBadges() {
+      const groups = getAllLinkGroups();
+      const colorByCatId = {};
+      groups.forEach((group, i) => {
+        const color = LINK_COLORS[i % LINK_COLORS.length];
+        group.forEach(id => { colorByCatId[id] = color; });
+      });
+
       getAllCategoryEntries().forEach(({ id }) => {
         const badge = document.getElementById('card-link-badge-' + id);
         const card = badge ? badge.closest('.card') : null;
-        const partner = getCategoryLink(id);
+        const group = getCategoryGroup(id);
         if (!badge) return;
-        if (!partner) {
+        if (!group) {
           badge.style.display = 'none';
           badge.title = '';
-          if (card) card.classList.remove('card-linked');
+          if (card) { card.classList.remove('card-linked'); card.style.removeProperty('--link-accent'); }
           return;
         }
-        const combined = round2(getCategoryTotal(id) + getCategoryTotal(partner));
+        const others = group.filter(m => m !== id);
+        const otherNames = others.map(getCategoryName);
+        const combined = round2(group.reduce((s, m) => s + getCategoryTotal(m), 0));
+        const color = colorByCatId[id] || LINK_COLORS[0];
         badge.style.display = 'inline-flex';
-        badge.title = `Linked with ${getCategoryName(partner)} · ${money(combined)} combined`;
+        badge.title = `Grouped with ${otherNames.join(', ')} · ${money(combined)} combined`;
+        badge.style.setProperty('--link-accent', color);
         badge.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg><span class="card-link-badge-amt">${money(combined)}</span>`;
-        if (card) card.classList.add('card-linked');
+        if (card) { card.classList.add('card-linked'); card.style.setProperty('--link-accent', color); }
       });
     }
 
@@ -1605,7 +1612,7 @@
           </button>
           <div class="card-menu-dropdown">
             <button type="button" class="card-menu-item" data-action="rename" data-cat-id="${cat.id}">Rename</button>
-            <button type="button" class="card-menu-item" data-action="link" data-cat-id="${cat.id}">Link to another category</button>
+            <button type="button" class="card-menu-item" data-action="link" data-cat-id="${cat.id}">Group with other categories</button>
             <button type="button" class="card-menu-item danger" data-action="delete" data-cat-id="${cat.id}">Delete</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor}; color:${accentColor};"></button>

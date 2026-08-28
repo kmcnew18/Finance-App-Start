@@ -621,14 +621,20 @@ h1, h2, h3 {
 .card-menu-item.danger { color: var(--error); }
 .card-menu-item.danger:hover { background: rgba(224,139,125,0.12); }
 
-/* Linked categories — a dashed outline sits outside the card's own
+/* Grouped categories — a dashed outline sits outside the card's own
    box-shadow (so it never fights the accent-color glow/hover-lift
-   cascade above), plus a small always-visible badge naming the
-   partner and the two categories' combined total. Not hover-gated
-   like the drag handle/menu/color controls — this is meant to be
-   readable at a glance, from anywhere the card ends up after a
-   reorder, rather than tucked away. */
-.card.card-linked { outline: 1.5px dashed rgba(110,143,163,0.55); outline-offset: 3px; }
+   cascade above), plus a small always-visible badge naming the group
+   size and its combined total. Not hover-gated like the drag handle/
+   menu/color controls — this is meant to be readable at a glance,
+   from anywhere the card ends up after a reorder, rather than tucked
+   away. --link-accent is set inline per card by refreshCategoryLink-
+   Badges — one of a handful of fixed colors cycled per distinct
+   group, so two separate groups never read as the same one; the
+   fallback here only ever shows if that JS hasn't run yet. */
+.card.card-linked {
+  outline: 1.5px dashed color-mix(in srgb, var(--link-accent, #6E8FA3) 65%, transparent);
+  outline-offset: 3px;
+}
 .card-link-badge {
   /* In normal flex flow (not absolute like the drag handle/menu/color
      controls above it) — the card's other content is a vertical flex
@@ -640,9 +646,9 @@ h1, h2, h3 {
   gap: 4px;
   padding: 3px 8px 3px 6px;
   border-radius: 20px;
-  background: rgba(110,143,163,0.14);
-  border: 1px solid rgba(110,143,163,0.4);
-  color: var(--vintage-blue-light);
+  background: color-mix(in srgb, var(--link-accent, #6E8FA3) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--link-accent, #6E8FA3) 45%, transparent);
+  color: var(--link-accent, #6E8FA3);
   font-size: 0.64rem;
   font-weight: 700;
   z-index: 2;
@@ -650,6 +656,34 @@ h1, h2, h3 {
 }
 .card-link-badge svg { width: 11px; height: 11px; flex-shrink: 0; }
 .card-link-badge-amt { color: var(--tan); font-variant-numeric: tabular-nums; }
+
+.link-cat-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 12px 0;
+}
+.link-cat-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--tan);
+  transition: background 0.14s ease;
+}
+.link-cat-option:hover { background: rgba(255,255,255,0.05); }
+.link-cat-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--vintage-blue-light);
+  cursor: pointer;
+}
 
 .color-picker-swatches {
   display: grid;
