@@ -621,23 +621,13 @@ h1, h2, h3 {
 .card-menu-item.danger { color: var(--error); }
 .card-menu-item.danger:hover { background: rgba(224,139,125,0.12); }
 
-/* Grouped categories — a dashed outline sits outside the card's own
-   box-shadow (so it never fights the accent-color glow/hover-lift
-   cascade above), plus a small fixed-size icon riding inline right
-   after the label text. Deliberately just an icon, not a text pill —
-   a card's label line is genuinely too narrow in this 5-column grid
-   to always fit a dollar figure next to a category name without
-   either truncating unreadably or reaching under the drag-handle/
-   menu/color cluster's hover zone in the corner, and letting it wrap
-   to a second line made a grouped row taller than an ungrouped one.
-   A fixed-size icon has none of those problems since it never
-   changes size or wraps — the actual combined total lives in the
-   "Group with other categories" modal instead (real room there, no
-   constraints) and in this icon's title tooltip. */
-.card.card-linked {
-  outline: 1.5px dashed color-mix(in srgb, var(--link-accent, #6E8FA3) 65%, transparent);
-  outline-offset: 3px;
-}
+/* Grouped categories — no border/outline treatment at all now; the
+   icon itself (color-coded per group via --link-accent) is the only
+   at-rest signal, and hovering is what actually surfaces the combined
+   total: the card scales up and lifts above its neighbors (z-index),
+   which is what makes room for .card-group-total below to expand into
+   without that row ever taking space — or changing anything about
+   the card's size — at rest. */
 .card-link-badge {
   display: inline-flex;
   align-items: center;
@@ -650,7 +640,41 @@ h1, h2, h3 {
   color: var(--link-accent, #6E8FA3);
   cursor: default;
 }
-.card-link-badge svg { width: 10px; height: 10px; flex-shrink: 0; }
+/* display:block clears the few px of phantom space an inline SVG
+   normally reserves below its baseline — without it, flex centering
+   still nudges the icon a little high/left of true-center. */
+.card-link-badge svg { display: block; width: 10px; height: 10px; flex-shrink: 0; }
+
+.card.card-linked:hover {
+  transform: translateY(-4px) scale(1.06);
+  z-index: 6;
+}
+/* Collapsed to nothing at rest (max-height:0, no margin) so a grouped
+   card is pixel-identical in size to an ungrouped one until hovered.
+   Hovering both scales the card up (above) and expands this row at
+   the same time, so the combined total has real room to show in full
+   rather than needing to fit in the card's normal resting footprint. */
+.card-group-total {
+  max-height: 0;
+  margin-top: 0;
+  opacity: 0;
+  overflow: hidden;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--link-accent, #6E8FA3);
+  transition: max-height 0.22s ease, opacity 0.18s ease, margin-top 0.22s ease;
+}
+/* Generous enough for the combined-total sentence to wrap across 2-3
+   lines without clipping — the point of expanding the card on hover
+   in the first place is that this no longer has to fit on one tight
+   line, so this errs toward "always fits" over "as compact as
+   possible." */
+.card.card-linked:hover .card-group-total {
+  max-height: 56px;
+  margin-top: 4px;
+  opacity: 1;
+}
 
 /* The actual combined dollar figure lives here instead of on the
    card face — this modal has real room for it, unlike a card's own
