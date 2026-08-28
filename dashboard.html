@@ -1863,14 +1863,15 @@
     }
 
     // Unconnected (manual) categories, offered as extra split
-    // destinations alongside the four defaults — an <optgroup> so
-    // they read as a distinct group rather than blending in. Value is
-    // prefixed "manual:" so approveTxnReview can tell a set-aside
-    // split apart from a regular one.
+    // destinations alongside the four defaults — plain options mixed
+    // straight into the list rather than under their own labeled
+    // group, so the dropdown just reads as "every category," not two
+    // visually separate lists. Value is prefixed "manual:" so
+    // approveTxnReview can tell a set-aside split apart from a
+    // regular one.
     function setAsideOptionsHtml() {
       const manualCats = customCategoryCards.filter(c => !c.hasConnection);
-      if (!manualCats.length) return '';
-      return `<optgroup label="Set-aside categories">${manualCats.map(c => `<option value="manual:${c.id}">${c.name.replace(/</g,'&lt;')}</option>`).join('')}</optgroup>`;
+      return manualCats.map(c => `<option value="manual:${c.id}">${c.name.replace(/</g,'&lt;')}</option>`).join('');
     }
 
     // Offered only when a default category (Savings/Investment/
@@ -1889,7 +1890,9 @@
       const env = envs[0];
       return `<label class="txn-split-envelope-toggle">`
         + `<input type="checkbox" class="txn-split-envelope-check" data-envelope-id="${env.id}" checked />`
-        + `Also add to set-aside — ${env.accountName.replace(/</g,'&lt;')} (${money(env.amount)})</label>`;
+        + `<span class="txn-split-envelope-check-box"><svg viewBox="0 0 16 16" fill="none"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`
+        + `<span class="txn-split-envelope-copy">Also add to set-aside<span class="txn-split-envelope-detail">${env.accountName.replace(/</g,'&lt;')} · <span class="txn-split-envelope-amt">${money(env.amount)}</span></span></span>`
+        + `</label>`;
     }
 
     // Re-renders one split row's envelope-toggle line to match its
@@ -2008,7 +2011,8 @@
             <button type="button" class="txn-transfer-toggle" data-id="${r.id}" style="${r.is_credit_card_payment ? 'display:none;' : ''}">${r.is_transfer ? 'Switch to a single category' : 'This is actually a transfer'}</button>
           </div>
           <div class="txn-review-actions">
-          ${(!r.is_transfer && buildChargeOptions().length) ? `
+          ${/* "Charge to a set-aside" spends against an envelope — only makes sense for money leaving (a withdrawal), never for a deposit landing. */
+          (!r.is_transfer && r.suggested_action === 'subtract' && buildChargeOptions().length) ? `
           <div class="txn-charge-row">
             <select class="txn-charge-select" data-id="${r.id}">
               <option value="">Charge to a set-aside…</option>

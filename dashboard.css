@@ -1140,25 +1140,78 @@ h1, h2, h3 {
 }
 .txn-transfer-add-split:hover { color: var(--tan); }
 .txn-transfer-split-total { font-size: 0.72rem; font-weight: 600; margin: 0; }
-.txn-split-row-group { display: flex; flex-direction: column; gap: 4px; }
+.txn-split-row-group { display: flex; flex-direction: column; gap: 6px; }
 .txn-split-envelope-wrap:empty { display: none; }
 .txn-split-envelope-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 0 0 2px;
-  font-size: 0.7rem;
-  color: var(--silver-dim);
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(110,143,163,0.16);
+  background: rgba(110,143,163,0.04);
   cursor: pointer;
-  transition: color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-.txn-split-envelope-toggle:hover { color: var(--tan); }
-.txn-split-envelope-toggle input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  accent-color: var(--vintage-blue-light);
-  cursor: pointer;
+.txn-split-envelope-toggle:hover { border-color: rgba(110,143,163,0.32); background: rgba(110,143,163,0.08); }
+.txn-split-envelope-toggle:has(.txn-split-envelope-check:checked) {
+  border-color: rgba(99,217,170,0.4);
+  background: rgba(99,217,170,0.08);
+}
+.txn-split-envelope-toggle:active { transform: scale(0.99); }
+.txn-split-envelope-check {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+.txn-split-envelope-check-box {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(110,143,163,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--emerald-bright, #63D9AA);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.txn-split-envelope-check-box svg {
+  width: 11px;
+  height: 11px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.txn-split-envelope-check:checked + .txn-split-envelope-check-box {
+  background: rgba(99,217,170,0.2);
+  border-color: rgba(99,217,170,0.6);
+}
+.txn-split-envelope-check:checked + .txn-split-envelope-check-box svg { opacity: 1; transform: scale(1); }
+.txn-split-envelope-check:focus-visible + .txn-split-envelope-check-box { outline: 2px solid var(--emerald-bright, #63D9AA); outline-offset: 2px; }
+.txn-split-envelope-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--tan);
+  line-height: 1.3;
+}
+.txn-split-envelope-detail {
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--silver-dim);
+}
+.txn-split-envelope-amt {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  color: var(--emerald-bright, #63D9AA);
 }
 .txn-transfer-toggle {
   align-self: flex-start;
