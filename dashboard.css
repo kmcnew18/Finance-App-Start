@@ -3279,6 +3279,132 @@ textarea:focus-visible,
   .activity-panel { width: 100%; max-width: 100%; }
 }
 
+/* ==========================================================================
+   NOTES SLIDE-OUT — same peek-tab pattern as Recent Activity above, mirrored
+   onto the left edge so the two don't collide.
+   ========================================================================== */
+.notes-peek-tab {
+  position: fixed;
+  top: 50%;
+  left: max(0px, env(safe-area-inset-left));
+  transform: translateY(-50%);
+  z-index: 45;
+  width: 32px;
+  height: 62px;
+  border: 1px solid rgba(110,143,163,0.35);
+  border-left: none;
+  border-radius: 0 12px 12px 0;
+  background: linear-gradient(180deg, var(--dark-vintage), var(--panel-bg));
+  color: var(--vintage-blue-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 4px 0 16px rgba(0,0,0,0.3);
+  transition: background 0.2s ease, color 0.2s ease, width 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+.notes-peek-tab:hover {
+  width: 37px;
+  background: linear-gradient(180deg, var(--vintage-blue), var(--dark-vintage));
+  color: var(--tan);
+  box-shadow: 6px 0 22px rgba(46,84,114,0.35);
+}
+.notes-peek-tab svg { width: 16px; height: 16px; }
+.notes-peek-tab.panel-open { opacity: 0; pointer-events: none; }
+
+.notes-panel-overlay {
+  position: fixed; inset: 0;
+  background: rgba(8,11,15,0.55);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.28s ease, visibility 0.28s;
+  z-index: 46;
+}
+.notes-panel-overlay.open { opacity: 1; visibility: visible; }
+
+.notes-panel {
+  position: fixed;
+  top: 0; left: 0;
+  height: 100%;
+  width: 340px;
+  max-width: 88vw;
+  background: linear-gradient(165deg, #141B24, #0F1620);
+  border-right: 1px solid rgba(110,143,163,0.25);
+  box-shadow: 18px 0 46px rgba(0,0,0,0.5);
+  z-index: 47;
+  padding: 26px 22px 22px;
+  padding-top: max(26px, env(safe-area-inset-top));
+  padding-left: max(22px, env(safe-area-inset-left));
+  padding-bottom: max(22px, env(safe-area-inset-bottom));
+  transform: translateX(-100%);
+  transition: transform 0.4s cubic-bezier(.22,.9,.22,1.05);
+  display: flex;
+  flex-direction: column;
+}
+.notes-panel.open { transform: translateX(0); }
+
+.notes-panel-close {
+  position: absolute;
+  top: 18px; left: 18px;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(232,225,211,0.15);
+  background: rgba(255,255,255,0.03);
+  color: var(--silver);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.notes-panel-close:hover { background: rgba(255,255,255,0.08); color: var(--tan); }
+
+.notes-panel-head { margin-top: 4px; margin-bottom: 6px; margin-left: 42px; }
+.notes-panel-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silver-dim);
+}
+.notes-panel-sub {
+  font-size: 0.78rem;
+  color: var(--silver-dim);
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.notes-panel-textarea {
+  flex: 1;
+  min-height: 320px;
+  resize: none;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 14px;
+  color: var(--tan);
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  transition: border-color 0.15s ease;
+}
+.notes-panel-textarea::placeholder { color: var(--silver-dim); }
+.notes-panel-textarea:focus { outline: none; border-color: var(--vintage-blue-light); }
+.notes-panel-status {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.68rem;
+  color: var(--silver-dim);
+  text-align: right;
+  min-height: 14px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.notes-panel-status.show { opacity: 1; }
+
+@media (max-width: 500px) {
+  .notes-panel { width: 100%; max-width: 100%; }
+}
+
 .low-balance-badge {
   align-self: flex-start;
   background: rgba(224,139,125,0.14);

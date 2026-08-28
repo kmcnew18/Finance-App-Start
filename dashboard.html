@@ -100,6 +100,21 @@
     <p class="activity-panel-empty" id="activity-panel-empty" style="display:none;">No recent activity.</p>
   </aside>
 
+  <!-- ================= NOTES SLIDE-OUT ================= -->
+  <button type="button" class="notes-peek-tab" id="notes-peek-tab" aria-label="Notes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path><path d="M9 13h6"></path><path d="M9 17h6"></path></svg>
+  </button>
+  <div class="notes-panel-overlay" id="notes-panel-overlay"></div>
+  <aside class="notes-panel" id="notes-panel">
+    <button type="button" class="notes-panel-close" id="notes-panel-close" aria-label="Close">×</button>
+    <div class="notes-panel-head">
+      <span class="notes-panel-title">Notes</span>
+    </div>
+    <p class="notes-panel-sub">Reminders, things to follow up on, whatever's useful to keep in view — saved automatically as you type.</p>
+    <textarea class="notes-panel-textarea" id="notes-panel-textarea" placeholder="Jot something down…"></textarea>
+    <span class="notes-panel-status" id="notes-panel-status"></span>
+  </aside>
+
 
   <main class="dash-main" id="dash-main" style="display:none;">
 
@@ -1450,6 +1465,7 @@
       setupLowBalanceAlerts();
       setupMissingLogsOverlay();
       setupRecentActivityPanel();
+      setupNotesPanel();
       setupManageSubscription();
       setupFeaturePreview();
       document.getElementById('refresh-detected-btn').addEventListener('click', refreshDetectedActivity);
@@ -2751,6 +2767,57 @@
       } catch (err) {
         body.innerHTML = `<p class="mfa-modal-sub" style="color:var(--error);">${(err.message || 'Something went wrong.').replace(/</g,'&lt;')}</p>`;
       }
+    }
+
+    // ================= NOTES SLIDE-OUT =================
+    // A single free-form scratchpad, not a list of discrete notes —
+    // stored on user_metadata (same no-migration mechanism as the
+    // low-balance thresholds and manual-entry toggle above) since it's
+    // simple unstructured text with no relational shape to it. Saves
+    // itself a beat after typing stops rather than needing an explicit
+    // save action, same instinct as everything else on this page that
+    // auto-persists.
+    function setupNotesPanel() {
+      const tab = document.getElementById('notes-peek-tab');
+      const panel = document.getElementById('notes-panel');
+      const overlay = document.getElementById('notes-panel-overlay');
+      const closeBtn = document.getElementById('notes-panel-close');
+      const textarea = document.getElementById('notes-panel-textarea');
+      const status = document.getElementById('notes-panel-status');
+      let saveTimer = null;
+
+      function openPanel() {
+        textarea.value = currentUserMetadata.dashboard_notes || '';
+        tab.classList.add('panel-open');
+        panel.classList.add('open');
+        overlay.classList.add('open');
+        setTimeout(() => textarea.focus(), 350);
+      }
+      function closePanel() {
+        tab.classList.remove('panel-open');
+        panel.classList.remove('open');
+        overlay.classList.remove('open');
+      }
+
+      async function saveNotes() {
+        status.textContent = 'Saving…';
+        status.classList.add('show');
+        currentUserMetadata = { ...currentUserMetadata, dashboard_notes: textarea.value };
+        const { data, error } = await supabaseClient.auth.updateUser({ data: currentUserMetadata });
+        if (error) { status.textContent = 'Could not save'; return; }
+        if (data?.user) currentUserMetadata = data.user.user_metadata || currentUserMetadata;
+        status.textContent = 'Saved';
+        setTimeout(() => status.classList.remove('show'), 1400);
+      }
+
+      tab.addEventListener('click', openPanel);
+      closeBtn.addEventListener('click', closePanel);
+      overlay.addEventListener('click', closePanel);
+      textarea.addEventListener('input', () => {
+        status.classList.remove('show');
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveNotes, 700);
+      });
     }
 
     function setupManageSubscription() {
