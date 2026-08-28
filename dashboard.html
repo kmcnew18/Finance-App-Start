@@ -160,7 +160,7 @@
             <button type="button" class="card-menu-item" data-action="link" data-cat-key="savings">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="savings" title="Change color"></button>
-          <span class="card-label"><span class="card-label-text">Savings</span><span class="card-link-badge" id="card-link-badge-savings" style="display:none;"></span><span class="card-group-total" id="card-group-total-savings" style="display:none;"></span></span>
+          <span class="card-label"><span class="card-label-text">Savings</span><span class="card-link-badge" id="card-link-badge-savings" style="display:none;"></span></span>
           <span class="card-value" id="val-savings">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-savings" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-savings"></span>
@@ -176,7 +176,7 @@
             <button type="button" class="card-menu-item" data-action="link" data-cat-key="investment">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="investment" title="Change color"></button>
-          <span class="card-label"><span class="card-label-text">Investment</span><span class="card-link-badge" id="card-link-badge-investment" style="display:none;"></span><span class="card-group-total" id="card-group-total-investment" style="display:none;"></span></span>
+          <span class="card-label"><span class="card-label-text">Investment</span><span class="card-link-badge" id="card-link-badge-investment" style="display:none;"></span></span>
           <span class="card-value" id="val-investment">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-investment" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-investment"></span>
@@ -192,7 +192,7 @@
             <button type="button" class="card-menu-item" data-action="link" data-cat-key="expenses">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="expenses" title="Change color"></button>
-          <span class="card-label"><span class="card-label-text">Expenses</span><span class="card-link-badge" id="card-link-badge-expenses" style="display:none;"></span><span class="card-group-total" id="card-group-total-expenses" style="display:none;"></span></span>
+          <span class="card-label"><span class="card-label-text">Expenses</span><span class="card-link-badge" id="card-link-badge-expenses" style="display:none;"></span></span>
           <span class="card-value" id="val-expenses">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-expenses" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-expenses"></span>
@@ -208,7 +208,7 @@
             <button type="button" class="card-menu-item" data-action="link" data-cat-key="checking">Group with other categories</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="checking" title="Change color"></button>
-          <span class="card-label"><span class="card-label-text">Checking</span><span class="card-link-badge" id="card-link-badge-checking" style="display:none;"></span><span class="card-group-total" id="card-group-total-checking" style="display:none;"></span></span>
+          <span class="card-label"><span class="card-label-text">Checking</span><span class="card-link-badge" id="card-link-badge-checking" style="display:none;"></span></span>
           <span class="card-value" id="val-checking">$0.00</span>
           <span class="low-balance-badge" id="low-balance-badge-checking" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-checking"></span>
@@ -1391,11 +1391,9 @@
         const card = badge ? badge.closest('.card') : null;
         const group = getCategoryGroup(id);
         if (!badge) return;
-        const totalEl = document.getElementById('card-group-total-' + id);
         if (!group) {
           badge.style.display = 'none';
           badge.title = '';
-          if (totalEl) totalEl.style.display = 'none';
           if (card) { card.classList.remove('card-linked'); card.style.removeProperty('--link-accent'); }
           return;
         }
@@ -1403,26 +1401,21 @@
         const otherNames = others.map(getCategoryName);
         const combined = round2(group.reduce((s, m) => s + getCategoryTotal(m), 0));
         const color = colorByCatId[id] || LINK_COLORS[0];
+        // The badge doubles as the combined-total display now — just
+        // the number, no icon and no "combined"/"grouped" wording —
+        // freeing up the little horizontal room a card's label line
+        // actually has. Two separate elements (an icon-only badge plus
+        // a text label next to it) each needed their own space and
+        // between them there often wasn't enough left for the number
+        // to render as more than 2-3 characters before the ellipsis;
+        // one compact pill with just "$674.79" fits in cases where
+        // "🔗 · $674.79 combined" couldn't. Full detail (who it's
+        // grouped with) is still one hover away via the title.
         badge.style.display = 'inline-flex';
         badge.title = `Grouped with ${otherNames.join(', ')} · ${money(combined)} combined`;
         badge.style.setProperty('--link-accent', color);
-        badge.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg>`;
+        badge.textContent = money(combined);
         if (card) { card.classList.add('card-linked'); card.style.setProperty('--link-accent', color); }
-
-        // The combined total rides the label line (after the name and
-        // icon) rather than the value line or sync-hint — the value's
-        // big serif digits leave almost no room beside them, and
-        // sync-hint's hover-only reveal is an established pattern for
-        // different content ("+$X from Connections," "Adjust
-        // set-aside") that shouldn't change just because a card also
-        // happens to be grouped. The label's short text reliably
-        // leaves room; .card-group-total's own CSS truncates with an
-        // ellipsis for the rare case it doesn't.
-        if (totalEl) {
-          totalEl.textContent = `· ${money(combined)} combined`;
-          totalEl.style.display = 'inline';
-          totalEl.title = `Grouped with ${otherNames.join(', ')} · ${money(combined)} combined`;
-        }
       });
     }
 
@@ -1635,7 +1628,7 @@
             <button type="button" class="card-menu-item danger" data-action="delete" data-cat-id="${cat.id}">Delete</button>
           </div>
           <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor}; color:${accentColor};"></button>
-          <span class="card-label" style="color:${accentColor};"><span class="card-label-text">${cat.name.replace(/</g,'&lt;')}</span><span class="card-link-badge" id="card-link-badge-${cat.id}" style="display:none;"></span><span class="card-group-total" id="card-group-total-${cat.id}" style="display:none;"></span></span>
+          <span class="card-label" style="color:${accentColor};"><span class="card-label-text">${cat.name.replace(/</g,'&lt;')}</span><span class="card-link-badge" id="card-link-badge-${cat.id}" style="display:none;"></span></span>
           ${valueHtml}
           <span class="sync-hint" id="sync-hint-${cat.id}">${hintText + adjustLink}</span>
         `;

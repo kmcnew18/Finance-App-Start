@@ -623,38 +623,38 @@ h1, h2, h3 {
 
 /* Grouped categories — a dashed outline sits outside the card's own
    box-shadow (so it never fights the accent-color glow/hover-lift
-   cascade above), plus a small icon riding inline right after the
-   card's own label text (inside .card-label, which is now a flex
-   row) rather than absolutely positioned in a corner — the top-right
-   corner is already claimed by the drag handle/menu/color controls,
-   and the top-left by this same label text, so an absolutely
-   positioned badge in either spot overlapped one or the other
-   depending on card width; living inside the label's own line takes
-   no extra vertical space and only needs whatever horizontal room the
-   label's short text leaves, reliably free either way. The group's
-   full member list is one hover away via the title tooltip; the
-   combined total itself shows right next to the card's value instead
-   (.card-group-total below) — kept separate from sync-hint on
-   purpose, since sync-hint's hover-only reveal is its own established
-   pattern for different content and shouldn't change just because a
-   card also happens to be grouped. */
+   cascade above), plus the combined total itself as a small pill
+   riding inline right after the label text (inside .card-label, a
+   flex row) rather than a separate icon-only badge next to yet
+   another text element. Two elements each needing their own space
+   left too little room for the number to render as more than 2-3
+   digits before truncating on a normal-width card; one pill showing
+   just "$674.79" (no icon, no "combined" wording — that detail is one
+   hover away via the title) fits in the same space a bare icon used
+   to. .card-label-text stays flex-shrink:0 so the category name is
+   never the thing that gets squeezed — this pill is. */
 .card.card-linked {
   outline: 1.5px dashed color-mix(in srgb, var(--link-accent, #6E8FA3) 65%, transparent);
   outline-offset: 3px;
 }
 .card-link-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px; height: 16px;
-  flex-shrink: 0;
-  border-radius: 4px;
+  display: inline-block;
+  flex: 1;
+  min-width: 0;
+  padding: 2px 7px;
+  border-radius: 20px;
   background: color-mix(in srgb, var(--link-accent, #6E8FA3) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--link-accent, #6E8FA3) 50%, transparent);
   color: var(--link-accent, #6E8FA3);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: default;
 }
-.card-link-badge svg { width: 10px; height: 10px; flex-shrink: 0; }
 
 .link-cat-options {
   display: flex;
@@ -1425,28 +1425,11 @@ h1, h2, h3 {
   letter-spacing: 0.07em;
   font-weight: 600;
 }
-.card-label-text, .card-link-badge { flex-shrink: 0; }
-/* Grouped-card combined total — rides the label line rather than the
-   value line. The label's own text is short (a single word, usually
-   under 10 characters) so it reliably leaves real room after it;
-   .card-value's big serif digits eat almost the entire card width on
-   their own, which is why an earlier attempt at putting this next to
-   the value truncated to almost nothing. flex:1 + min-width:0 here is
-   what lets it actually shrink and ellipsis instead of overflowing,
-   while .card-label-text/.card-link-badge above stay flex-shrink:0
-   so neither the category name nor the icon ever gets squeezed. */
-.card-group-total {
-  flex: 1;
-  min-width: 0;
-  text-transform: none;
-  letter-spacing: normal;
-  font-weight: 600;
-  font-size: 0.66rem;
-  color: var(--silver-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* .card-link-badge is the one thing here allowed to shrink (it's
+   flex:1 + min-width:0 in its own rule above and ellipsis-truncates)
+   — .card-label-text never does, so a long category name is never
+   what gets squeezed to make room for the group pill. */
+.card-label-text { flex-shrink: 0; }
 /* A 6-7 figure balance is wider than a card's ~130-170px column at the
    base size — .card clips overflow (for its decorative top bar), so
    without this a large value would simply lose digits rather than
