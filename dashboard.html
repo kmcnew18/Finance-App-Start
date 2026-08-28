@@ -1456,10 +1456,24 @@
         const rect = card.getBoundingClientRect();
         const color = card.style.getPropertyValue('--link-accent') || '#6E8FA3';
         const [amt, ...rest] = totalEl.textContent.split(' ');
-        flyout.innerHTML = `<span class="card-group-flyout-amt">${amt}</span> ${rest.join(' ')}`;
+        // Amount on its own line, "combined with X" as a smaller
+        // caption below it — reads as one deliberate two-line stat
+        // rather than a sentence that happened to wrap awkwardly
+        // mid-phrase at this width.
+        flyout.innerHTML = `<div class="card-group-flyout-amt">${amt}</div><div class="card-group-flyout-sub">${rest.join(' ')}</div>`;
         flyout.style.setProperty('--link-accent', color);
         flyout.style.left = rect.left + 'px';
-        flyout.style.top = (rect.bottom - 1) + 'px';
+        // .card's hover state lifts it translateY(-4px); reading the
+        // rect here happens before that transition has moved
+        // anything, so the flyout has to aim for where the card will
+        // end up (4px higher) rather than where it is right now, or
+        // the two visibly drift apart into a gap once the lift
+        // finishes animating. The extra 2px beyond that is a
+        // deliberate overlap into the card's own rounded bottom edge,
+        // since both now share the same full 14px corner radius —
+        // butting them exactly edge-to-edge left a hairline gap where
+        // the two separate rounded corners didn't quite line up.
+        flyout.style.top = (rect.bottom - 4 - 2) + 'px';
         flyout.style.width = rect.width + 'px';
         flyout.classList.add('show');
       }

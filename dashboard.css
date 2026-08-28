@@ -685,20 +685,37 @@ h1, h2, h3 {
   visibility: hidden;
   transform: translateY(-6px);
   transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
-  padding: 12px 18px 14px;
+  padding: 10px 16px 12px;
+  /* Full rounded corners (matching .card's own 14px) rather than
+     square-on-top — squaring the top to butt against the card's own
+     rounded bottom corner left a visible notch where the two curves
+     didn't line up. A full rounded rect, overlapped a couple px up
+     into the card (see the -2 in showFlyout's top calculation),
+     reads as clearly attached without needing to fight the card's
+     own corner radius during its hover transition. */
+  border-radius: 14px;
   border: 1px solid var(--link-accent, #6E8FA3);
-  border-top: none;
-  border-radius: 0 0 14px 14px;
   background: linear-gradient(165deg, #141B24, #0F1620);
   box-shadow: 0 16px 28px rgba(0,0,0,0.45);
   font-size: 0.72rem;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.4;
   color: var(--tan);
   pointer-events: none;
 }
 .card-group-flyout.show { opacity: 1; visibility: visible; transform: translateY(0); }
-.card-group-flyout-amt { color: var(--link-accent, #6E8FA3); font-weight: 700; }
+.card-group-flyout-amt {
+  font-family: 'Fraunces', serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--link-accent, #6E8FA3);
+}
+.card-group-flyout-sub {
+  margin-top: 2px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--silver-dim);
+}
 
 /* The actual combined dollar figure lives here instead of on the
    card face — this modal has real room for it, unlike a card's own
