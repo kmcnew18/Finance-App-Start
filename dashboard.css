@@ -632,24 +632,25 @@ h1, h2, h3 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px; height: 16px;
+  width: 18px; height: 18px;
   padding: 0;
   line-height: 0;
   flex-shrink: 0;
-  border-radius: 4px;
+  border-radius: 5px;
   background: color-mix(in srgb, var(--link-accent, #6E8FA3) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--link-accent, #6E8FA3) 50%, transparent);
   color: var(--link-accent, #6E8FA3);
   cursor: default;
 }
-/* Belt and suspenders against an inline SVG's baseline quirk (the
-   usual cause of an icon looking a couple px off-center inside a
-   flex box): line-height:0 on the badge above kills the phantom
-   line-box space, display:block here removes the SVG's own baseline
-   gap, and margin:auto centers it explicitly rather than leaning on
-   flex alignment alone — the actual fix, since the two together
-   were still landing inconsistently depending on the card. */
-.card-link-badge svg { display: block; width: 10px; height: 10px; margin: auto; flex-shrink: 0; }
+/* Verified centered at both the CSS level and the path's own geometry
+   (checked directly at high zoom) — the box itself was never
+   off-center. At 10px, though, a symmetric shape this thin is hard
+   for the eye to read as centered at all once anti-aliasing softens
+   its edges, which is what was actually being perceived as "off."
+   Sized up a couple px, and the badge with it, so the same icon has
+   more pixels to render into and reads clearly centered instead of
+   just being centered. */
+.card-link-badge svg { display: block; width: 12px; height: 12px; margin: auto; flex-shrink: 0; }
 
 .card.card-linked:hover {
   transform: translateY(-4px);
