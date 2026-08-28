@@ -1418,11 +1418,34 @@ h1, h2, h3 {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   font-size: 0.78rem;
   color: var(--silver-dim);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   font-weight: 600;
+}
+.card-label-text, .card-link-badge { flex-shrink: 0; }
+/* Grouped-card combined total — rides the label line rather than the
+   value line. The label's own text is short (a single word, usually
+   under 10 characters) so it reliably leaves real room after it;
+   .card-value's big serif digits eat almost the entire card width on
+   their own, which is why an earlier attempt at putting this next to
+   the value truncated to almost nothing. flex:1 + min-width:0 here is
+   what lets it actually shrink and ellipsis instead of overflowing,
+   while .card-label-text/.card-link-badge above stay flex-shrink:0
+   so neither the category name nor the icon ever gets squeezed. */
+.card-group-total {
+  flex: 1;
+  min-width: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 600;
+  font-size: 0.66rem;
+  color: var(--silver-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* A 6-7 figure balance is wider than a card's ~130-170px column at the
    base size — .card clips overflow (for its decorative top bar), so
@@ -1434,25 +1457,6 @@ h1, h2, h3 {
   font-weight: 600;
   font-family: 'Fraunces', serif;
   overflow-wrap: anywhere;
-}
-/* Wraps the value so a grouped card's combined-total note can sit on
-   the same line instead of stacking a new row underneath — .card-value
-   itself never shrinks or wraps to make room; .card-group-total is
-   the one that truncates with an ellipsis if the card's too narrow,
-   so this never grows the card or overlaps anything regardless of how
-   long a category's name or the combined figure gets. */
-.card-value-row { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
-.card-value-row .card-value { flex-shrink: 0; }
-.card-group-total {
-  flex: 1;
-  min-width: 0;
-  font-family: 'Public Sans', sans-serif;
-  font-size: 0.64rem;
-  font-weight: 600;
-  color: var(--silver-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .card-value-manual {
   cursor: pointer;
