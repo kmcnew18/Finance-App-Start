@@ -224,6 +224,7 @@
           <span class="add-category-label">Add category</span>
         </button>
       </section>
+      <div class="card-group-flyout" id="card-group-flyout"></div>
     </section>
 
     <p class="override-hint" id="override-hint" style="display:none;">Override mode is on — click a category amount above to type in the manually-tracked portion. Any amount synced from Connections is added on top of what you enter here, not replaced by it.</p>
@@ -1422,21 +1423,60 @@
         // Fixed-size icon at rest — its size never changes, so it
         // can't run into the truncation/overlap/resize problems a
         // text pill did on this card's tight label line. The combined
-        // total instead lives in .card-group-total, collapsed to zero
-        // height until the card is hovered (see the CSS for both) —
-        // hovering scales the whole card up and expands that row at
-        // the same moment, so the total gets real room to actually
-        // show rather than needing to fit in the resting footprint.
+        // total's text is precomputed into .card-group-total (hidden,
+        // never shown in place) purely so setupCardGroupFlyout has
+        // something to read when this card gets hovered.
         badge.style.display = 'inline-flex';
         badge.title = `Grouped with ${otherNames.join(', ')} · ${money(combined)} combined`;
         badge.style.setProperty('--link-accent', color);
         badge.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg>`;
-        if (totalEl) {
-          totalEl.textContent = `${money(combined)} combined with ${otherNames.join(', ')}`;
-          totalEl.style.color = color;
-        }
+        if (totalEl) totalEl.textContent = `${money(combined)} combined with ${otherNames.join(', ')}`;
         if (card) { card.classList.add('card-linked'); card.style.setProperty('--link-accent', color); }
       });
+    }
+
+    // ================= GROUP FLYOUT (hover) =================
+    // A single element living outside the grid, positioned under
+    // whichever grouped card the mouse is currently over — this is
+    // what lets that one card visually "grow" without CSS Grid's
+    // default row-stretch also resizing every other card in its row
+    // (a real, tested problem with the earlier in-card version). Only
+    // one flyout ever exists, repositioned/repopulated per hover
+    // rather than one per card, since only one can be shown at a time
+    // anyway. Delegated on the static grid container so it keeps
+    // working across custom cards being fully re-rendered.
+    function setupCardGroupFlyout() {
+      const container = document.querySelector('.overview-cards');
+      const flyout = document.getElementById('card-group-flyout');
+      if (!container || !flyout) return;
+
+      function showFlyout(card) {
+        const totalEl = card.querySelector('.card-group-total');
+        if (!totalEl || !totalEl.textContent) return;
+        const rect = card.getBoundingClientRect();
+        const color = card.style.getPropertyValue('--link-accent') || '#6E8FA3';
+        const [amt, ...rest] = totalEl.textContent.split(' ');
+        flyout.innerHTML = `<span class="card-group-flyout-amt">${amt}</span> ${rest.join(' ')}`;
+        flyout.style.setProperty('--link-accent', color);
+        flyout.style.left = rect.left + 'px';
+        flyout.style.top = (rect.bottom - 1) + 'px';
+        flyout.style.width = rect.width + 'px';
+        flyout.classList.add('show');
+      }
+      function hideFlyout() { flyout.classList.remove('show'); }
+
+      container.addEventListener('mouseover', (e) => {
+        const card = e.target.closest('.card.card-linked');
+        if (card) showFlyout(card);
+      });
+      container.addEventListener('mouseout', (e) => {
+        const card = e.target.closest('.card.card-linked');
+        if (card && (!e.relatedTarget || !card.contains(e.relatedTarget))) hideFlyout();
+      });
+      // Hover position is only ever computed at the moment of
+      // mouseover — scrolling would leave it pinned to a stale
+      // screen position, so just dismiss it instead of tracking.
+      window.addEventListener('scroll', hideFlyout, { passive: true });
     }
 
     async function deleteCustomCategory(catId) {
@@ -1742,6 +1782,7 @@
       setupCategoryMenu();
       setupRenameCategory();
       setupLinkCategory();
+      setupCardGroupFlyout();
       setupManualCategoryEdit();
       setupEnvelopePicker();
       setupSkippedActivity();

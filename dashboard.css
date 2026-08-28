@@ -633,6 +633,8 @@ h1, h2, h3 {
   align-items: center;
   justify-content: center;
   width: 16px; height: 16px;
+  padding: 0;
+  line-height: 0;
   flex-shrink: 0;
   border-radius: 4px;
   background: color-mix(in srgb, var(--link-accent, #6E8FA3) 18%, transparent);
@@ -640,41 +642,63 @@ h1, h2, h3 {
   color: var(--link-accent, #6E8FA3);
   cursor: default;
 }
-/* display:block clears the few px of phantom space an inline SVG
-   normally reserves below its baseline — without it, flex centering
-   still nudges the icon a little high/left of true-center. */
-.card-link-badge svg { display: block; width: 10px; height: 10px; flex-shrink: 0; }
+/* Belt and suspenders against an inline SVG's baseline quirk (the
+   usual cause of an icon looking a couple px off-center inside a
+   flex box): line-height:0 on the badge above kills the phantom
+   line-box space, display:block here removes the SVG's own baseline
+   gap, and margin:auto centers it explicitly rather than leaning on
+   flex alignment alone — the actual fix, since the two together
+   were still landing inconsistently depending on the card. */
+.card-link-badge svg { display: block; width: 10px; height: 10px; margin: auto; flex-shrink: 0; }
 
 .card.card-linked:hover {
-  transform: translateY(-4px) scale(1.06);
+  transform: translateY(-4px);
   z-index: 6;
 }
-/* Collapsed to nothing at rest (max-height:0, no margin) so a grouped
-   card is pixel-identical in size to an ungrouped one until hovered.
-   Hovering both scales the card up (above) and expands this row at
-   the same time, so the combined total has real room to show in full
-   rather than needing to fit in the card's normal resting footprint. */
-.card-group-total {
-  max-height: 0;
-  margin-top: 0;
+/* Pure data holder now — refreshCategoryLinkBadges writes the
+   combined-total sentence into this, but it's never shown in place.
+   Growing it in normal flow used to grow the whole .card, and since
+   CSS Grid stretches every card in a row to match its tallest
+   neighbor, that meant hovering one grouped card visibly resized
+   every other card in its row too. The actual text is read out of
+   here and shown in #card-group-flyout instead — a single element
+   living outside the grid entirely (see setupCardGroupFlyout),
+   positioned under whichever card is hovered via JS. Since it's not
+   a grid child, its size can never affect row layout, so only the
+   one hovered card visually changes at all. */
+.card-group-total { display: none; }
+
+/* Floats below whichever grouped card is currently hovered, attached
+   like a drop-down flap (rounded only on the bottom, no top border,
+   so it visually reads as continuing the card above it). position:
+   fixed and z-index above everything else on the page is what lets
+   it render over anything it happens to overlap — the row below it,
+   an adjacent card — "come to the front" rather than getting clipped
+   or pushing things around. Sized and positioned via JS
+   (setupCardGroupFlyout) from the hovered card's own bounding rect,
+   so it always lines up regardless of where that card sits in the
+   grid. */
+.card-group-flyout {
+  position: fixed;
+  z-index: 60;
   opacity: 0;
-  overflow: hidden;
-  font-size: 0.7rem;
-  font-weight: 700;
-  line-height: 1.35;
-  color: var(--link-accent, #6E8FA3);
-  transition: max-height 0.22s ease, opacity 0.18s ease, margin-top 0.22s ease;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+  padding: 12px 18px 14px;
+  border: 1px solid var(--link-accent, #6E8FA3);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  background: linear-gradient(165deg, #141B24, #0F1620);
+  box-shadow: 0 16px 28px rgba(0,0,0,0.45);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--tan);
+  pointer-events: none;
 }
-/* Generous enough for the combined-total sentence to wrap across 2-3
-   lines without clipping — the point of expanding the card on hover
-   in the first place is that this no longer has to fit on one tight
-   line, so this errs toward "always fits" over "as compact as
-   possible." */
-.card.card-linked:hover .card-group-total {
-  max-height: 56px;
-  margin-top: 4px;
-  opacity: 1;
-}
+.card-group-flyout.show { opacity: 1; visibility: visible; transform: translateY(0); }
+.card-group-flyout-amt { color: var(--link-accent, #6E8FA3); font-weight: 700; }
 
 /* The actual combined dollar figure lives here instead of on the
    card face — this modal has real room for it, unlike a card's own
