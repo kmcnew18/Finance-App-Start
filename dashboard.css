@@ -623,40 +623,61 @@ h1, h2, h3 {
 
 /* Grouped categories — a dashed outline sits outside the card's own
    box-shadow (so it never fights the accent-color glow/hover-lift
-   cascade above), plus the combined total itself as a small pill
-   riding inline right after the label text (inside .card-label, a
-   flex row) rather than a separate icon-only badge next to yet
-   another text element. Two elements each needing their own space
-   left too little room for the number to render as more than 2-3
-   digits before truncating on a normal-width card; one pill showing
-   just "$674.79" (no icon, no "combined" wording — that detail is one
-   hover away via the title) fits in the same space a bare icon used
-   to. .card-label-text stays flex-shrink:0 so the category name is
-   never the thing that gets squeezed — this pill is. */
+   cascade above), plus a small fixed-size icon riding inline right
+   after the label text. Deliberately just an icon, not a text pill —
+   a card's label line is genuinely too narrow in this 5-column grid
+   to always fit a dollar figure next to a category name without
+   either truncating unreadably or reaching under the drag-handle/
+   menu/color cluster's hover zone in the corner, and letting it wrap
+   to a second line made a grouped row taller than an ungrouped one.
+   A fixed-size icon has none of those problems since it never
+   changes size or wraps — the actual combined total lives in the
+   "Group with other categories" modal instead (real room there, no
+   constraints) and in this icon's title tooltip. */
 .card.card-linked {
   outline: 1.5px dashed color-mix(in srgb, var(--link-accent, #6E8FA3) 65%, transparent);
   outline-offset: 3px;
 }
 .card-link-badge {
-  display: inline-block;
-  /* No flex-grow — the pill only ever wants exactly the room its own
-     text needs, never more. */
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 100%;
-  padding: 2px 7px;
-  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  border-radius: 4px;
   background: color-mix(in srgb, var(--link-accent, #6E8FA3) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--link-accent, #6E8FA3) 50%, transparent);
   color: var(--link-accent, #6E8FA3);
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: normal;
-  text-transform: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   cursor: default;
+}
+.card-link-badge svg { width: 10px; height: 10px; flex-shrink: 0; }
+
+/* The actual combined dollar figure lives here instead of on the
+   card face — this modal has real room for it, unlike a card's own
+   label line. */
+.link-group-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(110,143,163,0.08);
+  border: 1px solid rgba(110,143,163,0.25);
+}
+.link-group-total-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--silver-dim);
+}
+.link-group-total-amt {
+  font-family: 'Fraunces', serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--tan);
+  font-variant-numeric: tabular-nums;
 }
 
 .link-cat-options {
@@ -1419,9 +1440,8 @@ h1, h2, h3 {
 }
 .card-label {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px 6px;
+  gap: 6px;
   min-width: 0;
   font-size: 0.78rem;
   color: var(--silver-dim);
@@ -1429,27 +1449,6 @@ h1, h2, h3 {
   letter-spacing: 0.07em;
   font-weight: 600;
 }
-/* Reserves the drag-handle/menu/color cluster's horizontal footprint
-   (right:10 through right:60, ~80px total) on a grouped card so its
-   pill can't render underneath those hover-revealed controls — they're
-   only visible on hover, so without this the overlap was invisible
-   at rest and only showed up when actually opening the menu. Combined
-   with flex-wrap above: when a category's own name already fills
-   most of a line (Investment, Checking...) there's rarely room left
-   for the pill anyway, so it drops to its own line below instead of
-   getting squeezed to 1-2 characters — which also means the pill
-   lands clear of the icon cluster automatically, since that line
-   sits lower than where those icons are positioned. The one
-   consequence: a grouped card's label can take two lines instead of
-   one, which (via the grid's default row-stretch) makes that whole
-   row of cards a little taller than a row with no grouped cards in
-   it — never an individual card looking mismatched next to its
-   neighbors, just the row as a whole. */
-.card.card-linked .card-label { margin-right: 82px; }
-/* .card-link-badge is the one thing here allowed to shrink (it's
-   flex:1 + min-width:0 in its own rule above and ellipsis-truncates)
-   — .card-label-text never does, so a long category name is never
-   what gets squeezed to make room for the group pill. */
 .card-label-text { flex-shrink: 0; }
 /* A 6-7 figure balance is wider than a card's ~130-170px column at the
    base size — .card clips overflow (for its decorative top bar), so

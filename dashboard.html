@@ -1345,8 +1345,15 @@
         body.innerHTML = `<p class="mfa-modal-sub">No other categories to group with yet.</p>`;
         return;
       }
+      const combinedTotal = currentGroup.length ? round2(currentGroup.reduce((s, m) => s + getCategoryTotal(m), 0)) : 0;
       body.innerHTML = `
         <p class="mfa-modal-sub">Choose every category that belongs with this one. Purely visual — marks them as a group and shows the combined total; doesn't change how any of their own totals are tracked.</p>
+        ${currentGroup.length ? `
+        <div class="link-group-total">
+          <span class="link-group-total-label">Combined total</span>
+          <span class="link-group-total-amt">${money(combinedTotal)}</span>
+        </div>
+        ` : ''}
         <div class="link-cat-options">
           ${options.map(c => `
             <label class="link-cat-option">
@@ -1406,20 +1413,20 @@
         const otherNames = others.map(getCategoryName);
         const combined = round2(group.reduce((s, m) => s + getCategoryTotal(m), 0));
         const color = colorByCatId[id] || LINK_COLORS[0];
-        // The badge doubles as the combined-total display now — just
-        // the number, no icon and no "combined"/"grouped" wording —
-        // freeing up the little horizontal room a card's label line
-        // actually has. Two separate elements (an icon-only badge plus
-        // a text label next to it) each needed their own space and
-        // between them there often wasn't enough left for the number
-        // to render as more than 2-3 characters before the ellipsis;
-        // one compact pill with just "$674.79" fits in cases where
-        // "🔗 · $674.79 combined" couldn't. Full detail (who it's
-        // grouped with) is still one hover away via the title.
+        // Fixed-size icon, not a text pill — every attempt at fitting
+        // the actual dollar figure on the card face ran into the same
+        // wall: a card's label line in this 5-column grid is too
+        // narrow to reliably hold a category name AND a combined total
+        // without truncating, wrapping (which grows the row), or
+        // reaching under the hover-revealed corner controls. The icon
+        // never has that problem since its size never changes. Full
+        // detail is one hover away via the title, and the actual total
+        // shows in the "Group with other categories" modal, which has
+        // real room for it.
         badge.style.display = 'inline-flex';
         badge.title = `Grouped with ${otherNames.join(', ')} · ${money(combined)} combined`;
         badge.style.setProperty('--link-accent', color);
-        badge.textContent = money(combined);
+        badge.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg>`;
         if (card) { card.classList.add('card-linked'); card.style.setProperty('--link-accent', color); }
       });
     }
