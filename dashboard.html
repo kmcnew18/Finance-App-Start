@@ -161,7 +161,7 @@
           </div>
           <button type="button" class="card-color-btn" data-color-cat="savings" title="Change color"></button>
           <span class="card-label"><span class="card-label-text">Savings</span><span class="card-link-badge" id="card-link-badge-savings" style="display:none;"></span></span>
-          <span class="card-value" id="val-savings">$0.00</span>
+          <span class="card-value-row"><span class="card-value" id="val-savings">$0.00</span><span class="card-group-total" id="card-group-total-savings" style="display:none;"></span></span>
           <span class="low-balance-badge" id="low-balance-badge-savings" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-savings"></span>
           <input type="number" class="card-value-input" id="edit-savings" data-cat="savings" step="0.01" />
@@ -177,7 +177,7 @@
           </div>
           <button type="button" class="card-color-btn" data-color-cat="investment" title="Change color"></button>
           <span class="card-label"><span class="card-label-text">Investment</span><span class="card-link-badge" id="card-link-badge-investment" style="display:none;"></span></span>
-          <span class="card-value" id="val-investment">$0.00</span>
+          <span class="card-value-row"><span class="card-value" id="val-investment">$0.00</span><span class="card-group-total" id="card-group-total-investment" style="display:none;"></span></span>
           <span class="low-balance-badge" id="low-balance-badge-investment" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-investment"></span>
           <input type="number" class="card-value-input" id="edit-investment" data-cat="investment" step="0.01" />
@@ -193,7 +193,7 @@
           </div>
           <button type="button" class="card-color-btn" data-color-cat="expenses" title="Change color"></button>
           <span class="card-label"><span class="card-label-text">Expenses</span><span class="card-link-badge" id="card-link-badge-expenses" style="display:none;"></span></span>
-          <span class="card-value" id="val-expenses">$0.00</span>
+          <span class="card-value-row"><span class="card-value" id="val-expenses">$0.00</span><span class="card-group-total" id="card-group-total-expenses" style="display:none;"></span></span>
           <span class="low-balance-badge" id="low-balance-badge-expenses" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-expenses"></span>
           <input type="number" class="card-value-input" id="edit-expenses" data-cat="expenses" step="0.01" />
@@ -209,7 +209,7 @@
           </div>
           <button type="button" class="card-color-btn" data-color-cat="checking" title="Change color"></button>
           <span class="card-label"><span class="card-label-text">Checking</span><span class="card-link-badge" id="card-link-badge-checking" style="display:none;"></span></span>
-          <span class="card-value" id="val-checking">$0.00</span>
+          <span class="card-value-row"><span class="card-value" id="val-checking">$0.00</span><span class="card-group-total" id="card-group-total-checking" style="display:none;"></span></span>
           <span class="low-balance-badge" id="low-balance-badge-checking" style="display:none;">Low balance</span>
           <span class="sync-hint" id="sync-hint-checking"></span>
           <input type="number" class="card-value-input" id="edit-checking" data-cat="checking" step="0.01" />
@@ -1266,12 +1266,13 @@
     // group in rather than splitting them off (see saveCategoryGroup).
     let linkCategoryTargetId = null;
 
-    // Distinguishable, already-in-palette colors, cycled one per group
-    // in a stable sort order (so the same groups always get the same
-    // colors across renders) — deliberately skips ACCENT_COLORS.violet
-    // and .teal, both reserved elsewhere in this file for future
-    // Investment/Savings icons.
-    const LINK_COLORS = ['#6E8FA3', '#D89A52', '#D87BA0', '#B4C468', '#8091E0', '#E0806A'];
+    // One neutral color for every group, rather than a different hue
+    // per group — a rainbow of accent colors ended up clashing with
+    // each card's own accent glow instead of reading as a clean,
+    // consistent "this is grouped" marker. Kept as an array (cycled
+    // via modulo below) so a future per-group palette is a one-line
+    // change if wanted again later.
+    const LINK_COLORS = ['#6E8FA3'];
 
     // Every linkable category as { id, name } — id is the stable key
     // for a default ('savings' etc.) or the real row id for a custom
@@ -1390,9 +1391,11 @@
         const card = badge ? badge.closest('.card') : null;
         const group = getCategoryGroup(id);
         if (!badge) return;
+        const totalEl = document.getElementById('card-group-total-' + id);
         if (!group) {
           badge.style.display = 'none';
           badge.title = '';
+          if (totalEl) totalEl.style.display = 'none';
           if (card) { card.classList.remove('card-linked'); card.style.removeProperty('--link-accent'); }
           return;
         }
@@ -1406,19 +1409,18 @@
         badge.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg>`;
         if (card) { card.classList.add('card-linked'); card.style.setProperty('--link-accent', color); }
 
-        // The combined total itself rides in the existing sync-hint
-        // line (already flexible/variable-height per card — some show
-        // "Adjust set-aside," some show nothing) rather than a new
-        // fixed element, so it stays visible without reserving space
-        // that would make grouped cards taller than ungrouped ones.
-        // Appended, not replacing whatever's already there — this
-        // runs after the base hint text is already set for this
-        // render pass, so it's always additive to the fresh content,
-        // never stale from a previous grouping.
-        const hintEl = document.getElementById('sync-hint-' + id);
-        if (hintEl) {
-          const groupText = `Grouped ${money(combined)}`;
-          hintEl.innerHTML = hintEl.innerHTML ? `${hintEl.innerHTML} · ${groupText}` : groupText;
+        // The combined total lives in its own element right next to
+        // the card's own value (same row, truncates instead of
+        // wrapping) rather than inside sync-hint — sync-hint's hover-
+        // only reveal is an established pattern for its own content
+        // ("+$X from Connections," "Adjust set-aside") that shouldn't
+        // change just because a card also happens to be grouped, and
+        // stacking a second line below it risked colliding with that
+        // hover reveal in the same cramped bottom corner.
+        if (totalEl) {
+          totalEl.textContent = `· ${money(combined)} combined`;
+          totalEl.style.display = 'inline';
+          totalEl.title = `Grouped with ${otherNames.join(', ')} · ${money(combined)} combined`;
         }
       });
     }
@@ -1633,7 +1635,7 @@
           </div>
           <button type="button" class="card-color-btn" data-color-cat="${cat.id}" title="Change color" style="background:${accentColor}; color:${accentColor};"></button>
           <span class="card-label" style="color:${accentColor};"><span class="card-label-text">${cat.name.replace(/</g,'&lt;')}</span><span class="card-link-badge" id="card-link-badge-${cat.id}" style="display:none;"></span></span>
-          ${valueHtml}
+          <span class="card-value-row">${valueHtml}<span class="card-group-total" id="card-group-total-${cat.id}" style="display:none;"></span></span>
           <span class="sync-hint" id="sync-hint-${cat.id}">${hintText + adjustLink}</span>
         `;
         totalCard.parentNode.insertBefore(card, totalCard);

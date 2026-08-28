@@ -312,15 +312,6 @@ h1, h2, h3 {
 .card:focus-within .sync-hint {
   opacity: 1;
 }
-/* The combined-total text refreshCategoryLinkBadges appends into this
-   same line for a grouped card needs to actually be visible without
-   hovering — that's the whole point of showing it — so grouped cards
-   opt their sync-hint out of the hover-reveal above entirely, same
-   position and no extra height either way. */
-.card.card-linked .sync-hint {
-  opacity: 1;
-  pointer-events: auto;
-}
 .envelope-adjust-link {
   display: inline-block;
   margin-left: 0;
@@ -634,22 +625,19 @@ h1, h2, h3 {
    box-shadow (so it never fights the accent-color glow/hover-lift
    cascade above), plus a small icon riding inline right after the
    card's own label text (inside .card-label, which is now a flex
-   row) rather than absolutely positioned in a corner. The top-right
+   row) rather than absolutely positioned in a corner — the top-right
    corner is already claimed by the drag handle/menu/color controls,
    and the top-left by this same label text, so an absolutely
-   positioned badge in either spot either overlapped an existing
-   control or the label itself depending on card width; living inside
-   the label's own line takes no extra vertical space (so a grouped
-   card never grows taller than an ungrouped one) and only needs
-   whatever horizontal room the label's short text leaves — reliably
-   free, unlike either corner. The group's members and combined total
-   are one hover away via the title tooltip; the actual combined
-   number also gets appended to the sync-hint line below (see
-   refreshCategoryLinkBadges) since that line already varies in
-   content per card without affecting row height. --link-accent is
-   set inline per card — one of a handful of fixed colors cycled per
-   distinct group, so two separate groups never read as the same one;
-   the fallback here only ever shows if that JS hasn't run yet. */
+   positioned badge in either spot overlapped one or the other
+   depending on card width; living inside the label's own line takes
+   no extra vertical space and only needs whatever horizontal room the
+   label's short text leaves, reliably free either way. The group's
+   full member list is one hover away via the title tooltip; the
+   combined total itself shows right next to the card's value instead
+   (.card-group-total below) — kept separate from sync-hint on
+   purpose, since sync-hint's hover-only reveal is its own established
+   pattern for different content and shouldn't change just because a
+   card also happens to be grouped. */
 .card.card-linked {
   outline: 1.5px dashed color-mix(in srgb, var(--link-accent, #6E8FA3) 65%, transparent);
   outline-offset: 3px;
@@ -658,7 +646,7 @@ h1, h2, h3 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 15px; height: 15px;
+  width: 16px; height: 16px;
   flex-shrink: 0;
   border-radius: 4px;
   background: color-mix(in srgb, var(--link-accent, #6E8FA3) 18%, transparent);
@@ -666,7 +654,7 @@ h1, h2, h3 {
   color: var(--link-accent, #6E8FA3);
   cursor: default;
 }
-.card-link-badge svg { width: 9px; height: 9px; flex-shrink: 0; }
+.card-link-badge svg { width: 10px; height: 10px; flex-shrink: 0; }
 
 .link-cat-options {
   display: flex;
@@ -1446,6 +1434,25 @@ h1, h2, h3 {
   font-weight: 600;
   font-family: 'Fraunces', serif;
   overflow-wrap: anywhere;
+}
+/* Wraps the value so a grouped card's combined-total note can sit on
+   the same line instead of stacking a new row underneath — .card-value
+   itself never shrinks or wraps to make room; .card-group-total is
+   the one that truncates with an ellipsis if the card's too narrow,
+   so this never grows the card or overlaps anything regardless of how
+   long a category's name or the combined figure gets. */
+.card-value-row { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.card-value-row .card-value { flex-shrink: 0; }
+.card-group-total {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Public Sans', sans-serif;
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--silver-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .card-value-manual {
   cursor: pointer;
