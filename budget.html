@@ -1206,7 +1206,7 @@
           </div>
         `).join('') + `
           <div class="cashflow-item cf-left">
-            <span class="cf-label">Left</span>
+            <span class="cf-label">Left to budget</span>
             <span class="cf-value" id="cf-value-left"></span>
             <span class="cf-sub-hint" id="cf-left-budgeted-hint"></span>
           </div>
@@ -1223,11 +1223,16 @@
         ArkoTransitions.animateNumber(document.getElementById('cf-value-' + c.key), totals[c.key].actual, money);
       });
 
+      // "Left to budget" is the zero-based-budgeting figure: income you
+      // haven't assigned to a category yet, plus whatever actually
+      // rolled over from last period — as opposed to leftActual, which
+      // tracks real spending against real income.
+      const leftToBudget = round2(rolloverInfo.rollover + leftBudget);
       const leftEl = document.getElementById('cf-value-left');
-      leftEl.classList.toggle('positive', rolloverInfo.leftWithRollover >= 0);
-      leftEl.classList.toggle('negative', rolloverInfo.leftWithRollover < 0);
-      ArkoTransitions.animateNumber(leftEl, rolloverInfo.leftWithRollover, money);
-      document.getElementById('cf-left-budgeted-hint').textContent = `budgeted: ${money(leftBudget)}`;
+      leftEl.classList.toggle('positive', leftToBudget >= 0);
+      leftEl.classList.toggle('negative', leftToBudget < 0);
+      ArkoTransitions.animateNumber(leftEl, leftToBudget, money);
+      document.getElementById('cf-left-budgeted-hint').textContent = `actual leftover: ${money(rolloverInfo.leftWithRollover)}`;
 
       renderCharts();
     }
