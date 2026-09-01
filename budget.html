@@ -1223,11 +1223,12 @@
         ArkoTransitions.animateNumber(document.getElementById('cf-value-' + c.key), totals[c.key].actual, money);
       });
 
-      // "Left to budget" is the zero-based-budgeting figure: income you
-      // haven't assigned to a category yet, plus whatever actually
-      // rolled over from last period — as opposed to leftActual, which
-      // tracks real spending against real income.
-      const leftToBudget = round2(rolloverInfo.rollover + leftBudget);
+      // "Left to budget" is the zero-based-budgeting figure: income
+      // budget minus what's been assigned across every other category's
+      // budget — purely planned numbers, not touched by rollover or by
+      // what's actually happened yet (that's what the Rollover tile and
+      // the "actual leftover" hint below are for).
+      const leftToBudget = leftBudget;
       const leftEl = document.getElementById('cf-value-left');
       leftEl.classList.toggle('positive', leftToBudget >= 0);
       leftEl.classList.toggle('negative', leftToBudget < 0);
