@@ -2327,7 +2327,10 @@
         .filter(s => s.amount > 0);
     }
 
-    function logMirrorRowAmount(row, cat) {
+    // The full amount this row would contribute before any manual
+    // partial-amount override — i.e. what the split-column selection
+    // (or the row's plain amount) adds up to on its own.
+    function logMirrorNaturalAmount(row, cat) {
       const chosen = logMirrorSplitChoice[row.id];
       if (chosen && chosen.size > 0) {
         const sum = LOG_SPLIT_COLUMNS
@@ -2342,7 +2345,23 @@
       return round2(Math.abs(Number(row.amount) || 0));
     }
 
+    // A manual override (typed into the "Amount to add" field) lets one
+    // log entry — e.g. a two-week paycheck straddling a month boundary —
+    // be added to a budget line for less than its full logged amount, so
+    // the remainder can be pulled into a different period later. Clamped
+    // to [0, natural amount] so this can only ever add up to what was
+    // actually logged, never fabricate money.
+    function logMirrorRowAmount(row, cat) {
+      const natural = logMirrorNaturalAmount(row, cat);
+      const override = logMirrorAmountOverride[row.id];
+      if (override != null && !Number.isNaN(override)) {
+        return round2(Math.min(Math.max(override, 0), natural));
+      }
+      return natural;
+    }
+
     let logMirrorSplitChoice = {};
+    let logMirrorAmountOverride = {};
 
     function updateLogMirrorActions() {
       const count = document.querySelectorAll('.logmirror-select:checked').length;
@@ -2360,6 +2379,7 @@
       logMirrorTargetCat = cat;
       logMirrorTargetLineId = lineId;
       logMirrorSplitChoice = {};
+      logMirrorAmountOverride = {};
       document.getElementById('logmirror-sub').textContent = `Select entries to add to "${lineName || '(unnamed line)'}".`;
       document.getElementById('logmirror-body').innerHTML = '<tr><td colspan="8" class="loading-message">Loading...</td></tr>';
       document.getElementById('logmirror-actions').style.display = 'none';
@@ -2398,6 +2418,7 @@
         </tr>`;
 
         const splits = (r.action_type === 'add' && logMirrorTargetCat !== 'income') ? logMirrorSplitOptions(r) : [];
+        let splitRow = '';
         if (splits.length > 1) {
           const exactMatch = splits.find(s => s.key === logMirrorTargetCat);
           const defaultKey = exactMatch ? exactMatch.key : splits.slice().sort((a, b) => b.amount - a.amount)[0].key;
@@ -2408,7 +2429,7 @@
               ${s.label} <span class="logmirror-split-amount">${money(s.amount)}</span>
             </label>
           `).join('');
-          const splitRow = `
+          splitRow = `
         <tr class="logmirror-split-row" id="logmirror-split-${r.id}" style="display:none;">
           <td></td>
           <td colspan="7">
@@ -2422,20 +2443,36 @@
             </div>
           </td>
         </tr>`;
-          return mainRow + splitRow;
         }
-        return mainRow;
+
+        // Lets a single entry — e.g. a two-week paycheck straddling a
+        // month boundary — be added for less than its full logged
+        // amount, so the rest can be pulled into another period later.
+        const naturalAmount = logMirrorNaturalAmount(r, logMirrorTargetCat);
+        const amountRow = naturalAmount > 0 ? `
+        <tr class="logmirror-amount-row" id="logmirror-amount-${r.id}" style="display:none;">
+          <td></td>
+          <td colspan="7">
+            <div class="logmirror-amount-picker">
+              <span class="logmirror-amount-label">Amount to add</span>
+              <input type="number" class="logmirror-amount-input" id="logmirror-amount-input-${r.id}" data-row-id="${r.id}" min="0" max="${naturalAmount}" step="0.01" value="${naturalAmount.toFixed(2)}" />
+              <span class="logmirror-amount-hint">of ${money(naturalAmount)} logged</span>
+            </div>
+          </td>
+        </tr>` : '';
+
+        return mainRow + splitRow + amountRow;
       }).join('');
 
       tbody.querySelectorAll('.logmirror-row').forEach(rowEl => {
         rowEl.addEventListener('click', () => {
           const cb = rowEl.querySelector('.logmirror-select');
-          if (cb) { cb.checked = !cb.checked; syncLogMirrorSplitRow(rowEl.dataset.logId, cb.checked); updateLogMirrorActions(); }
+          if (cb) { cb.checked = !cb.checked; syncLogMirrorRowExtras(rowEl.dataset.logId, cb.checked); updateLogMirrorActions(); }
         });
       });
       tbody.querySelectorAll('.logmirror-select').forEach(cb => {
         cb.addEventListener('change', () => {
-          syncLogMirrorSplitRow(cb.dataset.logId, cb.checked);
+          syncLogMirrorRowExtras(cb.dataset.logId, cb.checked);
           updateLogMirrorActions();
         });
       });
@@ -2451,6 +2488,7 @@
           const rowChecks = tbody.querySelectorAll(`.logmirror-split-checkbox[data-row-id="${rowId}"]`);
           const selectAllCb = tbody.querySelector(`.logmirror-split-selectall-cb[data-row-id="${rowId}"]`);
           if (selectAllCb) selectAllCb.checked = Array.from(rowChecks).every(x => x.checked);
+          refreshLogMirrorAmountInput(rowId);
         });
       });
       tbody.querySelectorAll('.logmirror-split-selectall-cb').forEach(cb => {
@@ -2463,15 +2501,47 @@
             x.closest('.logmirror-split-option').classList.toggle('chip-active', cb.checked);
           });
           logMirrorSplitChoice[rowId] = new Set(cb.checked ? Array.from(rowChecks).map(x => x.dataset.key) : []);
+          refreshLogMirrorAmountInput(rowId);
+        });
+      });
+      tbody.querySelectorAll('.logmirror-amount-input').forEach(input => {
+        input.addEventListener('click', (e) => e.stopPropagation());
+        input.addEventListener('input', () => {
+          const rowId = input.dataset.rowId;
+          const parsed = parseFloat(input.value);
+          logMirrorAmountOverride[rowId] = Number.isNaN(parsed) ? null : parsed;
+        });
+        input.addEventListener('blur', () => {
+          const rowId = input.dataset.rowId;
+          const row = logMirrorRows.find(r => r.id === rowId);
+          if (!row) return;
+          const clamped = logMirrorRowAmount(row, logMirrorTargetCat);
+          logMirrorAmountOverride[rowId] = clamped;
+          input.value = clamped.toFixed(2);
         });
       });
 
       updateLogMirrorActions();
     }
 
-    function syncLogMirrorSplitRow(rowId, visible) {
+    function syncLogMirrorRowExtras(rowId, visible) {
       const splitRow = document.getElementById('logmirror-split-' + rowId);
       if (splitRow) splitRow.style.display = visible ? 'table-row' : 'none';
+      const amountRow = document.getElementById('logmirror-amount-' + rowId);
+      if (amountRow) amountRow.style.display = visible ? 'table-row' : 'none';
+    }
+
+    // Split selection changes the natural (un-overridden) amount for a
+    // row, so any typed-in partial amount is cleared and the field
+    // resets to reflect the newly selected split total.
+    function refreshLogMirrorAmountInput(rowId) {
+      delete logMirrorAmountOverride[rowId];
+      const input = document.getElementById('logmirror-amount-input-' + rowId);
+      const row = logMirrorRows.find(r => r.id === rowId);
+      if (!input || !row) return;
+      const natural = logMirrorNaturalAmount(row, logMirrorTargetCat);
+      input.value = natural.toFixed(2);
+      input.max = natural;
     }
 
     function closeLogMirrorOverlay() {
@@ -2480,6 +2550,7 @@
       logMirrorTargetLineId = null;
       logMirrorRows = [];
       logMirrorSplitChoice = {};
+      logMirrorAmountOverride = {};
     }
 
     async function addSelectedLogRowsToTargetLine() {
@@ -2530,7 +2601,7 @@
       document.getElementById('logmirror-select-all').addEventListener('change', (e) => {
         document.querySelectorAll('.logmirror-select').forEach(cb => {
           cb.checked = e.target.checked;
-          syncLogMirrorSplitRow(cb.dataset.logId, cb.checked);
+          syncLogMirrorRowExtras(cb.dataset.logId, cb.checked);
         });
         updateLogMirrorActions();
       });

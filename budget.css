@@ -962,6 +962,47 @@
   border-left: 1px solid var(--ledger-line);
 }
 
+/* Partial-amount picker, shown once a row is selected — lets a single
+   log entry (e.g. a two-week paycheck) be added to a budget line for
+   less than its full logged amount, so the rest can be pulled into a
+   different period later. */
+.logmirror-amount-row td { background: transparent; border-top: none; padding: 6px 10px 12px; }
+.logmirror-amount-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: rgba(184,147,74,0.07);
+  border: 1px solid rgba(184,147,74,0.25);
+  border-radius: 20px;
+  padding: 6px 8px 6px 14px;
+}
+.logmirror-amount-label {
+  font-size: 0.68rem;
+  color: var(--silver-dim);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+.logmirror-amount-input {
+  width: 100px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--ledger-line);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--tan);
+}
+.logmirror-amount-input:focus { outline: none; border-color: var(--brass-dim); }
+.logmirror-amount-hint {
+  font-size: 0.68rem;
+  color: var(--silver-dim);
+  white-space: nowrap;
+}
+
 /* ---------- default-template hint ---------- */
 .default-hint {
   font-size: 0.78rem;
