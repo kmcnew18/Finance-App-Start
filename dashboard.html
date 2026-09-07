@@ -2168,19 +2168,23 @@
     }
 
     async function loadPendingReviews() {
-      // Only the current month — without this, the query (and the
-      // section itself) just keeps growing forever as anything
-      // un-reviewed piles up across every month since the account was
-      // connected. Anything older than this month that's still
-      // pending stays in the database untouched — it's just not
-      // pulled into this particular view.
-      const firstOfMonth = todayISO().slice(0, 8) + '01';
+      // No date filter — this used to cut off at the first of the
+      // current month, on the theory that otherwise the section would
+      // "keep growing forever." In practice that broke Restore: an
+      // old skipped review is explicitly, deliberately put back to
+      // 'pending' by the user, but if its txn_date was from a prior
+      // month it would satisfy that filter's opposite and just vanish
+      // — restored in the database, invisible everywhere. The actual
+      // safeguard against runaway growth is the "See all N (M more)"
+      // collapse below (TXN_REVIEW_COLLAPSED_COUNT), which already
+      // caps what's shown regardless of how many rows this returns —
+      // so the month filter wasn't load-bearing for that concern, it
+      // was just silently breaking restores.
       const { data, error } = await supabaseClient
         .from('pending_dashboard_reviews')
         .select('*')
         .eq('user_id', currentUserId)
         .eq('status', 'pending')
-        .gte('txn_date', firstOfMonth)
         .order('txn_date', { ascending: false });
       if (error) { console.error(error); pendingReviews = []; return; }
       pendingReviews = data || [];
@@ -2816,6 +2820,40 @@
     }
 
     async function restoreSkippedActivity(reviewId) {
+      const { data: review, error: fetchError } = await supabaseClient
+        .from('pending_dashboard_reviews')
+        .select('*')
+        .eq('id', reviewId)
+        .maybeSingle();
+      if (fetchError || !review) { await arkoAlert('Could not find that entry — it may have been removed.'); return; }
+
+      // Restoring straight back to 'pending' can recreate the exact
+      // situation the background dedup pass exists to clean up: Plaid
+      // reissues a new transaction_id when a pending charge posts, so
+      // if that already happened while this one sat skipped, there's
+      // now a newer 'pending' review in Detected activity for the
+      // same real purchase. Restoring the old one on top of that just
+      // rebuilds the duplicate pair dedup is designed to collapse —
+      // the very next refresh (background or manual) would silently
+      // dismiss it right back to skipped, making Restore look broken
+      // instead of explaining what actually happened.
+      const windowStart = new Date(review.txn_date + 'T00:00:00Z'); windowStart.setUTCDate(windowStart.getUTCDate() - 2);
+      const windowEnd = new Date(review.txn_date + 'T00:00:00Z'); windowEnd.setUTCDate(windowEnd.getUTCDate() + 2);
+      const { data: duplicates } = await supabaseClient
+        .from('pending_dashboard_reviews')
+        .select('id')
+        .eq('user_id', currentUserId)
+        .eq('linked_account_id', review.linked_account_id)
+        .eq('status', 'pending')
+        .eq('amount', review.amount)
+        .gte('txn_date', windowStart.toISOString().slice(0, 10))
+        .lte('txn_date', windowEnd.toISOString().slice(0, 10))
+        .neq('id', reviewId);
+      if (duplicates && duplicates.length) {
+        await arkoAlert("This looks like it's already been re-detected as a newer entry in Detected activity — there's nothing to restore here. Check the current list instead.");
+        return;
+      }
+
       // The update itself is scoped to dismissed rows only — belt and
       // suspenders alongside the query above only ever fetching
       // dismissed rows in the first place.
