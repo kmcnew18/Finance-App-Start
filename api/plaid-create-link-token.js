@@ -96,22 +96,36 @@ module.exports = async (req, res) => {
       // investments / debt) and requested a narrow product set per
       // category. That's gone now: there's a single "Connect with
       // Plaid" button, and institutions like Robinhood can expose both
-      // a brokerage account (investments) and a credit card (liabilities)
-      // on the very same Item — restricting products up front would
-      // have hidden one or the other.
+      // a brokerage account (investments) and a credit card on the
+      // same Item — restricting products up front would have hidden
+      // one or the other.
       //
       // `products` are the ones Plaid requires the institution to
       // support just to show up in Link's search results at all — kept
       // to Transactions since that's supported almost everywhere.
       // `optional_products` are requested opportunistically: Plaid
       // includes them only when the selected institution actually
-      // supports them, so an institution missing Investments or
-      // Liabilities doesn't get excluded or fail, it just doesn't
-      // return that piece. Link's own account-selection screen is what
-      // then lets the person pick exactly which accounts (checking,
-      // brokerage, credit card, etc.) to share.
+      // supports them, so an institution missing Investments doesn't
+      // get excluded or fail, it just doesn't return that piece.
+      // Link's own account-selection screen is what then lets the
+      // person pick exactly which accounts (checking, brokerage,
+      // credit card, etc.) to share.
+      //
+      // Auth and Liabilities used to be requested here too (Liabilities
+      // specifically for the Robinhood-style "credit card on the same
+      // Item as a brokerage account" case above) but neither is ever
+      // actually fetched anywhere in the app — credit card debt is
+      // tracked from plain accountsBalanceGet balances plus the
+      // manually-entered APR/balance fields on debt budget lines, not
+      // Plaid's Liabilities product, and nothing here does bank-account
+      // verification (Auth's whole purpose). Every connected Item was
+      // paying for two enabled products with zero code ever calling
+      // them. Dropping both here only affects *new* connections going
+      // forward — an Item's enabled products are fixed at the Link
+      // session that created it, so this doesn't retroactively remove
+      // them from accounts already connected.
       linkTokenParams.products = [Products.Transactions];
-      linkTokenParams.optional_products = [Products.Auth, Products.Investments, Products.Liabilities];
+      linkTokenParams.optional_products = [Products.Investments];
       linkTokenParams.transactions = { days_requested: 180 }; // Recurring Transactions wants 180+ days for good results
     }
 
