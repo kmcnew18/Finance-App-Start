@@ -137,6 +137,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
             <span>Refresh</span>
           </button>
+          <button type="button" class="txn-skip-all-btn" id="txn-skip-all-btn" style="display:none;">Skip all</button>
           <button type="button" class="txn-approve-all-btn" id="txn-approve-all-btn" style="display:none;">Confirm all</button>
         </div>
       </div>
@@ -1808,6 +1809,11 @@
       setupManageSubscription();
       setupFeaturePreview();
       document.getElementById('refresh-detected-btn').addEventListener('click', refreshDetectedActivity);
+      // "Confirm all" had no click listener at all — defined, rendered,
+      // never wired, so it's been a dead button until now. Fixed
+      // alongside adding "Skip all" since it's the same code path.
+      document.getElementById('txn-approve-all-btn').addEventListener('click', approveAllTxnReviews);
+      document.getElementById('txn-skip-all-btn').addEventListener('click', skipAllTxnReviews);
 
       const dateNow = todayStr();
       document.getElementById('add-date').textContent = dateNow;
@@ -2196,11 +2202,13 @@
       const list = document.getElementById('txn-review-list');
       const empty = document.getElementById('txn-review-empty');
       const approveAllBtn = document.getElementById('txn-approve-all-btn');
+      const skipAllBtn = document.getElementById('txn-skip-all-btn');
 
       if (!pendingReviews.length) {
         list.innerHTML = '';
         empty.style.display = 'block';
         approveAllBtn.style.display = 'none';
+        skipAllBtn.style.display = 'none';
         return;
       }
 
@@ -2214,6 +2222,7 @@
             ? `<button type="button" class="txn-review-see-all-btn" id="txn-review-see-all-btn">Show fewer</button>`
             : ''));
       approveAllBtn.style.display = pendingReviews.length > 1 ? 'inline-block' : 'none';
+      skipAllBtn.style.display = pendingReviews.length > 1 ? 'inline-block' : 'none';
 
       const seeAllBtn = document.getElementById('txn-review-see-all-btn');
       if (seeAllBtn) seeAllBtn.addEventListener('click', () => { txnReviewShowAll = !txnReviewShowAll; renderTxnReviewSection(); });
@@ -2770,6 +2779,31 @@
 
       btn.disabled = false;
       btn.textContent = 'Confirm all';
+    }
+
+    // Bulk version of the per-row Skip button — dismisses every
+    // currently pending review in one go rather than one at a time.
+    // Same status-flip skipTxnReview already does per row, just
+    // looped, so a skipped-all transaction still shows up in Skipped
+    // activity and can be restored individually later.
+    async function skipAllTxnReviews() {
+      const count = pendingReviews.length;
+      if (!await arkoConfirm(`Skip all ${count} detected transaction${count === 1 ? '' : 's'}? You can restore any of them later from Skipped activity.`)) return;
+
+      const btn = document.getElementById('txn-skip-all-btn');
+      btn.disabled = true;
+      btn.textContent = 'Skipping…';
+
+      const reviewsToSkip = [...pendingReviews];
+      for (const review of reviewsToSkip) {
+        await supabaseClient.from('pending_dashboard_reviews').update({ status: 'dismissed' }).eq('id', review.id);
+        logAuditEvent('txn_review_dismissed', { merchant_name: review.merchant_name });
+      }
+
+      await loadPendingReviews();
+
+      btn.disabled = false;
+      btn.textContent = 'Skip all';
     }
 
     async function skipTxnReview(reviewId) {

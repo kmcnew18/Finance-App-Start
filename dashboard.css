@@ -1047,6 +1047,18 @@ h1, h2, h3 {
 }
 .txn-approve-all-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(46,84,114,0.45); }
 .txn-approve-all-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+/* Secondary to Confirm all's solid gradient — same muted treatment as
+   the per-row Skip button, so the bulk actions read as "one clear
+   primary choice, one quieter alternative" rather than two equally
+   weighted buttons competing for attention. */
+.txn-skip-all-btn {
+  padding: 8px 16px; border: 1px solid var(--panel-border); border-radius: 8px;
+  background: rgba(255,255,255,0.02); color: var(--silver-dim);
+  font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.txn-skip-all-btn:hover { background: rgba(255,255,255,0.05); border-color: var(--silver-dim); color: var(--tan); transform: translateY(-1px); }
+.txn-skip-all-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
 .txn-review-list { display: flex; flex-direction: column; gap: 10px; }
 .txn-review-row {
@@ -2385,7 +2397,7 @@ input[type="number"]::-webkit-outer-spin-button {
   /* Transaction review queue and budget preset prompt */
   .txn-review-head { flex-direction: column; align-items: stretch; }
   .txn-review-head-actions { flex-direction: column; align-items: stretch; }
-  .txn-approve-all-btn { width: 100%; }
+  .txn-approve-all-btn, .txn-skip-all-btn { width: 100%; }
   .txn-review-info { flex-direction: column; align-items: flex-start; gap: 2px; }
   .txn-review-change-form { flex-direction: column; }
   .txn-review-actions { flex-wrap: wrap; }
