@@ -3,12 +3,22 @@ import { createClient } from '@supabase/supabase-js';
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { userId, fingerprint } = req.body;
+  const { userId, fingerprint } = req.body || {};
   if (!userId) return res.status(400).json({ error: 'Missing userId' });
 
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
 
   const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  // Only the signed-in account can start its own trial. Without this, a
+  // userId in the body was an unverified claim — anyone who learned a
+  // brand-new account's id could register it first from an IP that had
+  // already used a trial and get it flagged straight to the free tier.
+  const authHeaderVal = req.headers.authorization || '';
+  const token = authHeaderVal.startsWith('Bearer ') ? authHeaderVal.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Missing authorization token' });
+  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !authData?.user || authData.user.id !== userId) return res.status(401).json({ error: 'Unauthorized' });
 
   // Already has a billing row? Don't re-create it.
   const { data: mine } = await supabaseAdmin

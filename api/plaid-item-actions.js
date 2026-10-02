@@ -15,6 +15,8 @@
 //   action: 'add_new_accounts'  — finishes granting access to a newly
 //                                  available account, or dismisses that
 //                                  prompt (was plaid-add-new-accounts.js)
+//   action: 'disconnect_item'   — disconnect one bank but keep its accounts
+//                                  as manual ones (inactive-connection review)
 //   action: 'trust_device' /     — two-factor "trust this device for 30
 //           'untrust_device'       days" (see lib/device-trust.js). Not
 //                                  Plaid-related; lives here only for the
@@ -25,6 +27,7 @@
 const { supabaseAdmin, mapAccountType, processItemUpdate, fetchCachedAccounts, refreshCachedBalancesForItem } = require('../lib/plaid-helpers');
 const { handleTrustDevice, handleUntrustDevice } = require('../lib/device-trust');
 const { requireUser, requireMfa } = require('../lib/auth-guard');
+const { disconnectItems } = require('../lib/maintenance');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -39,9 +42,38 @@ module.exports = async (req, res) => {
   if (action === 'add_new_accounts') return handleAddNewAccounts(req, res);
   if (action === 'trust_device') return handleTrustDevice(req, res);
   if (action === 'untrust_device') return handleUntrustDevice(req, res);
+  if (action === 'disconnect_item') return handleDisconnectItem(req, res);
 
   res.status(400).json({ error: 'Missing or unrecognized action' });
 };
+
+// ---------- disconnect_item ----------
+// Connections' "Disconnect" on an inactive bank: revokes the connection
+// at Plaid (ending its monthly fee) but keeps its accounts as manual
+// ones with their last balance and category — unlike Remove, nothing
+// the user sees disappears. Same routine the inactivity policy uses.
+async function handleDisconnectItem(req, res) {
+  try {
+    const { userId, itemId } = req.body || {};
+    if (!userId || !itemId) { res.status(400).json({ error: 'Missing userId or itemId' }); return; }
+    if (!await requireMfa(req, res, userId)) return;
+
+    const { data: itemRow, error } = await supabaseAdmin
+      .from('plaid_items').select('*').eq('item_id', itemId).eq('user_id', userId).maybeSingle();
+    if (error) throw error;
+    if (!itemRow) { res.status(404).json({ error: 'Could not find that connection' }); return; }
+
+    const result = await disconnectItems(userId, [itemRow], 'keep-manual');
+    await supabaseAdmin.from('audit_log').insert({
+      user_id: userId, event_type: 'plaid_item_disconnected',
+      detail: { item_id: itemId, institution_name: itemRow.institution_name, accounts_kept_as_manual: result.accountsAffected, reason: 'user_inactive_review' },
+    });
+    res.status(200).json({ success: true, accountsKept: result.accountsAffected });
+  } catch (err) {
+    console.error('plaid-item-actions (disconnect_item) error:', err?.response?.data || err);
+    res.status(500).json({ error: 'Could not disconnect this bank' });
+  }
+}
 
 // ---------- status ----------
 async function handleStatus(req, res) {

@@ -431,6 +431,61 @@
 .account-card-stale-block p {
   font-size: 0.76rem; color: #A8AFB5; line-height: 1.45;
 }
+/* Inactive connections — calm, informational (muted gold), never alarming:
+   nothing is broken, it's just a connection nobody seems to use. */
+#inactive-banner { margin-bottom: 14px; }
+.inactive-card {
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(201,168,106,0.09), rgba(18,24,31,0.6) 60%);
+  border: 1px solid rgba(201,168,106,0.3);
+  box-shadow: 0 0 0 1px rgba(201,168,106,0.05), 0 0 22px rgba(201,168,106,0.06);
+}
+.inactive-card-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 6px; }
+.inactive-card-icon {
+  width: 32px; height: 32px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  color: #D9B978;
+  background: rgba(201,168,106,0.12);
+  box-shadow: 0 0 0 1px rgba(201,168,106,0.3), 0 0 14px rgba(201,168,106,0.18);
+}
+.inactive-card-icon svg { width: 16px; height: 16px; }
+.inactive-card-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.inactive-card-title { font-family: 'Fraunces', Georgia, serif; font-size: 0.98rem; color: var(--tan); }
+.inactive-card-sub { font-size: 0.78rem; color: #A8AFB5; line-height: 1.5; }
+.inactive-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 0 2px 44px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  margin-top: 8px;
+}
+.inactive-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.inactive-row-name { font-size: 0.86rem; font-weight: 600; color: var(--tan); }
+.inactive-row-meta { font-size: 0.72rem; color: #8B949E; }
+.inactive-row-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.inactive-btn-ghost, .inactive-btn-solid {
+  padding: 7px 13px; border-radius: 999px;
+  font: inherit; font-size: 0.76rem; font-weight: 700; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease, color 0.15s ease;
+}
+.inactive-btn-ghost { background: transparent; color: #C4CACF; border: 1px solid rgba(255,255,255,0.14); }
+.inactive-btn-ghost:hover { border-color: rgba(255,255,255,0.28); color: var(--tan); }
+.inactive-btn-solid {
+  background: rgba(201,168,106,0.16); color: #E2C48A; border: 1px solid rgba(201,168,106,0.5);
+  box-shadow: 0 0 0 1px rgba(201,168,106,0.1);
+}
+.inactive-btn-solid:hover { background: rgba(201,168,106,0.24); box-shadow: 0 0 16px rgba(201,168,106,0.25); }
+.inactive-btn-ghost:disabled, .inactive-btn-solid:disabled { opacity: 0.6; cursor: default; }
+.inactive-away { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+@media (max-width: 560px) {
+  .inactive-row { flex-direction: column; align-items: flex-start; padding-left: 0; }
+  .inactive-row-actions { width: 100%; }
+  .inactive-row-actions button { flex: 1; }
+  .inactive-away { flex-direction: column; align-items: flex-start; }
+}
+
 .account-delete-btn.suggested {
   background: rgba(139, 148, 158, 0.14);
   border-color: rgba(139, 148, 158, 0.4);

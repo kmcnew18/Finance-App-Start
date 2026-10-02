@@ -26,7 +26,7 @@
 const { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } = require('plaid');
 const { createClient } = require('@supabase/supabase-js');
 const { decryptToken } = require('../lib/crypto-helpers');
-const { requireMfa } = require('../lib/auth-guard');
+const { requireMfa, requireTier } = require('../lib/auth-guard');
 
 const plaidClient = new PlaidApi(new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -56,6 +56,7 @@ module.exports = async (req, res) => {
     // what two-factor is there to protect — enforced here, not just by
     // the prompt in the browser.
     if (!await requireMfa(req, res, userId)) return;
+    if (!await requireTier(res, userId, 2)) return;
 
     const linkTokenParams = {
       user: { client_user_id: userId },

@@ -345,6 +345,7 @@ async function init() {
   // behind a prompt every single time someone just wants to check a
   // balance.
   document.getElementById('loading-message').textContent = 'Loading your accounts…';
+  await checkAwayNotice();
   await loadAccounts();
 
   document.getElementById('loading-message').style.display = 'none';
@@ -416,8 +417,162 @@ async function loadAccounts() {
   await loadCategories();
   await cleanUpCreditCardCategorySplits();
   await loadPendingAmounts();
+  await loadInactiveConnections();
   renderAll();
   renderLastSynced();
+}
+
+// ================= INACTIVE CONNECTIONS =================
+// Plaid bills per bank connection per month, whether or not anything
+// happens on it. A connection counts as inactive when none of its
+// checking or credit card accounts has had a transaction in
+// INACTIVE_DAYS (and it's been connected at least that long). Those get
+// a calm notice with Disconnect — which keeps the accounts as manual
+// ones, last balance and category intact — or Keep connected, which
+// quiets the notice for INACTIVE_DAYS. Connections with only savings
+// or investment accounts aren't judged: those normally go quiet for
+// months, and transactions aren't stored for them anyway.
+// (Separately, the daily server job pauses all connections for an
+// account nobody has opened in ~3½ months — see lib/maintenance.js.)
+const INACTIVE_DAYS = 90;
+let inactiveItems = {}; // plaid_item_id -> { days, lastDate, institution, accountCount }
+
+async function loadInactiveConnections() {
+  inactiveItems = {};
+  const byItem = {};
+  accounts.filter(a => a.source === 'plaid' && a.plaid_item_id).forEach(a => {
+    (byItem[a.plaid_item_id] = byItem[a.plaid_item_id] || []).push(a);
+  });
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const kept = (session && session.user.user_metadata && session.user.user_metadata.inactive_kept) || {};
+  const today = new Date().toISOString().slice(0, 10);
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  await Promise.all(Object.keys(byItem).map(async itemId => {
+    if (kept[itemId] && kept[itemId] > today) return;
+    const itemAccounts = byItem[itemId];
+    const activityAccounts = itemAccounts.filter(a => a.account_type === 'checking' || a.account_type === 'credit_card');
+    if (!activityAccounts.length) return;
+    const connectedAt = Math.min.apply(null, itemAccounts.map(a => Date.parse(a.created_at) || Date.now()));
+    if (Date.now() - connectedAt < INACTIVE_DAYS * dayMs) return;
+    if (connectionStatus.some(i => i.item_id === itemId && i.needs_reconnect)) return; // the reconnect prompt covers it
+
+    const { data, error } = await supabaseClient
+      .from('transactions').select('txn_date')
+      .eq('user_id', currentUserId).eq('is_removed', false)
+      .in('linked_account_id', activityAccounts.map(a => a.id))
+      .order('txn_date', { ascending: false }).limit(1);
+    if (error) { console.error('Inactive check failed:', error); return; }
+    const lastDate = data && data[0] ? data[0].txn_date : null;
+    const since = lastDate ? Date.parse(lastDate + 'T00:00:00') : connectedAt;
+    const days = Math.floor((Date.now() - since) / dayMs);
+    if (days >= INACTIVE_DAYS) {
+      inactiveItems[itemId] = { days, lastDate, institution: itemAccounts[0].institution_name || 'This bank', accountCount: itemAccounts.length };
+    }
+  }));
+}
+
+function renderInactiveBanner() {
+  const wrap = document.getElementById('inactive-banner');
+  const { awayNotice } = renderInactiveBanner;
+  const ids = Object.keys(inactiveItems);
+  if (!ids.length && !awayNotice) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+
+  const esc = s => String(s).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  wrap.style.display = 'block';
+  wrap.innerHTML = (awayNotice ? `
+      <div class="inactive-card inactive-away">
+        <div class="inactive-card-text">
+          <span class="inactive-card-title">Welcome back</span>
+          <span class="inactive-card-sub">While you were away we paused your bank connections so they weren't syncing unused. Your accounts are still here as manual accounts with their last balances — reconnect anytime with <b>+ Connect account</b>.</span>
+        </div>
+        <button type="button" class="inactive-btn-ghost" id="inactive-away-ok">Got it</button>
+      </div>` : '') +
+    (ids.length ? `
+      <div class="inactive-card">
+        <div class="inactive-card-head">
+          <span class="inactive-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span>
+          <div class="inactive-card-text">
+            <span class="inactive-card-title">${ids.length === 1 ? 'A connection looks inactive' : ids.length + ' connections look inactive'}</span>
+            <span class="inactive-card-sub">No new transactions in ${INACTIVE_DAYS}+ days. Disconnecting stops syncing; the accounts stay here as manual ones with their last balance and category.</span>
+          </div>
+        </div>
+        ${ids.map(id => {
+          const it = inactiveItems[id];
+          return `
+          <div class="inactive-row">
+            <div class="inactive-row-text">
+              <span class="inactive-row-name">${esc(it.institution)}</span>
+              <span class="inactive-row-meta">${it.lastDate ? 'Last transaction ' + fmt(it.lastDate) : 'No transactions since connecting'} · ${it.accountCount} account${it.accountCount === 1 ? '' : 's'}</span>
+            </div>
+            <div class="inactive-row-actions">
+              <button type="button" class="inactive-btn-ghost inactive-keep-btn" data-item-id="${esc(id)}">Keep connected</button>
+              <button type="button" class="inactive-btn-solid inactive-disconnect-btn" data-item-id="${esc(id)}">Disconnect</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>` : '');
+
+  wrap.querySelectorAll('.inactive-disconnect-btn').forEach(btn => btn.addEventListener('click', () => disconnectInactive(btn.dataset.itemId, btn)));
+  wrap.querySelectorAll('.inactive-keep-btn').forEach(btn => btn.addEventListener('click', () => keepInactive(btn.dataset.itemId, btn)));
+  const ok = document.getElementById('inactive-away-ok');
+  if (ok) ok.addEventListener('click', dismissAwayNotice);
+}
+
+async function disconnectInactive(itemId, btn) {
+  const it = inactiveItems[itemId];
+  if (!it) return;
+  if (!await arkoConfirm(`Disconnect ${it.institution}? Syncing stops and its ${it.accountCount === 1 ? 'account stays' : it.accountCount + ' accounts stay'} in Arko as manual, with the last balance and category. You can reconnect anytime.`)) return;
+  if (!await requireMfaVerified(false)) return;
+  btn.disabled = true;
+  btn.textContent = 'Disconnecting…';
+  try {
+    const res = await fetch('/api/plaid-item-actions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+      body: JSON.stringify({ action: 'disconnect_item', userId: currentUserId, itemId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Could not disconnect right now.');
+    logAuditEvent('plaid_item_disconnected', { institution_name: it.institution });
+    await loadAccounts();
+  } catch (err) {
+    console.error(err);
+    btn.disabled = false;
+    btn.textContent = 'Disconnect';
+    await arkoAlert(err.message || 'Could not disconnect right now.');
+  }
+}
+
+async function keepInactive(itemId, btn) {
+  btn.disabled = true;
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const kept = Object.assign({}, (user && user.user_metadata && user.user_metadata.inactive_kept) || {});
+    kept[itemId] = new Date(Date.now() + INACTIVE_DAYS * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    await supabaseClient.auth.updateUser({ data: { inactive_kept: kept } });
+  } catch (err) {
+    console.error('Could not save keep choice:', err);
+  }
+  delete inactiveItems[itemId];
+  renderInactiveBanner();
+  renderAccountGroups();
+}
+
+// One-time "welcome back" when the server paused this account's banks
+// for inactivity (app_metadata.inactivity_disconnected_at).
+async function checkAwayNotice() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const at = user && user.app_metadata && user.app_metadata.inactivity_disconnected_at;
+  renderInactiveBanner.awayNotice = !!at && (user.user_metadata || {}).inactivity_notice_seen !== at;
+  renderInactiveBanner.awayAt = at;
+}
+async function dismissAwayNotice() {
+  const at = renderInactiveBanner.awayAt;
+  renderInactiveBanner.awayNotice = false;
+  renderInactiveBanner();
+  try { await supabaseClient.auth.updateUser({ data: { inactivity_notice_seen: at } }); } catch (e) {}
 }
 
 // Credit card balances from Plaid mirror whatever the card issuer
@@ -569,6 +724,7 @@ async function loadConnectionStatus() {
 function renderAll() {
   renderNetWorth();
   renderNewAccountsBanner();
+  renderInactiveBanner();
   renderAccountGroups();
   renderCharts();
 }
@@ -748,15 +904,18 @@ function accountCardHtml(a, t) {
   // isn't flagging someone who just hasn't opened the app in a
   // couple weeks — that's normal. It's meant to catch connections
   // that have genuinely gone stale.
-  const daysSinceSync = (a.source === 'plaid' && a.last_synced_at && !brokenItem)
-    ? Math.floor((Date.now() - new Date(a.last_synced_at).getTime()) / (1000 * 60 * 60 * 24))
-    : null;
-  const isStale = daysSinceSync !== null && daysSinceSync >= 60;
+  // Inactive = the whole bank connection has had no transactions in
+  // INACTIVE_DAYS (see loadInactiveConnections). This used to key off
+  // last_synced_at, which stopped meaning anything once balances began
+  // refreshing on every visit.
+  const inactive = (a.source === 'plaid' && a.plaid_item_id && !brokenItem) ? inactiveItems[a.plaid_item_id] : null;
+  const isStale = !!inactive;
+  const daysSinceSync = inactive ? inactive.days : null;
 
   const synced = brokenItem
     ? `<span class="account-card-reconnect-badge"><span class="dot"></span>Needs reconnecting</span>`
     : isStale
-      ? `<span class="account-card-stale-badge"><span class="dot"></span>Hasn't synced in ${daysSinceSync} days</span>`
+      ? `<span class="account-card-stale-badge"><span class="dot"></span>No activity in ${daysSinceSync} days</span>`
       : a.source === 'plaid'
         ? `<span class="account-card-live-badge"><span class="dot"></span>Synced via Plaid</span>`
         : `<span class="account-card-synced">Added manually</span>`;
@@ -769,7 +928,7 @@ function accountCardHtml(a, t) {
 
   const staleBlock = (isStale && !brokenItem) ? `
       <div class="account-card-stale-block">
-        <p>No activity picked up here in ${daysSinceSync} days. If this account isn't being used anymore, removing it frees up a connection slot${a.account_type === 'credit_card' || a.account_type === 'checking' ? '' : ' toward your plan\'s limit'}.</p>
+        <p>No new transactions at this bank in ${daysSinceSync} days. Not using it anymore? Disconnect it from the notice above — it stays here as a manual account.</p>
       </div>` : '';
 
   const pendingAmount = pendingByAccountId[a.id] || 0;
@@ -797,7 +956,7 @@ function accountCardHtml(a, t) {
       ${staleBlock}
       <div class="account-card-actions" style="margin-top:10px;">
         <button type="button" class="account-edit-btn" data-id="${a.id}">Edit</button>
-        <button type="button" class="account-delete-btn danger${isStale ? ' suggested' : ''}" data-id="${a.id}">Remove${isStale ? ' unused connection' : ''}</button>
+        <button type="button" class="account-delete-btn danger" data-id="${a.id}">Remove</button>
       </div>
     </div>`;
 }

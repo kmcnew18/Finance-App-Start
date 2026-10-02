@@ -17,6 +17,7 @@
   <script src="ambient.js"></script>
   <script src="menu-icons.js"></script>
   <script src="tour.js"></script>
+  <script src="activity.js"></script>
   <script src="device-trust.js"></script>
   <meta name="theme-color" content="#0D1117" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -1754,8 +1755,26 @@
       // dropdowns, envelope naming) already sees the renamed labels.
       Object.assign(CATEGORY_LABELS, currentUserMetadata.category_display_labels || {});
       document.getElementById('user-email').textContent = session.user.email;
-      const { data: billing } = await supabaseClient
+      let { data: billing } = await supabaseClient
         .from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle();
+
+      // No billing row means the trial was never started — every sign-in
+      // path is supposed to do that (login.html), but if one ever slips
+      // through, a new account would silently land on the free tier.
+      // Start it here instead; the server makes this a no-op otherwise.
+      if (!billing) {
+        try {
+          await fetch('/api/register-trial', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+            body: JSON.stringify({ userId: currentUserId, fingerprint: null })
+          });
+          ({ data: billing } = await supabaseClient
+            .from('user_billing').select('*').eq('user_id', currentUserId).maybeSingle());
+        } catch (err) {
+          console.error('Trial registration fallback failed:', err);
+        }
+      }
 
       // Dashboard itself never redirects to the paywall — Tier 1 is
       // free forever and Dashboard's own content (manual entries,

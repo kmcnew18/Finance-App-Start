@@ -13,6 +13,7 @@
 const { plaidClient, supabaseAdmin } = require('../lib/plaid-helpers');
 const { decryptToken } = require('../lib/crypto-helpers');
 const { requireUser, requireMfa } = require('../lib/auth-guard');
+const { cleanupExpiredTrial } = require('../lib/maintenance');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -20,15 +21,15 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { cleanupExpiredTrial } = req.body || {};
-  if (cleanupExpiredTrial) return handleTrialExpiryCleanup(req, res);
+  const { cleanupExpiredTrial: isTrialCleanup } = req.body || {};
+  if (isTrialCleanup) return handleTrialExpiryCleanup(req, res);
   return handleSingleItemRemoval(req, res);
 };
 
 // Fires when a trial has genuinely run out without ever being upgraded
-// — removes every Plaid connection the account has (fully revoked at
-// Plaid's end, same as a manual removal) and drops billing back to
-// free Tier 1. The expiry itself is re-verified here against the
+// — revokes every Plaid connection the account has, removes the
+// bank-connected accounts (manual ones stay), and drops billing back
+// to free Tier 1. The expiry itself is re-verified against the
 // database rather than trusted from whatever the client claims, since
 // a client could otherwise call this early to strip someone's own
 // still-valid trial access, or — worse — someone else's.
@@ -37,48 +38,15 @@ async function handleTrialExpiryCleanup(req, res) {
     const { userId } = req.body || {};
     if (!userId) { res.status(400).json({ error: 'Missing userId' }); return; }
     // Sign-in only, not two-factor: this fires automatically on page load
-    // and the expiry is re-verified below regardless of who asks.
+    // and the expiry is re-verified (in cleanupExpiredTrial) regardless
+    // of who asks. Same routine the daily cron runs for users who never
+    // come back — see lib/maintenance.js. Not an error when there's
+    // nothing to do; this is called speculatively, so { cleaned: false }
+    // is the usual answer.
     if (!await requireUser(req, res, userId)) return;
 
-    const { data: billing, error: billingError } = await supabaseAdmin
-      .from('user_billing')
-      .select('billing_period, trial_end, tier')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (billingError) throw billingError;
-
-    const trialGenuinelyExpired = billing && billing.billing_period === 'trial' && new Date(billing.trial_end) < new Date();
-    if (!trialGenuinelyExpired) {
-      // Nothing to do — either already cleaned up, never on a trial,
-      // or the trial hasn't actually ended yet. Not an error; this
-      // endpoint gets called speculatively on page load, so a no-op
-      // response here is the expected outcome most of the time.
-      res.status(200).json({ cleaned: false });
-      return;
-    }
-
-    const { data: items } = await supabaseAdmin.from('plaid_items').select('*').eq('user_id', userId);
-
-    for (const itemRow of (items || [])) {
-      try {
-        await plaidClient.itemRemove({ access_token: decryptToken(itemRow.access_token) });
-      } catch (plaidErr) {
-        console.error('Trial-expiry cleanup: Plaid itemRemove failed (proceeding anyway):', plaidErr?.response?.data || plaidErr);
-      }
-    }
-
-    await supabaseAdmin.from('linked_accounts').delete().eq('user_id', userId);
-    await supabaseAdmin.from('plaid_items').delete().eq('user_id', userId);
-    await supabaseAdmin.from('recurring_streams').delete().eq('user_id', userId);
-    await supabaseAdmin.from('user_billing').update({ tier: 1, billing_period: 'free', is_paid: false }).eq('user_id', userId);
-
-    await supabaseAdmin.from('audit_log').insert({
-      user_id: userId,
-      event_type: 'trial_expired_cleanup',
-      detail: { accounts_removed: (items || []).length },
-    });
-
-    res.status(200).json({ cleaned: true, accountsRemoved: (items || []).length });
+    const result = await cleanupExpiredTrial(userId);
+    res.status(200).json(result.cleaned ? { cleaned: true, accountsRemoved: result.accountsRemoved } : { cleaned: false });
   } catch (err) {
     console.error('plaid-remove-item (trial cleanup) error:', err?.response?.data || err);
     res.status(500).json({ error: 'Could not complete trial-expiry cleanup' });

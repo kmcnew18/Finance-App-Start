@@ -2,10 +2,13 @@
   "cleanUrls": true,
   "crons": [
     {
-      "path": "/api/cleanup-audit-log",
-      "schedule": "0 6 * * 0"
+      "path": "/api/daily-maintenance",
+      "schedule": "0 14 * * *"
     }
   ],
+  "functions": {
+    "api/daily-maintenance.js": { "maxDuration": 60 }
+  },
   "headers": [
     {
       "source": "/(.*)",

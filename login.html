@@ -101,8 +101,47 @@
       ArkoTransitions.go(returnTo || 'dashboard.html');
     }
 
-    // Already signed in (e.g. opened Login from a bookmark)? Skip the form.
-    supabaseClient.auth.getUser().then(({ data }) => { if (data && data.user) goAfterLogin(); }).catch(() => {});
+    // Starts the 14-day trial the first time an account signs in (the
+    // server makes it a no-op every time after). Fingerprinting is
+    // wrapped in its own try/catch so a blocked script (ad blockers /
+    // Brave / Firefox commonly block it) never prevents login or trial
+    // registration from completing.
+    async function registerTrial(userId, accessToken) {
+      let visitorId = null;
+      try {
+        const fp = await FingerprintJS.load();
+        const fpResult = await fp.get();
+        visitorId = fpResult.visitorId;
+      } catch (fpErr) {
+        console.warn('Fingerprint unavailable (likely blocked by browser/extension):', fpErr);
+      }
+      try {
+        if (!accessToken) {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          accessToken = session && session.access_token;
+        }
+        const trialRes = await fetch('/api/register-trial', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}) },
+          body: JSON.stringify({ userId, fingerprint: visitorId })
+        });
+        if (!trialRes.ok) {
+          const errBody = await trialRes.text();
+          console.error('register-trial failed:', trialRes.status, errBody);
+        }
+      } catch (regErr) {
+        console.warn('Trial registration request failed:', regErr);
+      }
+    }
+
+    // Already signed in? Skip the form. This is also the path a brand-new
+    // account takes: the email-confirmation link lands here already
+    // signed in, so the trial has to be started on this path too.
+    supabaseClient.auth.getUser().then(async ({ data }) => {
+      if (!data || !data.user) return;
+      await registerTrial(data.user.id);
+      goAfterLogin();
+    }).catch(() => {});
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -137,31 +176,7 @@
         message.classList.add('auth-message-success');
 
         // Register (or check) trial status before redirecting.
-        // Fingerprinting is wrapped in its own try/catch so a blocked
-        // script (ad blockers / Brave / Firefox commonly block it)
-        // never prevents login or trial registration from completing.
-        let visitorId = null;
-        try {
-          const fp = await FingerprintJS.load();
-          const fpResult = await fp.get();
-          visitorId = fpResult.visitorId;
-        } catch (fpErr) {
-          console.warn('Fingerprint unavailable (likely blocked by browser/extension):', fpErr);
-        }
-
-        try {
-          const trialRes = await fetch('/api/register-trial', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: data.user.id, fingerprint: visitorId })
-          });
-          if (!trialRes.ok) {
-            const errBody = await trialRes.text();
-            console.error('register-trial failed:', trialRes.status, errBody);
-          }
-        } catch (regErr) {
-          console.warn('Trial registration request failed:', regErr);
-        }
+        await registerTrial(data.user.id, data.session && data.session.access_token);
 
         // Don't navigate on a blind timer — confirm the session is
         // actually retrievable first. signInWithPassword() resolving
