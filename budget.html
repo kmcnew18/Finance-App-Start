@@ -169,6 +169,15 @@
         <span><b>This period is finalized.</b> It's archived, but you can still pull it up or unlock it to make edits.</span>
       </div>
 
+      <div class="period-ended-banner" id="period-ended-banner" style="display:none;" role="status">
+        <span class="period-ended-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path><path d="M9 15l2 2 4-4"></path></svg></span>
+        <span class="period-ended-text" id="period-ended-text"></span>
+        <div class="period-ended-actions">
+          <button type="button" class="btn-brass" id="period-ended-later">Not now</button>
+          <button type="button" class="btn-brass-solid" id="period-ended-go"></button>
+        </div>
+      </div>
+
       <section class="recurring-review-card" id="recurring-review-card" style="display:none;">
         <div class="recurring-review-head">
           <h2>Detected recurring</h2>
@@ -749,8 +758,58 @@
       document.getElementById('reopen-btn').style.display = finalized ? 'inline-block' : 'none';
       document.getElementById('finalize-btn').style.display = finalized ? 'none' : 'inline-block';
 
+      renderPeriodEndedBanner();
       CATS.forEach(c => renderCategoryPanel(c.key));
       recalcSummary();
+    }
+
+    // When the period you're looking at is still "active" but its end
+    // date has passed (e.g. August, opened in October), offer the next
+    // step instead of leaving you in a stale month: jump to the period
+    // that covers today if one exists, otherwise finalize this one and
+    // start this month's from the default layout — one click for what
+    // was "Finalize period" + "New period" + two confirmations.
+    function monthLabel(iso) { return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'long' }); }
+    function renderPeriodEndedBanner() {
+      const banner = document.getElementById('period-ended-banner');
+      const today = todayISO();
+      const dismissed = (() => { try { return sessionStorage.getItem('arko_period_ended_later') === current.id; } catch (e) { return false; } })();
+      const ended = current.status === 'active' && current.end_date < today;
+      if (!ended || dismissed) { banner.style.display = 'none'; return; }
+
+      const covering = periods.find(p => p.id !== current.id && p.start_date <= today && p.end_date >= today);
+      const name = current.start_date === firstOfMonthISO(current.start_date) && current.end_date === lastOfMonthISO(current.start_date)
+        ? monthLabel(current.start_date) : 'This period';
+      const thisMonth = monthLabel(today);
+      document.getElementById('period-ended-text').innerHTML = covering
+        ? `<b>${name} has ended.</b> You're viewing a past period — ${thisMonth}'s is ready.`
+        : `<b>${name} ended ${fmtDate(current.end_date)}.</b> Finalize it to your archive and start ${thisMonth} from your default layout.`;
+      const go = document.getElementById('period-ended-go');
+      go.textContent = covering ? `Open ${thisMonth}` : `Start ${thisMonth}`;
+      go.disabled = false;
+      go.onclick = async () => {
+        if (covering) { current = covering; unlocked = false; renderAll(); return; }
+        go.disabled = true; go.textContent = 'Starting…';
+        const endedPeriod = current;
+        const { data: finalized, error } = await supabaseClient
+          .from('budget_periods')
+          .update({ status: 'finalized', finalized_at: new Date().toISOString() })
+          .eq('id', endedPeriod.id).select().single();
+        if (error) { console.error(error); await arkoAlert('Could not finalize ' + name + ': ' + error.message); renderPeriodEndedBanner(); return; }
+        const idx = periods.findIndex(p => p.id === endedPeriod.id);
+        if (idx > -1) periods[idx] = finalized;
+        const created = await createPeriod(firstOfMonthISO(today), lastOfMonthISO(today), endedPeriod.categories);
+        if (!created) { current = finalized; renderAll(); return; }
+        periods.unshift(created);
+        current = created;
+        unlocked = false;
+        renderAll();
+      };
+      document.getElementById('period-ended-later').onclick = () => {
+        try { sessionStorage.setItem('arko_period_ended_later', current.id); } catch (e) {}
+        banner.style.display = 'none';
+      };
+      banner.style.display = 'flex';
     }
 
     function c_isOverspent(cat, line) {

@@ -846,6 +846,34 @@
 }
 .finalized-banner b { color: var(--parchment); }
 
+.period-ended-banner {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: linear-gradient(120deg, rgba(224,185,110,0.13), rgba(184,147,74,0.03) 70%);
+  border: 1px solid rgba(224,185,110,0.38);
+  box-shadow: 0 0 0 1px rgba(224,185,110,0.06), 0 0 22px rgba(224,185,110,0.1);
+  animation: periodEndedIn 0.45s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes periodEndedIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.period-ended-icon {
+  width: 36px; height: 36px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  color: var(--brass-bright);
+  background: rgba(224,185,110,0.12);
+  box-shadow: 0 0 0 1px rgba(224,185,110,0.32), 0 0 14px rgba(224,185,110,0.2);
+}
+.period-ended-icon svg { width: 17px; height: 17px; }
+.period-ended-text { flex: 1; min-width: 200px; font-size: 0.84rem; line-height: 1.5; color: var(--silver); }
+.period-ended-text b { color: var(--parchment); font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 0.95rem; }
+.period-ended-actions { display: flex; gap: 8px; flex-shrink: 0; }
+@media (max-width: 560px) {
+  .period-ended-actions { width: 100%; }
+  .period-ended-actions button { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .period-ended-banner { animation: none; } }
+
 /* ---------- history / archive drawer ---------- */
 .history-overlay {
   position: fixed; inset: 0; background: rgba(6,8,11,0.78);

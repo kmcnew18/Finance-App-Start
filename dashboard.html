@@ -4547,6 +4547,22 @@
       resetIdleTimer();
     }
 
+    // Phone: the Notes and Recent-activity corner buttons float over the
+    // cards, so they step aside while scrolling down (reading) and come
+    // back on any scroll up or near the end of the page. CSS only applies
+    // the tuck at phone widths (see html.fab-tucked in dashboard.css).
+    (function setupCornerButtonTuck() {
+      const root = document.documentElement;
+      let lastY = window.scrollY;
+      window.addEventListener('scroll', () => {
+        const y = window.scrollY;
+        const nearBottom = window.innerHeight + y >= document.documentElement.scrollHeight - 120;
+        if (nearBottom || y < 80 || y < lastY - 6) root.classList.remove('fab-tucked');
+        else if (y > lastY + 6) root.classList.add('fab-tucked');
+        lastY = y;
+      }, { passive: true });
+    })();
+
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       const mfaOverlay = document.getElementById('mfa-overlay');

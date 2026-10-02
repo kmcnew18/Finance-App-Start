@@ -949,10 +949,13 @@ h1, h2, h3 {
 .overview-section-head {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  flex-wrap: wrap; /* subtitle drops below on narrow screens instead of squeezing the title */
+  column-gap: 12px;
+  row-gap: 4px;
   margin-bottom: 16px;
   padding: 0 2px;
 }
+.overview-section-title { white-space: nowrap; }
 .overview-section-title {
   font-family: 'Fraunces', serif;
   font-size: 1.65rem;
@@ -995,8 +998,12 @@ h1, h2, h3 {
 .manual-entry-head-text {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  flex-wrap: wrap;
+  column-gap: 10px;
+  row-gap: 2px;
+  min-width: 0;
 }
+.manual-entry-head-title { white-space: nowrap; }
 .manual-entry-head-title {
   font-family: 'Public Sans', sans-serif;
   font-size: 0.78rem;
@@ -3920,6 +3927,13 @@ textarea:focus-visible,
   }
   .activity-peek-tab svg,
   .notes-peek-tab svg { width: 18px; height: 18px; }
+  /* They sit over the content, so they step aside while you scroll down
+     (reading) and come back on any scroll up or at the end of the page —
+     see setupCornerButtonTuck() in dashboard.html. */
+  .activity-peek-tab,
+  .notes-peek-tab { transition: transform 0.32s cubic-bezier(.2,.8,.2,1), opacity 0.25s ease, box-shadow 0.2s ease; }
+  html.fab-tucked .activity-peek-tab,
+  html.fab-tucked .notes-peek-tab { transform: translateY(calc(100% + 34px)); opacity: 0; pointer-events: none; }
 }
 
 .notes-panel-overlay {

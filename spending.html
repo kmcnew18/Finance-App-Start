@@ -840,9 +840,18 @@
 
       const sorted = [...filtered].sort((a, b) => (b.txn_date || '').localeCompare(a.txn_date || ''));
 
+      // Nothing to search in an empty month — hide the box until there is.
+      const searchWrap = document.querySelector('.spend-txn-search');
+      if (searchWrap) searchWrap.style.display = currentSpendTxns.length || search ? '' : 'none';
+
       if (!sorted.length) {
         list.innerHTML = '';
-        empty.textContent = search ? 'No transactions match your search.' : 'No transactions to show.';
+        const now = new Date();
+        const isThisMonth = viewMonth.getFullYear() === now.getFullYear() && viewMonth.getMonth() === now.getMonth();
+        const monthName = viewMonth.toLocaleDateString('en-US', { month: 'long' });
+        empty.textContent = search
+          ? 'No transactions match your search.'
+          : isThisMonth ? `Nothing has posted in ${monthName} yet.` : `No spending recorded in ${monthName}.`;
         empty.style.display = 'block';
         return;
       }
