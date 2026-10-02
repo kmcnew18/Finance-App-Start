@@ -682,7 +682,8 @@
       const { count, error } = await supabaseClient
         .from('linked_accounts')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', currentUserId);
+        .eq('user_id', currentUserId)
+        .not('plaid_item_id', 'is', null); // manually-added accounts have no bank to pull history from
       if (error) { console.error(error); return 1; } // don't hide the option over a lookup hiccup
       linkedBankCount = count || 0;
       return linkedBankCount;
