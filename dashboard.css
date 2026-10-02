@@ -1539,6 +1539,22 @@ h1, h2, h3 {
   font-family: 'Fraunces', serif;
   overflow-wrap: anywhere;
 }
+/* The overview cards size their number to the card's *own* width
+   (container units) instead of the viewport's, and never wrap. The
+   viewport-based clamp above could still be too big for a 5-across
+   card at mid widths, and the overflow-wrap fallback then broke a
+   value mid-number ("$15,629.0" / "0"). 16cqi fits ~$150,000.00 on one
+   line at the narrowest card size; anything larger shrinks to the
+   1rem floor before it would clip. Browsers without container queries
+   keep the original rule above. */
+@supports (container-type: inline-size) {
+  .overview-cards > .card { container-type: inline-size; }
+  .overview-cards > .card .card-value {
+    font-size: clamp(1rem, 16cqi, 1.6rem);
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+}
 .card-value-manual {
   cursor: pointer;
   border-bottom: 1px dashed transparent;
@@ -3523,6 +3539,48 @@ textarea:focus-visible,
 }
 .notes-peek-tab svg { width: 16px; height: 16px; }
 .notes-peek-tab.panel-open { opacity: 0; pointer-events: none; }
+
+/* The two edge tabs only have empty margin to sit in when the viewport
+   is wide enough. Below ~1000px Dashboard's content reached the screen
+   edge underneath them (the Notes tab covered the "Detected activity"
+   and "Your Money" titles), so mid widths get side padding that clears
+   the tabs, and phones get the tabs moved to the bottom corners as
+   round glass buttons instead — the usual place for persistent
+   floating actions, and nothing to cover there but scroll space. */
+@media (max-width: 1000px) and (min-width: 701px) {
+  body:has(.activity-peek-tab) .dash-main { padding-left: 48px; padding-right: 48px; }
+}
+@media (max-width: 700px) {
+  .activity-peek-tab,
+  .notes-peek-tab {
+    top: auto;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    transform: none;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 1px solid color-mix(in srgb, #4FC3E8 32%, transparent);
+    background: rgba(18, 24, 31, 0.82);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow:
+      0 6px 18px rgba(0, 0, 0, 0.45),
+      0 0 0 1px color-mix(in srgb, #4FC3E8 10%, transparent),
+      0 0 16px color-mix(in srgb, #4FC3E8 16%, transparent);
+  }
+  .activity-peek-tab { right: calc(16px + env(safe-area-inset-right)); }
+  .notes-peek-tab { left: calc(16px + env(safe-area-inset-left)); }
+  .activity-peek-tab:hover,
+  .notes-peek-tab:hover {
+    width: 46px;
+    box-shadow:
+      0 6px 18px rgba(0, 0, 0, 0.45),
+      0 0 0 1px color-mix(in srgb, #4FC3E8 30%, transparent),
+      0 0 24px color-mix(in srgb, #4FC3E8 30%, transparent);
+  }
+  .activity-peek-tab svg,
+  .notes-peek-tab svg { width: 18px; height: 18px; }
+}
 
 .notes-panel-overlay {
   position: fixed; inset: 0;

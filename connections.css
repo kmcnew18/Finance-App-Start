@@ -20,8 +20,11 @@
 }
 
 /* ---------- shell layout ---------- */
+/* 960px, same as every other app page's .dash-main and the shared header
+   — at 1080 this page's content edges sat outside its own header's and
+   visibly jumped wider when switching here from any other page. */
 .vault-shell {
-  max-width: 1080px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 30px 24px 110px;
   display: flex;

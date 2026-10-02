@@ -145,6 +145,26 @@
 }
 .spend-empty-note { font-size: 0.85rem; color: var(--silver-dim); padding: 8px 0; }
 
+.spend-empty-state {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 34px 20px 30px;
+}
+.spend-empty-icon {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 6px;
+  color: var(--spend-accent);
+  background: color-mix(in srgb, var(--spend-accent) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--spend-accent) 28%, transparent), 0 0 18px color-mix(in srgb, var(--spend-accent) 22%, transparent);
+}
+.spend-empty-icon svg { width: 18px; height: 18px; }
+.spend-empty-title { font-family: 'Fraunces', Georgia, serif; font-size: 1.02rem; color: var(--tan); }
+.spend-empty-sub { font-size: 0.82rem; color: var(--silver-dim); max-width: 340px; line-height: 1.5; }
+
 .spend-chart-wrap {
   position: relative;
   height: 280px;

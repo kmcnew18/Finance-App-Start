@@ -139,7 +139,11 @@
         <canvas id="spend-pie-chart"></canvas>
       </div>
       <div id="spend-category-list" class="spend-category-list"></div>
-      <p class="spend-empty-note" id="spend-category-empty" style="display:none;">No spending recorded for this month yet.</p>
+      <div class="spend-empty-state" id="spend-category-empty" style="display:none;">
+        <span class="spend-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9"></path><path d="M21 3v9h-9"></path></svg></span>
+        <span class="spend-empty-title">No spending yet this month</span>
+        <span class="spend-empty-sub">Purchases from your connected accounts will show up here, sorted by category, as they post.</span>
+      </div>
     </section>
 
     <section class="spend-section">
@@ -779,14 +783,18 @@
       const empty = document.getElementById('spend-category-empty');
       const canvas = document.getElementById('spend-pie-chart');
 
+      // Hide the chart's fixed-height wrapper, not just the canvas —
+      // hiding only the canvas left a 280px empty gap above the
+      // empty-state message.
       if (!spends.length) {
         list.innerHTML = '';
-        empty.style.display = 'block';
-        canvas.style.display = 'none';
+        empty.style.display = 'flex';
+        canvas.parentElement.style.display = 'none';
         if (spendPieChart) { spendPieChart.destroy(); spendPieChart = null; }
         return;
       }
       empty.style.display = 'none';
+      canvas.parentElement.style.display = '';
       canvas.style.display = 'block';
 
       const byCategory = {};
