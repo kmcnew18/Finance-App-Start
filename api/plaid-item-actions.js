@@ -15,11 +15,17 @@
 //   action: 'add_new_accounts'  — finishes granting access to a newly
 //                                  available account, or dismisses that
 //                                  prompt (was plaid-add-new-accounts.js)
+//   action: 'trust_device' /     — two-factor "trust this device for 30
+//           'untrust_device'       days" (see lib/device-trust.js). Not
+//                                  Plaid-related; lives here only for the
+//                                  same function-count reason.
 //
 // Requires: npm install plaid @supabase/supabase-js
 
 const { plaidClient, supabaseAdmin, mapAccountType, processItemUpdate } = require('../lib/plaid-helpers');
 const { decryptToken } = require('../lib/crypto-helpers');
+const { handleTrustDevice, handleUntrustDevice } = require('../lib/device-trust');
+const { requireUser, requireMfa } = require('../lib/auth-guard');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -32,6 +38,8 @@ module.exports = async (req, res) => {
   if (action === 'status') return handleStatus(req, res);
   if (action === 'confirm_reconnect') return handleConfirmReconnect(req, res);
   if (action === 'add_new_accounts') return handleAddNewAccounts(req, res);
+  if (action === 'trust_device') return handleTrustDevice(req, res);
+  if (action === 'untrust_device') return handleUntrustDevice(req, res);
 
   res.status(400).json({ error: 'Missing or unrecognized action' });
 };
@@ -44,6 +52,7 @@ async function handleStatus(req, res) {
       res.status(400).json({ error: 'Missing userId' });
       return;
     }
+    if (!await requireUser(req, res, userId)) return;
 
     const { data, error } = await supabaseAdmin
       .from('plaid_items')
@@ -67,6 +76,7 @@ async function handleConfirmReconnect(req, res) {
       res.status(400).json({ error: 'Missing userId or itemId' });
       return;
     }
+    if (!await requireMfa(req, res, userId)) return;
 
     const { data: itemRow, error: fetchError } = await supabaseAdmin
       .from('plaid_items')
@@ -128,6 +138,10 @@ async function handleAddNewAccounts(req, res) {
       res.status(400).json({ error: 'Missing userId or itemId' });
       return;
     }
+    // Dismissing the "new accounts available" prompt changes nothing
+    // that matters; actually adding accounts does.
+    const auth = dismissOnly ? await requireUser(req, res, userId) : await requireMfa(req, res, userId);
+    if (!auth) return;
 
     const { data: itemRow, error: fetchError } = await supabaseAdmin
       .from('plaid_items')

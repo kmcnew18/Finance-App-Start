@@ -193,7 +193,7 @@ async function openManageSubscription() {
   try {
     const res = await fetch('/api/create-checkout-session', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ userId: currentUserId, action: 'status' })
     });
     const data = await res.json();
@@ -259,7 +259,7 @@ async function changeSubscription(action) {
   try {
     const res = await fetch('/api/create-checkout-session', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ userId: currentUserId, action })
     });
     const data = await res.json();
@@ -271,9 +271,15 @@ async function changeSubscription(action) {
   }
 }
 
+// Every /api call from this page sends the session token (the server
+// verifies who's asking — see lib/auth-guard.js) plus, when this browser
+// is a trusted device, proof of that, which the 2FA-protected endpoints
+// (linking, reconnecting, removing) accept in place of a fresh code.
 async function authHeader() {
   const { data: { session } } = await supabaseClient.auth.getSession();
-  return session ? { 'Authorization': `Bearer ${session.access_token}` } : {};
+  if (!session) return {};
+  const proof = window.ArkoDeviceTrust ? ArkoDeviceTrust.proofHeader() : {};
+  return { 'Authorization': `Bearer ${session.access_token}`, ...proof };
 }
 
 function logAuditEvent(eventType, detail) {
@@ -305,7 +311,7 @@ async function init() {
     try {
       const cleanupRes = await fetch('/api/plaid-remove-item', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ userId: currentUserId, cleanupExpiredTrial: true })
       });
       const cleanupData = await cleanupRes.json();
@@ -384,7 +390,7 @@ async function refreshBalancesInBackground() {
   try {
     const res = await fetch('/api/plaid-sync-accounts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ userId: currentUserId })
     });
     if (res.ok) await loadAccounts(); // silent — just re-renders with fresh numbers, no loading state shown
@@ -548,7 +554,7 @@ async function loadConnectionStatus() {
   try {
     const res = await fetch('/api/plaid-item-actions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ action: 'status', userId: currentUserId })
     });
     const data = await res.json();
@@ -1043,7 +1049,7 @@ async function deleteAccount(id) {
     if (!stillReferenced) {
       fetch('/api/plaid-remove-item', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ itemId: acct.plaid_item_id, userId: currentUserId })
       }).catch(err => console.error('Background Plaid item revocation failed:', err));
     }
@@ -1153,7 +1159,7 @@ async function completeAccountExchange(publicToken, institutionName, selectedPla
   try {
     const exRes = await fetch('/api/plaid-exchange-token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ userId: currentUserId, publicToken, institutionName, selectedPlaidAccountIds })
     });
     if (!exRes.ok) throw new Error('Could not finish linking this account (' + exRes.status + ')');
@@ -1268,7 +1274,7 @@ async function finishReconnect(itemId) {
   try {
     const confirmRes = await fetch('/api/plaid-item-actions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ action: 'confirm_reconnect', userId: currentUserId, itemId })
     });
     if (!confirmRes.ok) throw new Error('Could not confirm the reconnection (' + confirmRes.status + ')');
@@ -1287,7 +1293,7 @@ async function finishAddNewAccounts(itemId) {
   try {
     const addRes = await fetch('/api/plaid-item-actions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ action: 'add_new_accounts', userId: currentUserId, itemId })
     });
     if (!addRes.ok) throw new Error('Could not add the new account (' + addRes.status + ')');
@@ -1313,7 +1319,7 @@ async function startPlaidLink() {
   try {
     const res = await fetch('/api/plaid-create-link-token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ userId: currentUserId })
     });
     if (!res.ok) {
@@ -1361,7 +1367,7 @@ async function reconnectItem(itemId, institutionName, btn) {
   try {
     const res = await fetch('/api/plaid-create-link-token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ userId: currentUserId, itemId }) // itemId present = Update Mode
     });
     if (!res.ok) throw new Error('Could not start reconnection (' + res.status + ')');
@@ -1412,7 +1418,7 @@ async function addNewAccounts(itemId, institutionName, btn) {
   try {
     const res = await fetch('/api/plaid-create-link-token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ userId: currentUserId, itemId }) // Update Mode
     });
     if (!res.ok) throw new Error('Could not start this (' + res.status + ')');
@@ -1455,7 +1461,7 @@ async function dismissNewAccountsPrompt(itemId) {
   try {
     await fetch('/api/plaid-item-actions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ action: 'add_new_accounts', userId: currentUserId, itemId, dismissOnly: true })
     });
   } catch (err) {
@@ -1471,7 +1477,7 @@ async function syncAllPlaidAccounts() {
   try {
     const res = await fetch('/api/plaid-sync-accounts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ userId: currentUserId })
     });
     if (!res.ok) throw new Error('Sync failed (' + res.status + ')');
@@ -1624,10 +1630,11 @@ function setupSettingsGear() {
     if (error) { console.error(error); await arkoAlert('Could not remove your accounts: ' + error.message); return; }
     logAuditEvent('all_linked_accounts_removed', { count: accounts.length });
 
+    const removeHeaders = { 'Content-Type': 'application/json', ...(await authHeader()) };
     itemIds.forEach(itemId => {
       fetch('/api/plaid-remove-item', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: removeHeaders,
         body: JSON.stringify({ itemId, userId: currentUserId })
       }).catch(err => console.error('Background Plaid item revocation failed:', err));
     });
@@ -1637,7 +1644,7 @@ function setupSettingsGear() {
 }
 
 document.getElementById('logout-button').addEventListener('click', async () => {
-  await supabaseClient.auth.signOut();
+  await supabaseClient.auth.signOut({ scope: 'local' });
   ArkoTransitions.go('login.html');
 });
 
@@ -1848,6 +1855,8 @@ async function getMfaLevel() {
 async function requireMfaVerified(gate) {
   const { currentLevel, nextLevel } = await getMfaLevel();
   if (currentLevel === 'aal2') return true;
+  // A device trusted within the last 30 days (device-trust.js) skips the code.
+  if (nextLevel === 'aal2' && window.ArkoDeviceTrust && await ArkoDeviceTrust.isTrusted()) return true;
 
   openMfaOverlay(gate);
   if (nextLevel === 'aal2') {
@@ -2681,7 +2690,7 @@ function renderFeedbackForm() {
     try {
       const res = await fetch('/api/send-feedback', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ name, type, message, userEmail: currentUserEmail }),
       });
       if (!res.ok) throw new Error('Could not send feedback right now — try again in a bit.');
@@ -2732,7 +2741,7 @@ function showIdleWarning() {
     document.getElementById('idle-countdown').textContent = secondsLeft;
     if (secondsLeft <= 0) {
       clearInterval(idleCountdownInterval);
-      await supabaseClient.auth.signOut();
+      await supabaseClient.auth.signOut({ scope: 'local' });
       window.location.href = 'login.html';
     }
   }, 1000);

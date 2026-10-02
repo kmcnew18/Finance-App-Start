@@ -24,6 +24,7 @@ const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 const { createClient } = require('@supabase/supabase-js');
 const { encryptToken } = require('../lib/crypto-helpers');
 const { mapAccountType, storeTransactions, startOfMonthsAgo } = require('../lib/plaid-helpers');
+const { requireMfa } = require('../lib/auth-guard');
 
 const plaidClient = new PlaidApi(new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -50,6 +51,7 @@ module.exports = async (req, res) => {
       res.status(400).json({ error: 'Missing userId or publicToken' });
       return;
     }
+    if (!await requireMfa(req, res, userId)) return;
 
     // Exchange the public_token for a permanent access_token + item_id.
     const exchangeRes = await plaidClient.itemPublicTokenExchange({ public_token: publicToken });

@@ -435,7 +435,7 @@
       setupOtherPanel();
       setupScopeTabs();
       setupAccountTypesModal();
-      document.getElementById('logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); ArkoTransitions.go('login.html'); });
+      document.getElementById('logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut({ scope: 'local' }); ArkoTransitions.go('login.html'); });
       document.getElementById('manage-sub-close').addEventListener('click', () => {
         document.getElementById('manage-sub-overlay').classList.remove('open');
       });

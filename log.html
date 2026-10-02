@@ -15,6 +15,7 @@
   <script src="transitions.js"></script>
   <script src="ambient.js"></script>
   <script src="menu-icons.js"></script>
+  <script src="device-trust.js"></script>
   <meta name="theme-color" content="#0D1117" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1012,6 +1013,8 @@
     async function requireMfaVerified(gate) {
       const { currentLevel, nextLevel } = await getMfaLevel();
       if (currentLevel === 'aal2') return true;
+      // A device trusted within the last 30 days (device-trust.js) skips the code.
+      if (nextLevel === 'aal2' && window.ArkoDeviceTrust && await ArkoDeviceTrust.isTrusted()) return true;
 
       openMfaOverlay(gate);
       if (nextLevel === 'aal2') {
@@ -1597,7 +1600,7 @@
         document.getElementById('idle-countdown').textContent = secondsLeft;
         if (secondsLeft <= 0) {
           clearInterval(idleCountdownInterval);
-          await supabaseClient.auth.signOut();
+          await supabaseClient.auth.signOut({ scope: 'local' });
           window.location.href = 'login.html';
         }
       }, 1000);

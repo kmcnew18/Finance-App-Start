@@ -12,6 +12,7 @@
 
 const { plaidClient, supabaseAdmin } = require('../lib/plaid-helpers');
 const { decryptToken } = require('../lib/crypto-helpers');
+const { requireUser, requireMfa } = require('../lib/auth-guard');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -35,6 +36,9 @@ async function handleTrialExpiryCleanup(req, res) {
   try {
     const { userId } = req.body || {};
     if (!userId) { res.status(400).json({ error: 'Missing userId' }); return; }
+    // Sign-in only, not two-factor: this fires automatically on page load
+    // and the expiry is re-verified below regardless of who asks.
+    if (!await requireUser(req, res, userId)) return;
 
     const { data: billing, error: billingError } = await supabaseAdmin
       .from('user_billing')
@@ -88,6 +92,7 @@ async function handleSingleItemRemoval(req, res) {
       res.status(400).json({ error: 'Missing itemId or userId' });
       return;
     }
+    if (!await requireMfa(req, res, userId)) return;
 
     const { data: itemRow, error: fetchError } = await supabaseAdmin
       .from('plaid_items')

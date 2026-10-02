@@ -18,6 +18,7 @@ const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 const { createClient } = require('@supabase/supabase-js');
 const { decryptToken } = require('../lib/crypto-helpers');
 const { isSyncDue, nextSyncAt, markItemSynced } = require('../lib/plaid-helpers');
+const { requireUser } = require('../lib/auth-guard');
 
 const plaidClient = new PlaidApi(new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -109,6 +110,8 @@ module.exports = async (req, res) => {
       res.status(400).json({ error: 'Missing userId' });
       return;
     }
+    // Each run can make billed Plaid calls — only for the signed-in user.
+    if (!await requireUser(req, res, userId)) return;
 
     const { data: items, error: itemsError } = await supabaseAdmin
       .from('plaid_items')

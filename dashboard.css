@@ -3210,6 +3210,45 @@ textarea:focus-visible,
 }
 .mfa-remove-factor-btn:hover { background: rgba(224,139,125,0.12); }
 
+/* "Trust this device" checkbox + trusted-devices list (device-trust.js) */
+.mfa-trust-row {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(79,195,232,0.18);
+  background: rgba(79,195,232,0.04);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.mfa-trust-row:hover { border-color: rgba(79,195,232,0.35); background: rgba(79,195,232,0.07); }
+.mfa-trust-row input {
+  width: 16px; height: 16px; margin: 2px 0 0; flex-shrink: 0;
+  accent-color: #4FC3E8; cursor: pointer;
+}
+.mfa-trust-row:has(input:checked) { border-color: rgba(79,195,232,0.38); box-shadow: 0 0 0 1px rgba(79,195,232,0.08), 0 0 16px rgba(79,195,232,0.1); }
+.mfa-trust-text { display: flex; flex-direction: column; gap: 2px; }
+.mfa-trust-title { font-size: 0.84rem; font-weight: 600; color: var(--tan); }
+.mfa-trust-sub { font-size: 0.74rem; color: var(--silver-dim); line-height: 1.45; }
+
+.mfa-trusted-section { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid #222C3A; }
+.mfa-trusted-head-row { display: flex; align-items: center; justify-content: space-between; }
+.mfa-trusted-head { font-size: 0.72rem; font-weight: 700; color: var(--silver-dim); text-transform: uppercase; letter-spacing: 0.07em; }
+.mfa-trusted-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mfa-trusted-meta { font-size: 0.72rem; color: var(--silver-dim); font-family: 'IBM Plex Mono', monospace; }
+.mfa-trusted-this {
+  display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  font-size: 0.64rem; font-weight: 700; letter-spacing: 0.04em; vertical-align: 1px;
+  color: #4FC3E8; background: rgba(79,195,232,0.1); box-shadow: 0 0 0 1px rgba(79,195,232,0.3);
+}
+.mfa-trusted-forget, .mfa-trusted-forget-all {
+  background: none; border: 1px solid var(--panel-border); color: var(--silver-dim);
+  border-radius: 6px; padding: 5px 11px; font-size: 0.72rem; font-weight: 600; cursor: pointer; flex-shrink: 0;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.mfa-trusted-forget-all { border: none; padding: 2px 4px; }
+.mfa-trusted-forget:hover, .mfa-trusted-forget-all:hover { border-color: var(--error); color: var(--error); background: rgba(224,139,125,0.08); }
+.mfa-trusted-forget:disabled, .mfa-trusted-forget-all:disabled { opacity: 0.6; cursor: default; }
+
 /* ==========================================================================
    IDLE SESSION TIMEOUT — shared overlay, same pattern as the MFA modal.
    Auto-signs out after a period of inactivity, with a countdown warning

@@ -480,7 +480,7 @@
     });
 
     document.getElementById('paywall-logout-button').addEventListener('click', async () => {
-      await supabaseClient.auth.signOut();
+      await supabaseClient.auth.signOut({ scope: 'local' });
       ArkoTransitions.go('login.html');
     });
 
