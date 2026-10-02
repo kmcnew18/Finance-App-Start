@@ -18,6 +18,17 @@
   --text-muted: #96A0A7;
   --neon: #4FC3E8;
 
+  /* The landing page's warm signature against the navy app: cognac and
+     bronze in place of the old flat #6b4a38, which nearly vanished on the
+     dark sections. Each is tuned to the surface it sits on:
+     --cognac-deep for text on cream (~6.5:1), --cognac for larger accents
+     on cream, --bronze for accents on navy (~7:1), --taupe for body copy
+     on navy (~8:1) — warm like the brown it replaces, but readable. */
+  --cognac: #9A6242;
+  --cognac-deep: #6F4229;
+  --bronze: #C99A72;
+  --taupe: #B9AE9E;
+
   /* Pricing-tier neon accents — distinct from the rest of the site's
      palette on purpose. The marketing page is allowed a bit more
      drama than the app itself; this is the one section built to
@@ -111,14 +122,21 @@ h1, h2, h3, h4 {
 }
 
 .btn-signup {
-  background: var(--blue);
+  background: linear-gradient(135deg, #94603F, #643B24);
   color: var(--tan);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 22%, transparent), 0 4px 14px rgba(0,0,0,0.3);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--bronze) 38%, transparent),
+    inset 0 1px 0 rgba(255, 236, 214, 0.16),
+    0 4px 14px rgba(0,0,0,0.3);
 }
 
 .btn-signup:hover {
-  background: var(--blue-light);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 45%, transparent), 0 0 22px color-mix(in srgb, var(--neon) 28%, transparent), 0 6px 16px rgba(0,0,0,0.3);
+  background: linear-gradient(135deg, #A56D49, #74452B);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--bronze) 60%, transparent),
+    0 0 22px color-mix(in srgb, var(--bronze) 30%, transparent),
+    inset 0 1px 0 rgba(255, 236, 214, 0.22),
+    0 6px 16px rgba(0,0,0,0.3);
 }
 
 .btn-login {
@@ -136,11 +154,14 @@ h1, h2, h3, h4 {
 }
 
 .wordmark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: 'Fraunces', serif;
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--silver);
+  color: var(--bronze);
   /* The neon blue from the brand mark's inner chevron — same color as
      --neon-tier2, the pricing cards' "built to pop" accent, not the
      muted vintage-blue used elsewhere. Layered tight-to-wide like a
@@ -176,7 +197,7 @@ h1, h2, h3, h4 {
 
 .subhead {
   font-size: 1.1rem;
-  color: var(--text-muted);
+  color: var(--taupe);
   opacity: 0.85;
   max-width: 460px;
   margin: 0 0 34px;
@@ -320,9 +341,22 @@ h1, h2, h3, h4 {
   margin-bottom: 10px;
   color: var(--tan);
 }
+/* Short bronze bar above each feature title — the same gesture as the
+   accent underline on the app's section titles, in the landing page's
+   warm palette. */
+.benefit h3::before {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 2px;
+  margin-bottom: 12px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--bronze), transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--bronze) 45%, transparent);
+}
 
 .benefit p {
-  color: var(--text-muted);
+  color: var(--taupe);
   font-size: 0.95rem;
 }
 
@@ -343,10 +377,11 @@ h1, h2, h3, h4 {
 
 .how-divider {
   border: none;
-  border-top: 2px dashed var(--blue);
-  opacity: 0.5;
-  width: 90px;
+  height: 2px;
+  width: 120px;
   margin: 0 auto 40px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--cognac) 25%, var(--cognac) 75%, transparent);
 }
 
 .steps {
@@ -362,7 +397,7 @@ h1, h2, h3, h4 {
   display: block;
   font-family: 'Fraunces', serif;
   font-size: 0.85rem;
-  color: var(--blue);
+  color: var(--cognac);
   letter-spacing: 0.08em;
   margin-bottom: 10px;
 }
@@ -370,7 +405,7 @@ h1, h2, h3, h4 {
 .steps h4 {
   font-size: 1.1rem;
   margin-bottom: 8px;
-  color: var(--blue);
+  color: var(--cognac-deep);
 }
 
 .steps p {
@@ -391,7 +426,7 @@ h1, h2, h3, h4 {
 }
 .setup-sub {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--taupe);
   opacity: 0.85;
   font-size: 0.95rem;
   margin-bottom: 40px;
@@ -413,10 +448,10 @@ h1, h2, h3, h4 {
   flex-shrink: 0;
   width: 34px; height: 34px;
   border-radius: 50%;
-  background: rgba(46,84,114,0.28);
-  border: 1px solid var(--blue-light);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 14%, transparent), 0 0 14px color-mix(in srgb, var(--neon) 18%, transparent);
-  color: var(--tan);
+  background: radial-gradient(circle at 35% 30%, rgba(201,154,114,0.22), rgba(154,98,66,0.10));
+  border: 1px solid color-mix(in srgb, var(--bronze) 60%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bronze) 14%, transparent), 0 0 16px color-mix(in srgb, var(--bronze) 24%, transparent);
+  color: var(--bronze);
   font-family: 'Fraunces', serif;
   font-size: 0.95rem;
   font-weight: 600;
@@ -428,7 +463,7 @@ h1, h2, h3, h4 {
   margin-bottom: 4px;
 }
 .setup-steps p {
-  color: var(--text-muted);
+  color: var(--taupe);
   opacity: 0.85;
   font-size: 0.9rem;
   line-height: 1.55;
@@ -455,7 +490,7 @@ h1, h2, h3, h4 {
   gap: 10px;
 }
 .faq-item {
-  background: rgba(46,84,114,0.06);
+  background: rgba(154,98,66,0.07);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 4px 20px;
@@ -477,7 +512,7 @@ h1, h2, h3, h4 {
   content: "+";
   font-family: 'Public Sans', sans-serif;
   font-size: 1.3rem;
-  color: var(--blue);
+  color: var(--cognac);
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
@@ -666,7 +701,7 @@ h1, h2, h3, h4 {
 .footer {
   text-align: center;
   padding: 32px 24px;
-  color: var(--blue);
+  color: var(--cognac-deep);
   font-size: 0.85rem;
   background: var(--tan);
 }

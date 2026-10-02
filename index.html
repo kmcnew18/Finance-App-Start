@@ -27,6 +27,7 @@
      every other page but not against this page's own hero background —
      scoped off just here rather than touching the shared rule. */
   .wordmark.wordmark-noglow { text-shadow: none; }
+  .wordmark-noglow .wordmark-mark { filter: none; }
 </style>
 </head>
 <body class="auth-checking">
@@ -34,7 +35,7 @@
   <!-- HERO -->
   <header class="hero">
     <nav class="nav">
-      <span class="wordmark wordmark-noglow"><span class="wordmark-brand">Arko</span> | Finance</span>
+      <span class="wordmark wordmark-noglow"><img src="favicon-192.png" alt="" class="wordmark-mark" width="28" height="28" /><span class="wordmark-brand">Arko</span> | Finance</span>
       <div class="nav-auth" id="nav-auth">
         <button type="button" class="btn-login" onclick="ArkoTransitions.go('login.html')">Log in</button>
         <button type="button" class="btn-signup" onclick="ArkoTransitions.go('signup.html')">Sign up</button>

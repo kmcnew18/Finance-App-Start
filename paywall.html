@@ -51,6 +51,7 @@
     .paywall-nav { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
     .wordmark { font-family: 'Fraunces', serif; font-size: 1.25rem; font-weight: 600; color: var(--silver); display: flex; align-items: center; gap: 8px; }
     .wordmark-brand { font-family: 'Jura', 'Fraunces', serif; letter-spacing: 0.08em; color: var(--tan); }
+    .wordmark-mark { height: 28px; width: auto; flex-shrink: 0; filter: drop-shadow(0 0 6px rgba(79,195,232,0.38)); }
     .paywall-logout-btn {
       padding: 9px 16px; border: 1px solid rgba(239,230,208,0.3); border-radius: 8px;
       background: transparent; color: var(--tan); font-weight: 600; font-size: 0.85rem;
@@ -202,7 +203,7 @@
 
   <header class="paywall-header">
     <nav class="paywall-nav">
-      <span class="wordmark"><span class="wordmark-brand">Arko</span> | Finance</span>
+      <span class="wordmark"><img src="favicon-192.png" alt="" class="wordmark-mark" width="28" height="28" /><span class="wordmark-brand">Arko</span> | Finance</span>
       <div style="display:flex; gap:10px; align-items:center;">
         <button type="button" id="paywall-back-button" class="paywall-logout-btn">← Back to Dashboard</button>
         <button type="button" id="paywall-logout-button" class="paywall-logout-btn">Log out</button>
