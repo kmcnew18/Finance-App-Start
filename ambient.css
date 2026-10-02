@@ -119,6 +119,40 @@
   .arko-ambient-streak { opacity: 0.06 !important; }
 }
 
+/* ---- neon accents tied to the same switch ----
+   ambient.js puts .arko-ambient-on on <html> while lighting is enabled
+   (set before first paint, so no flash), plus .arko-scrolled once the
+   page has scrolled, and --amb-page-accent with the page's own color. */
+
+/* A neon light strip along the bottom edge of the sticky header,
+   brightest in the middle and fading to nothing at the ends. Faint at
+   rest; it lights up once content is scrolled underneath, like a
+   lit edge catching what's passing beneath it. */
+html.arko-ambient-on .dash-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 6%,
+    color-mix(in srgb, var(--amb-page-accent, #6E8FA3) 70%, transparent) 30%,
+    color-mix(in srgb, #4FC3E8 80%, transparent) 50%,
+    color-mix(in srgb, var(--amb-page-accent, #6E8FA3) 70%, transparent) 70%,
+    transparent 94%);
+  box-shadow: 0 0 12px 0 color-mix(in srgb, #4FC3E8 35%, transparent);
+  opacity: 0.3;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+html.arko-ambient-on.arko-scrolled .dash-header::after { opacity: 0.85; }
+
+/* Section-title accent bars pick up a soft glow in the page's color. */
+html.arko-ambient-on .overview-section-title::after {
+  box-shadow: 0 0 10px 0 color-mix(in srgb, var(--amb-page-accent, #6E8FA3) 55%, transparent);
+}
+
 /* Settings dropdown toggle row icon — the switch itself reuses the
    page's existing .dropdown-toggle-row / .switch styles. */
 .arko-ambient-toggle-label { display: inline-flex; align-items: center; gap: 8px; }

@@ -42,6 +42,18 @@
 
   var enabled = readPref();
   var root = null;
+  var html = document.documentElement;
+
+  // Set on <html> right away (this file runs in <head>), so the CSS
+  // neon accents keyed off it are correct on first paint.
+  html.classList.toggle('arko-ambient-on', enabled);
+  html.style.setProperty('--amb-page-accent', accent);
+
+  var scrolled = false;
+  function updateScrolledClass() {
+    var now = (window.scrollY || 0) > 8;
+    if (now !== scrolled) { scrolled = now; html.classList.toggle('arko-scrolled', now); }
+  }
 
   function build() {
     root = document.createElement('div');
@@ -63,6 +75,7 @@
 
   function applyEnabled(on) {
     enabled = on;
+    html.classList.toggle('arko-ambient-on', on);
     if (root) root.classList.toggle('on', on);
     var input = document.getElementById('arko-ambient-toggle');
     if (input) input.checked = on;
@@ -91,6 +104,7 @@
     rafId = energy > 0.01 ? requestAnimationFrame(frame) : null;
   }
   function onScroll() {
+    updateScrolledClass();
     if (!root || !enabled || reduceMotion) return;
     if (!rafId) { lastT = performance.now(); rafId = requestAnimationFrame(frame); }
   }
