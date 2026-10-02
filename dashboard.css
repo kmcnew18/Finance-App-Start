@@ -3415,6 +3415,60 @@ textarea:focus-visible,
 }
 .mfa-banner-dismiss-btn:hover { color: var(--tan); }
 
+/* Trial ending notice (trial-notice.js) — neon-blue calm, warm gold on the last day */
+.trial-notice {
+  --tn: #4FC3E8;
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tn) 10%, transparent), rgba(18,24,31,0.6) 65%);
+  border: 1px solid color-mix(in srgb, var(--tn) 32%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tn) 6%, transparent), 0 0 22px color-mix(in srgb, var(--tn) 9%, transparent);
+  animation: trialNoticeIn 0.45s cubic-bezier(.2,.8,.2,1) both;
+  width: 100%;
+  box-sizing: border-box;
+}
+.trial-notice.urgent { --tn: #E0B96E; }
+.trial-notice.leaving { opacity: 0; transform: translateY(-6px); transition: opacity 0.25s ease, transform 0.25s ease; }
+@keyframes trialNoticeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.trial-notice-icon {
+  width: 36px; height: 36px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  color: var(--tn);
+  background: color-mix(in srgb, var(--tn) 12%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tn) 30%, transparent), 0 0 14px color-mix(in srgb, var(--tn) 20%, transparent);
+}
+.trial-notice-icon svg { width: 17px; height: 17px; }
+.trial-notice-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.trial-notice-title { font-family: 'Fraunces', Georgia, serif; font-size: 0.98rem; color: var(--tan); }
+.trial-notice-date { font-family: 'Public Sans', sans-serif; font-size: 0.78rem; color: var(--silver-dim); }
+.trial-notice-sub { font-size: 0.78rem; color: #A8AFB5; line-height: 1.5; }
+.trial-notice-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.trial-notice-later, .trial-notice-plans {
+  padding: 8px 15px; border-radius: 999px;
+  font: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.2s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.trial-notice-later { background: transparent; border: 1px solid rgba(255,255,255,0.14); color: #C4CACF; }
+.trial-notice-later:hover { border-color: rgba(255,255,255,0.28); color: var(--tan); }
+.trial-notice-plans {
+  border: 1px solid color-mix(in srgb, var(--tn) 65%, transparent);
+  background: linear-gradient(135deg, var(--tn), color-mix(in srgb, var(--tn) 65%, #0D1117));
+  color: #0B1117;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tn) 20%, transparent), 0 0 16px color-mix(in srgb, var(--tn) 26%, transparent);
+}
+.trial-notice-plans:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px color-mix(in srgb, var(--tn) 40%, transparent), 0 0 24px color-mix(in srgb, var(--tn) 40%, transparent); }
+.trial-notice-later:focus-visible, .trial-notice-plans:focus-visible { outline: 2px solid var(--tn); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .trial-notice { flex-wrap: wrap; align-items: flex-start; }
+  .trial-notice-text { flex-basis: calc(100% - 50px); }
+  .trial-notice-actions { width: 100%; }
+  .trial-notice-actions button { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .trial-notice { animation: none; } }
+
 /* ==========================================================================
    ARKO CONFIRM / ALERT — replaces native browser confirm()/alert() with a
    modal matching the app's own vintage/blue aesthetic. Shared across every
