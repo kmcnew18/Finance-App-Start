@@ -1,0 +1,125 @@
+/* ============= AMBIENT LIGHTING =============
+   A fixed, non-interactive layer painted *behind* every page's content
+   (z-index:-1 under the root stacking context, so it sits above the
+   body's own background but below everything in normal flow — glass
+   cards with backdrop-filter pick it up through their blur). Built and
+   driven by ambient.js; toggled per user in Settings.
+
+   Every moving part animates only `transform`/`translate`/`opacity`, so
+   it stays on the compositor. The JS feeds three numbers in as custom
+   properties on .arko-ambient itself (not :root, so recalcs stay
+   scoped to this subtree):
+     --arko-scroll    px scrolled
+     --arko-progress  0..1 through the page
+     --arko-energy    0..1, rises with scroll speed and decays at rest
+   --amb-accent / --amb-neon are set per page from the page's own
+   accent color. */
+
+.arko-ambient {
+  --arko-scroll: 0;
+  --arko-progress: 0;
+  --arko-energy: 0;
+  --amb-accent: #6E8FA3;
+  --amb-neon: #4FC3E8;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.arko-ambient.on { opacity: 1; }
+
+/* ---- light pools: large soft radial lights at three depths ---- */
+.arko-ambient-pool {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+}
+.arko-ambient-pool.p1 {
+  width: 78vmax; height: 78vmax;
+  top: -38vmax; left: -18vmax;
+  background: radial-gradient(circle, color-mix(in srgb, var(--amb-accent) 20%, transparent) 0%, transparent 62%);
+  translate: 0 calc(var(--arko-scroll) * -0.06px);
+  opacity: calc(1 - var(--arko-progress) * 0.45);
+  animation: arkoPoolDriftA 46s ease-in-out infinite alternate;
+}
+.arko-ambient-pool.p2 {
+  width: 64vmax; height: 64vmax;
+  top: 18vh; right: -30vmax;
+  background: radial-gradient(circle, color-mix(in srgb, var(--amb-neon) 13%, transparent) 0%, transparent 60%);
+  translate: 0 calc(var(--arko-scroll) * -0.14px);
+  opacity: calc(0.75 + var(--arko-progress) * 0.25);
+  animation: arkoPoolDriftB 58s ease-in-out infinite alternate;
+}
+.arko-ambient-pool.p3 {
+  width: 70vmax; height: 70vmax;
+  bottom: -46vmax; left: 12vw;
+  background: radial-gradient(circle, color-mix(in srgb, var(--amb-accent) 16%, transparent) 0%, transparent 60%);
+  translate: 0 calc(var(--arko-scroll) * -0.22px);
+  /* Rises into view as you scroll down — the light "follows" you
+     toward the bottom of the page rather than staying parked at the top. */
+  opacity: calc(0.35 + var(--arko-progress) * 0.65);
+  animation: arkoPoolDriftC 52s ease-in-out infinite alternate;
+}
+@keyframes arkoPoolDriftA { from { transform: translate(0, 0) scale(1); } to { transform: translate(6vw, 4vh) scale(1.08); } }
+@keyframes arkoPoolDriftB { from { transform: translate(0, 0) scale(1.05); } to { transform: translate(-7vw, 6vh) scale(0.94); } }
+@keyframes arkoPoolDriftC { from { transform: translate(0, 0) scale(0.96); } to { transform: translate(5vw, -5vh) scale(1.06); } }
+
+/* ---- neon streaks: thin light-leak bars that slide with scroll and
+   brighten with scroll speed, like light trails ---- */
+.arko-ambient-streak {
+  position: absolute;
+  height: 1.5px;
+  width: 62vw;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--amb-neon) 85%, transparent) 50%, transparent);
+  box-shadow: 0 0 14px 1px color-mix(in srgb, var(--amb-neon) 45%, transparent);
+  will-change: transform, opacity;
+}
+.arko-ambient-streak.s1 {
+  top: 22vh; left: -10vw;
+  rotate: -9deg;
+  translate: calc(var(--arko-scroll) * 0.05px) calc(var(--arko-scroll) * -0.1px);
+  opacity: calc(0.07 + var(--arko-energy) * 0.33);
+  animation: arkoStreakSlide 34s ease-in-out infinite alternate;
+}
+.arko-ambient-streak.s2 {
+  top: 68vh; right: -14vw;
+  rotate: -9deg;
+  translate: calc(var(--arko-scroll) * -0.07px) calc(var(--arko-scroll) * -0.18px);
+  opacity: calc(0.05 + var(--arko-energy) * 0.28);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--amb-accent) 85%, transparent) 50%, transparent);
+  box-shadow: 0 0 14px 1px color-mix(in srgb, var(--amb-accent) 45%, transparent);
+  animation: arkoStreakSlide 41s ease-in-out infinite alternate-reverse;
+}
+@keyframes arkoStreakSlide { from { transform: translateX(-4vw); } to { transform: translateX(6vw); } }
+
+/* ---- vignette: darkens the edges so the lit center reads as the
+   subject, the way a lens would ---- */
+.arko-ambient-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 120% 90% at 50% 40%, transparent 55%, rgba(4, 6, 10, 0.55) 100%);
+}
+
+/* ---- "power-on" — applied by ambient.js via the Web Animations API
+   (not a CSS class), so it layers on top of each card's own entrance
+   animation instead of replacing it. Nothing to style here; kept as a
+   note so the behavior isn't a mystery when reading this file. ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  .arko-ambient-pool,
+  .arko-ambient-streak {
+    animation: none !important;
+    translate: none !important;
+  }
+  .arko-ambient-streak { opacity: 0.06 !important; }
+}
+
+/* Settings dropdown toggle row icon — the switch itself reuses the
+   page's existing .dropdown-toggle-row / .switch styles. */
+.arko-ambient-toggle-label { display: inline-flex; align-items: center; gap: 8px; }
+.arko-ambient-toggle-label svg { width: 14px; height: 14px; color: var(--amb-neon, #4FC3E8); filter: drop-shadow(0 0 4px rgba(79,195,232,0.6)); }
