@@ -6,8 +6,8 @@
 
    - Opens once, automatically, on the Dashboard of accounts created
      after this shipped (TOUR_LAUNCH), and never again once closed —
-     remembered in user_metadata.tour_seen (plus localStorage, so it
-     doesn't flash open before the account loads).
+     remembered in user_metadata.tour_seen (plus a per-account
+     localStorage flag, so it doesn't flash open before that loads).
    - Re-openable from Settings → "Take the tour" on every app page; it
      starts at the step for the page you're on.
    - ?tour=1 on any app page opens it directly.
@@ -174,16 +174,14 @@
             rect(x, 18, 98, 58, 10, C.panel, C.line) + rect(x + 12, 18, 34, 2, 1, c[2]) +
             text(x + 12, 40, c[0], { size: 7.5, fill: C.dim, caps: true }) + value);
         }).join('');
-      function item(y, name, meta, amt, color, t, off, withButtons) {
+      function item(y, name, meta, amt, color, t, off, tapAt) {
         return g(at(t, 'left', off),
           rect(34, y, 392, 38, 9, C.panel2, C.line) +
           text(48, y + 17, name, { size: 11, weight: 600 }) +
           text(48, y + 30, meta, { size: 8.5, fill: C.dim }) +
           text(296, y + 23, amt, { size: 11, mono: true, anchor: 'end', fill: color }) +
-          (withButtons
-            ? rect(306, y + 9, 48, 20, 10, 'none', C.dim, 'stroke-opacity="0.6"') + text(330, y + 23, 'Skip', { size: 8.5, anchor: 'middle', fill: C.silver }) +
-              g('data-tap="2.35"', rect(360, y + 9, 58, 20, 10, acc) + text(389, y + 23, 'Confirm', { size: 8.5, anchor: 'middle', fill: C.dark, weight: 700 }))
-            : ''));
+          rect(306, y + 9, 48, 20, 10, 'none', C.dim, 'stroke-opacity="0.6"') + text(330, y + 23, 'Skip', { size: 8.5, anchor: 'middle', fill: C.silver }) +
+          g(tapAt ? 'data-tap="' + tapAt + '"' : '', rect(360, y + 9, 58, 20, 10, acc) + text(389, y + 23, 'Confirm', { size: 8.5, anchor: 'middle', fill: C.dark, weight: 700 })));
       }
       return svg(9.5, 'Confirming detected activity on the Dashboard',
         cards +
@@ -191,8 +189,11 @@
         g(at(0.4), rect(22, 88, 416, 142, 12, C.panel, C.line) +
           text(36, 110, 'Detected activity', { size: 12.5, serif: true }) +
           text(36, 124, 'Picked up from your connected accounts', { size: 8.5, fill: C.dim })) +
-        item(136, 'Corner Coffee', 'Today · Rewards Card', '−$4.75', C.red, 0.9, 3.1, true) +
-        g(at(2.6, 'pop', 3.3), rect(330, 145, 88, 20, 10, C.sage, C.sage, 'fill-opacity="0.18" stroke-opacity="0.5"') + text(374, 159, 'Logged ✓', { size: 9, anchor: 'middle', fill: C.sage, weight: 700 })) +
+        item(136, 'Corner Coffee', 'Today · Rewards Card', '−$4.75', C.red, 0.9, 3.1, 2.35) +
+        g(at(2.6, 'pop', 3.1),
+          rect(304, 143, 118, 24, 12, C.panel2) +
+          rect(304, 143, 118, 24, 12, C.sage, C.sage, 'fill-opacity="0.18" stroke-opacity="0.55"') +
+          text(363, 159, 'Logged ✓', { size: 9.5, anchor: 'middle', fill: C.sage, weight: 700 })) +
         item(136, 'Paycheck', 'Today · Everyday Checking', '+$1,850.00', C.sage, 3.6) +
         item(182, 'Streaming Plus', 'Monthly · Rewards Card', '−$15.99', C.red, 4.0) +
         cursor('250,238@0;389,154@1.5;445,238@2.9', '2.35'));
@@ -258,7 +259,7 @@
         text(112, 54, 'Oct 1 – Oct 31', { size: 14, serif: true }) +
         g('data-tap="4.6"', rect(352, 26, 82, 24, 12, 'none', acc, 'stroke-opacity="0.6"') + text(393, 42, '+ From log', { size: 9, anchor: 'middle', fill: acc, weight: 700 })) +
         rows +
-        g(at(4.9, 'up', 6.6), rect(380, 128, 54, 17, 8.5, acc, acc, 'fill-opacity="0.16" stroke-opacity="0.5"') + text(407, 140, '+$4.75', { size: 8.5, anchor: 'middle', fill: acc, weight: 700 })) +
+        g(at(4.9, 'up', 6.6), rect(326, 138, 56, 16, 8, acc, acc, 'fill-opacity="0.16" stroke-opacity="0.5"') + text(354, 149.5, '+$4.75', { size: 8.5, anchor: 'middle', fill: acc, weight: 700 })) +
         '<line x1="112" x2="434" y1="206" y2="206" stroke="' + C.line + '"/>' +
         text(112, 222, 'Left over this period', { size: 9.5, fill: C.dim }) +
         text(434, 224, '$0.00', { size: 14, mono: true, anchor: 'end', fill: acc, extra: 'data-count="0>640" data-count-at="2.2" data-fmt="money"' }) +
@@ -707,12 +708,15 @@
     markSeen();
   }
 
+  function rememberLocally(userId) { try { localStorage.setItem(SEEN_KEY + ':' + userId, '1'); } catch (e) {} }
+
   function markSeen() {
-    try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {}
     if (typeof supabaseClient === 'undefined') return;
     supabaseClient.auth.getUser().then(function (res) {
       var user = res && res.data && res.data.user;
-      if (!user || (user.user_metadata && user.user_metadata.tour_seen)) return;
+      if (!user) return;
+      rememberLocally(user.id);
+      if (user.user_metadata && user.user_metadata.tour_seen) return;
       var next = Object.assign({}, user.user_metadata || {}, { tour_seen: true });
       if (typeof currentUserMetadata !== 'undefined' && currentUserMetadata) currentUserMetadata = Object.assign({}, currentUserMetadata, { tour_seen: true });
       return supabaseClient.auth.updateUser({ data: next });
@@ -754,12 +758,12 @@
   function maybeAutoStart() {
     if (/[?&]tour=1\b/.test(location.search)) { waitThenOpen(startIndexForPage(), false); return; }
     if (PAGE !== 'dashboard') return;
-    try { if (localStorage.getItem(SEEN_KEY) === '1') return; } catch (e) {}
     if (typeof supabaseClient === 'undefined') return;
     supabaseClient.auth.getSession().then(function (res) {
       var user = res && res.data && res.data.session && res.data.session.user;
       if (!user) return;
-      if (user.user_metadata && user.user_metadata.tour_seen) { try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) {} return; }
+      try { if (localStorage.getItem(SEEN_KEY + ':' + user.id) === '1') return; } catch (e) {}
+      if (user.user_metadata && user.user_metadata.tour_seen) { rememberLocally(user.id); return; }
       if (!user.created_at || Date.parse(user.created_at) < TOUR_LAUNCH) return; // existing accounts: available from Settings, not pushed
       waitThenOpen(0, true);
     }).catch(function () {});
