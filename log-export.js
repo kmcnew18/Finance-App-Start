@@ -151,8 +151,16 @@
     ink: 'FF1B2330', sub: 'FF6B7680', faint: 'FF98A2AA', brand: 'FF2E5472', brandLight: 'FF6E8FA3',
     band: 'FFF8F6F1', white: 'FFFFFFFF', rule: 'FFE6E1D6', month: 'FFBFCBD4', totalFill: 'FFEEF2F5',
   };
-  var CURRENCY = '"$"#,##0.00;[Red]-"$"#,##0.00;[Color16]"–"';
+  // Signed effect (+/−); colors come from conditional formatting in the
+  // brand's own green/red rather than Excel's harsh built-in [Red].
+  var CURRENCY = '+"$"#,##0.00;-"$"#,##0.00;[Color16]"–"';
   var CURRENCY_PLAIN = '"$"#,##0.00;-"$"#,##0.00;[Color16]"–"';
+  var NET_FMT = '+"$"#,##0.00;-"$"#,##0.00;"$0.00"';
+  function signColors(ws, ref, positive) {
+    var rules = [{ type: 'cellIs', operator: 'lessThan', formulae: ['0'], style: { font: { color: { argb: 'FFB5544A' } } } }];
+    if (positive) rules.push({ type: 'cellIs', operator: 'greaterThan', formulae: ['0'], style: { font: { color: { argb: 'FF3F8F64' } } } });
+    ws.addConditionalFormatting({ ref: ref, rules: rules });
+  }
   function fill(argb) { return { type: 'pattern', pattern: 'solid', fgColor: { argb: argb } }; }
   function hair(argb) { return { style: 'thin', color: { argb: argb } }; }
   function dayUTC(d) { var p = d.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2])); }
@@ -326,6 +334,7 @@
     foot.font = { name: 'Calibri', size: 9, italic: true, color: { argb: X.faint } };
 
     ws.autoFilter = { from: { row: HEADER, column: 1 }, to: { row: last, column: lastCol } };
+    if (cats.length) signColors(ws, 'D' + r0 + ':' + colLetter(3 + cats.length) + totalRowNum, false);
 
     // ===== Summary sheet =====
     var ss = wb.addWorksheet('Summary', {
@@ -385,8 +394,8 @@
       bodyRow(row, i);
       ss.getCell(row, 2).font = { name: 'Calibri', size: 11, color: { argb: 'FF3F8F64' } };
       ss.getCell(row, 3).font = { name: 'Calibri', size: 11, color: { argb: 'FFB5544A' } };
-      ss.getCell(row, 6).numFmt = '[Color10]"$"#,##0.00;[Red]-"$"#,##0.00;"$0.00"';
-      ss.getCell(row, 6).font = { name: 'Calibri', size: 11, bold: true };
+      ss.getCell(row, 6).numFmt = NET_FMT;
+      ss.getCell(row, 6).font = { name: 'Calibri', size: 11, bold: true, color: { argb: X.ink } };
       row += 1;
     });
     var mEnd = row - 1;
@@ -396,7 +405,8 @@
       ss.getCell(row, i + 2).value = { formula: 'SUM(' + L + mStart + ':' + L + mEnd + ')', result: sums[i] };
     });
     totalStyle(row);
-    ss.getCell(row, 6).numFmt = '[Color10]"$"#,##0.00;[Red]-"$"#,##0.00;"$0.00"';
+    ss.getCell(row, 6).numFmt = NET_FMT;
+    signColors(ss, 'F' + mStart + ':F' + row, true);
     try {
       if (months.length > 1) {
         ss.addConditionalFormatting({ ref: 'B' + mStart + ':B' + mEnd, rules: [{ type: 'dataBar', cfvo: [{ type: 'num', value: 0 }, { type: 'max' }], color: { argb: 'FF8FCBA6' }, gradient: true }] });
@@ -417,16 +427,18 @@
       ss.getCell(row, 4).value = { formula: 'B' + row + '-C' + row, result: cat.net };
       bodyRow(row, i);
       [5, 6].forEach(function (c) { ss.getCell(row, c).fill = fill(X.white); ss.getCell(row, c).border = {}; });
-      ss.getCell(row, 4).numFmt = '[Color10]"$"#,##0.00;[Red]-"$"#,##0.00;[Color16]"–"';
-      ss.getCell(row, 4).font = { name: 'Calibri', size: 11, bold: true };
+      ss.getCell(row, 4).numFmt = '+"$"#,##0.00;-"$"#,##0.00;[Color16]"–"';
+      ss.getCell(row, 4).font = { name: 'Calibri', size: 11, bold: true, color: { argb: X.ink } };
       row += 1;
     });
     if (cats.length) {
+      var catSums = byCategory(rows).reduce(function (s, c) { s[0] += c.in; s[1] += c.out; s[2] += c.net; return s; }, [0, 0, 0]);
       ss.getCell(row, 1).value = 'Total';
-      ['B', 'C', 'D'].forEach(function (L, i) { ss.getCell(row, i + 2).value = { formula: 'SUM(' + L + cStart + ':' + L + (row - 1) + ')' }; });
+      ['B', 'C', 'D'].forEach(function (L, i) { ss.getCell(row, i + 2).value = { formula: 'SUM(' + L + cStart + ':' + L + (row - 1) + ')', result: round2(catSums[i]) }; });
       totalStyle(row);
       [5, 6].forEach(function (c) { ss.getCell(row, c).fill = fill(X.white); ss.getCell(row, c).border = {}; });
-      ss.getCell(row, 4).numFmt = '[Color10]"$"#,##0.00;[Red]-"$"#,##0.00;"$0.00"';
+      ss.getCell(row, 4).numFmt = NET_FMT;
+      signColors(ss, 'D' + cStart + ':D' + row, true);
     }
     row += 2;
     var note = ss.getCell(row, 1);
@@ -446,34 +458,45 @@
     var scope = scopeText(rows);
     var catHead = cats.map(function (c) { return '<th class="num">' + esc(c.label) + '</th>'; }).join('');
 
+    // Fixed column widths so every month's table lines up with the next.
+    var catPct = (100 - 10.5 - 10.5 - 9.5 - 23) / Math.max(1, cats.length);
+    var colgroup = '<colgroup><col style="width:10.5%"><col style="width:10.5%"><col style="width:9.5%">' +
+      cats.map(function () { return '<col style="width:' + catPct.toFixed(2) + '%">'; }).join('') + '<col style="width:23%"></colgroup>';
+
     var monthSections = months.map(function (m) {
       var mt = m.totals;
-      var body = m.rows.map(function (r) {
+      var rowHtml = m.rows.map(function (r, i) {
         var ty = typeOf(r);
-        return '<tr>' +
+        return '<tr' + (i % 2 ? ' class="alt"' : '') + '>' +
           '<td class="date">' + esc(fmtDay(r.entry_date)) + '</td>' +
           '<td><span class="pill" style="color:' + ty.css + ';background:' + ty.cssTint + '">' + esc(ty.label) + '</span></td>' +
           '<td class="num amt" style="color:' + ty.css + '">' + usd(Number(r.amount || 0)) + '</td>' +
           cats.map(function (col) { var e = effect(r, col); return '<td class="num' + (e ? '' : ' zero') + (e < 0 ? ' neg' : '') + '">' + signed(e) + '</td>'; }).join('') +
           '<td class="note">' + esc(r.notes || '') + '</td>' +
           '</tr>';
-      }).join('');
+      });
+      // The month's last two rows ride with its subtotal in their own
+      // unbreakable group, so a page never starts with a lone total.
+      var tail = rowHtml.splice(Math.max(0, rowHtml.length - 2));
       var catTotals = cats.map(function (col) {
         var s = round2(m.rows.reduce(function (acc, r) { return acc + effect(r, col); }, 0));
-        return '<td class="num' + (s < 0 ? ' neg' : '') + '">' + signed(s) + '</td>';
+        return '<td class="num' + (s < 0 ? ' neg' : '') + (s ? '' : ' zero') + '">' + signed(s) + '</td>';
       }).join('');
+      var subtotal = '<tr class="subtotal"><td colspan="3">' + m.rows.length + ' ' + (m.rows.length === 1 ? 'entry' : 'entries') + '</td>' + catTotals + '<td></td></tr>';
       return '<section class="month">' +
         '<div class="month-head"><h2>' + esc(m.label) + '</h2>' +
           '<div class="month-figs"><span class="in">+' + usd(mt.added) + ' in</span><span class="out">' + usd(-(mt.subtracted + mt.cardPayments)) + ' out</span>' +
           (mt.transferred ? '<span class="xfer">' + usd(mt.transferred) + ' moved</span>' : '') + '</div></div>' +
-        '<table><thead><tr><th>Date</th><th>Type</th><th class="num">Amount</th>' + catHead + '<th>Notes</th></tr></thead>' +
-        '<tbody>' + body + '</tbody>' +
-        '<tfoot><tr><td colspan="3">' + m.rows.length + ' ' + (m.rows.length === 1 ? 'entry' : 'entries') + '</td>' + catTotals + '<td></td></tr></tfoot>' +
+        '<table class="ledger">' + colgroup + '<thead><tr><th>Date</th><th>Type</th><th class="num">Amount</th>' + catHead + '<th>Notes</th></tr></thead>' +
+        (rowHtml.length ? '<tbody>' + rowHtml.join('') + '</tbody>' : '') +
+        '<tbody class="keep">' + tail.join('') + subtotal + '</tbody>' +
         '</table></section>';
     }).join('');
 
-    var catRows = byCategory(rows).map(function (c) {
-      return '<tr><td>' + esc(c.label) + '</td><td class="num in">' + usd(c.in) + '</td><td class="num out">' + usd(c.out) + '</td><td class="num strong' + (c.net < 0 ? ' neg' : '') + '">' + signed(c.net) + '</td></tr>';
+    var catRows = byCategory(rows).map(function (c, i) {
+      var cell = function (n, cls) { return n ? '<td class="num ' + cls + '">' + usd(n) + '</td>' : '<td class="num zero">–</td>'; };
+      return '<tr' + (i % 2 ? ' class="alt"' : '') + '><td>' + esc(c.label) + '</td>' + cell(c.in, 'in') + cell(c.out, 'out') +
+        '<td class="num strong' + (c.net < 0 ? ' neg' : '') + (c.net ? '' : ' zero') + '">' + signed(c.net) + '</td></tr>';
     }).join('');
 
     var kpi = function (label, value, color, sub) {
@@ -502,20 +525,21 @@
       '.month { margin-top: 22px; } .month-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; break-after: avoid; }' +
       '.month-head h2 { font: 600 14pt "Fraunces", Georgia, serif; margin: 0; }' +
       '.month-figs { display: flex; gap: 14px; font: 600 8.5pt "IBM Plex Mono", monospace; } .month-figs .in { color: var(--in); } .month-figs .out { color: var(--out); } .month-figs .xfer { color: var(--xfer); }' +
-      'table { width: 100%; border-collapse: collapse; } thead { display: table-header-group; } tfoot { display: table-row-group; }' +
+      'table { width: 100%; border-collapse: collapse; } table.ledger { table-layout: fixed; } thead { display: table-header-group; } tbody.keep { break-inside: avoid; }' +
+      '.ledger td { overflow-wrap: anywhere; } .ledger td.num { overflow-wrap: normal; }' +
       'th { text-align: left; font-size: 7pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--brand); padding: 7px 8px; }' +
       'th:first-child { border-radius: 5px 0 0 0; } th:last-child { border-radius: 0 5px 0 0; }' +
-      'td { padding: 6px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; } tbody tr:nth-child(even) td { background: var(--band); } tr { break-inside: avoid; }' +
+      'td { padding: 6px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; } tr.alt td { background: var(--band); } tr { break-inside: avoid; }' +
       '.num { text-align: right; white-space: nowrap; font-family: "IBM Plex Mono", monospace; font-size: 8.5pt; } .amt { font-weight: 600; } .zero { color: #C2C8CD; } .neg { color: var(--out); }' +
       '.date { white-space: nowrap; color: var(--sub); }' +
       '.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 7.5pt; font-weight: 700; white-space: nowrap; }' +
       '.note { font: italic 400 9pt "Fraunces", Georgia, serif; color: #4A5560; min-width: 140px; }' +
-      'tfoot td { font-weight: 600; background: #EEF2F5 !important; border-top: 1.5px solid var(--brand); border-bottom: none; color: var(--sub); font-size: 8pt; }' +
-      'tfoot td.num { color: var(--ink); } tfoot td.neg { color: var(--out); }' +
+      'tr.subtotal td { font-weight: 600; background: #EEF2F5 !important; border-top: 1.5px solid var(--brand); border-bottom: none; color: var(--sub); font-size: 8pt; }' +
+      'tr.subtotal td.num { color: var(--ink); } tr.subtotal td.neg { color: var(--out); } tr.subtotal td.zero { color: #C2C8CD; font-weight: 400; }' +
       '.cats { margin-top: 30px; break-inside: avoid; } .cats h2 { font: 600 14pt "Fraunces", Georgia, serif; margin: 0 0 8px; }' +
       '.cats table { max-width: 560px; } .cats td.in { color: var(--in); } .cats td.out { color: var(--out); } .strong { font-weight: 600; }' +
       '.fineprint { margin-top: 26px; padding-top: 10px; border-top: 1px solid var(--rule); color: var(--faint); font-size: 7.5pt; }' +
-      '@media screen and (max-width: 760px) { .paper { margin: 10px; padding: 26px 16px 34px; } h1 { font-size: 19pt; } .kpis { grid-template-columns: repeat(2, 1fr); } .kpi:last-child { grid-column: span 2; } .month, .cats { overflow-x: auto; } .month-head { flex-direction: column; gap: 4px; } .meta { font-size: 7.5pt; } }' +
+      '@media screen and (max-width: 760px) { .paper { margin: 10px; padding: 26px 16px 34px; } h1 { font-size: 19pt; } .kpis { grid-template-columns: repeat(2, 1fr); } .kpi:last-child { grid-column: span 2; } .month, .cats { overflow-x: auto; } .ledger { min-width: 760px; } .month-head { flex-direction: column; gap: 4px; } .meta { font-size: 7.5pt; } }' +
       '</style></head><body><div class="paper">' +
       '<header class="masthead"><div class="brand"><img src="' + location.origin + '/favicon-192.png" alt=""><span><b>Arko</b> Finance</span></div>' +
         '<div class="meta">Full Log<br>Generated ' + esc(today()) + '</div></header>' +
