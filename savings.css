@@ -15,14 +15,68 @@
   margin-bottom: 20px;
 }
 
-.sav-empty-hint {
+.sav-empty {
   grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  padding: 40px 20px;
-  color: var(--silver-dim);
-  font-size: 0.88rem;
-  border: 1.5px dashed rgba(232,225,211,0.16);
+  gap: 8px;
+  padding: 30px 22px 32px;
+  border-radius: 16px;
+  background: linear-gradient(155deg, rgba(110,196,184,0.07), rgba(255,255,255,0.012) 55%);
+  border: 1px solid rgba(110,196,184,0.22);
+  box-shadow: 0 0 0 1px rgba(110,196,184,0.05), 0 0 28px rgba(110,196,184,0.08), 0 10px 26px rgba(0,0,0,0.26);
+}
+.sav-empty-previews {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.sav-empty-preview {
+  width: 96px;
+  padding: 8px 6px 4px;
   border-radius: 14px;
+  border: 1px solid rgba(var(--goal-glow), 0.22);
+  background: rgba(var(--goal-glow), 0.05);
+  opacity: 0.62;
+  animation: savEmptyFloat 5s ease-in-out infinite;
+}
+.sav-empty-preview:nth-child(2) { width: 112px; opacity: 0.8; animation-delay: -1.6s; }
+.sav-empty-preview:nth-child(3) { animation-delay: -3.2s; }
+.sav-empty-preview svg { display: block; width: 100%; height: auto; }
+@keyframes savEmptyFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.sav-empty-title { font-family: 'Fraunces', Georgia, serif; font-size: 1.12rem; color: var(--tan); }
+.sav-empty-sub { font-size: 0.84rem; color: var(--silver-dim); line-height: 1.55; max-width: 400px; }
+.sav-empty-cta {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(110,196,184,0.6);
+  background: linear-gradient(135deg, #6EC4B8, #4A9A8F);
+  color: #0E1A19;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(110,196,184,0.22), 0 0 18px rgba(110,196,184,0.26);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+.sav-empty-cta:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px rgba(110,196,184,0.4), 0 0 28px rgba(110,196,184,0.4); }
+.sav-empty-cta:focus-visible { outline: 2px solid #6EC4B8; outline-offset: 3px; }
+.sav-empty-cta .sav-add-plus { font-size: 1.15rem; }
+@media (max-width: 560px) {
+  .sav-empty-previews { gap: 8px; }
+  .sav-empty-preview { width: 78px; }
+  .sav-empty-preview:nth-child(2) { width: 90px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sav-empty-preview { animation: none; }
 }
 
 .sav-goal-card {

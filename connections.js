@@ -338,7 +338,7 @@ async function init() {
   // at each of those entry points), rather than blocking the whole page
   // behind a prompt every single time someone just wants to check a
   // balance.
-  document.getElementById('loading-message').textContent = 'Loading your accounts...';
+  document.getElementById('loading-message').textContent = 'Loading your accounts…';
   await loadAccounts();
 
   document.getElementById('loading-message').style.display = 'none';

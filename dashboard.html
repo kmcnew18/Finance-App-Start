@@ -373,7 +373,7 @@
 
   </main>
 
-  <p id="loading-message" class="loading-message">Loading your dashboard...</p>
+  <p id="loading-message" class="loading-message">Loading your dashboard…</p>
 
   <!-- ================= TWO-FACTOR AUTHENTICATION OVERLAY ================= -->
   <div class="mfa-overlay" id="mfa-overlay">
@@ -1829,13 +1829,14 @@
       if (fetchError) {
         console.error(fetchError);
         loadingMessage.textContent = 'Could not load your dashboard. Please refresh.';
+        loadingMessage.classList.add('is-error');
         return;
       }
 
       if (!row) {
         const { data: newRow, error: insertError } = await supabaseClient
           .from('finance_totals').insert({ user_id: currentUserId }).select().single();
-        if (insertError) { console.error(insertError); loadingMessage.textContent = 'Setup failed. Please refresh.'; return; }
+        if (insertError) { console.error(insertError); loadingMessage.textContent = 'Setup failed. Please refresh.'; loadingMessage.classList.add('is-error'); return; }
         totals = { savings: newRow.savings, investment: newRow.investment, expenses: newRow.expenses, checking: newRow.checking };
       } else {
         totals = { savings: row.savings, investment: row.investment, expenses: row.expenses, checking: row.checking };

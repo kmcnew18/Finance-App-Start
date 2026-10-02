@@ -100,7 +100,7 @@
 
   </main>
 
-  <p id="loading-message" class="loading-message">Loading your goals...</p>
+  <p id="loading-message" class="loading-message">Loading your goals…</p>
 
   <!-- ================= GOAL DETAIL / EDIT ================= -->
   <div class="mfa-overlay" id="goal-detail-overlay">
@@ -668,10 +668,27 @@
 
     function renderGoals() {
       const grid = document.getElementById('sav-goals-grid');
+      const addBtn = document.getElementById('sav-add-goal-btn');
       if (!goals.length) {
-        grid.innerHTML = `<p class="sav-empty-hint">No savings goals yet — add one below to start watching it grow.</p>`;
+        // A preview of what goals look like, rather than a bare line of
+        // text: three themes at different stages of filling up, faded
+        // back so they read as examples, with the create action right
+        // here (the standalone add button below would be redundant).
+        const samples = [['plant', 28], ['ship', 58], ['rocket', 86]];
+        grid.innerHTML = `
+          <div class="sav-empty">
+            <div class="sav-empty-previews" aria-hidden="true">
+              ${samples.map(([key, pct]) => `<div class="sav-empty-preview" style="--goal-glow:${THEMES[key].glowRgb};">${goalIllustrationSvg(key, pct, THEMES[key].accent, THEMES[key].accentBright)}</div>`).join('')}
+            </div>
+            <span class="sav-empty-title">Pick something worth saving for</span>
+            <span class="sav-empty-sub">Every goal gets its own illustration that fills in as your balance grows — a plant that blooms, a ship that sets sail, a rocket that lifts off.</span>
+            <button type="button" class="sav-empty-cta" id="sav-empty-cta"><span class="sav-add-plus">+</span>Create your first goal</button>
+          </div>`;
+        document.getElementById('sav-empty-cta').addEventListener('click', () => addBtn.click());
+        addBtn.style.display = 'none';
         return;
       }
+      addBtn.style.display = '';
       grid.innerHTML = goals.map(g => {
         const theme = THEMES[g.theme] || THEMES.plant;
         const target = Number(g.target_amount) || 0;

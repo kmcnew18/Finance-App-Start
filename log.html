@@ -452,6 +452,17 @@
     // correctly regardless of how many category columns exist.
     function logFixedColumnCount() { return 4; }
 
+    function logEmptyRowHtml(totalCols, { icon, title, sub, actionId, actionLabel }) {
+      return `<tr class="log-empty-row"><td colspan="${totalCols}" class="log-empty-cell">
+        <div class="log-empty">
+          <span class="log-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg></span>
+          <span class="log-empty-title">${title}</span>
+          <span class="log-empty-sub">${sub.replace(/</g, '&lt;')}</span>
+          <button type="button" class="log-empty-action" id="${actionId}">${actionLabel}</button>
+        </div>
+      </td></tr>`;
+    }
+
     async function loadLog() {
       const tbody = document.getElementById('log-body');
       const [{ data: rows, error }, { data: cats }] = await Promise.all([
@@ -518,7 +529,14 @@
       const totalCols = logFixedColumnCount() + logColumns.length;
 
       if (!allLogRows.length) {
-        tbody.innerHTML = `<tr><td colspan="${totalCols}">No entries yet.</td></tr>`;
+        tbody.innerHTML = logEmptyRowHtml(totalCols, {
+          icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line>',
+          title: 'Your log is empty',
+          sub: 'Every add, subtract, transfer, and card payment you record on the Dashboard — including activity you approve from your banks — lands here automatically.',
+          actionId: 'log-empty-dashboard',
+          actionLabel: 'Go to Dashboard',
+        });
+        document.getElementById('log-empty-dashboard').addEventListener('click', () => ArkoTransitions.go('dashboard.html'));
         countEl.textContent = '';
         return;
       }
@@ -528,7 +546,14 @@
       countEl.textContent = anyFilterActive ? `${rows.length} of ${allLogRows.length} shown` : '';
 
       if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="${totalCols}">No entries match your filters.</td></tr>`;
+        tbody.innerHTML = logEmptyRowHtml(totalCols, {
+          icon: '<circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>',
+          title: 'No entries match',
+          sub: `Nothing in ${logMonthLabel() === 'All time' ? 'your log' : logMonthLabel()} fits these filters.`,
+          actionId: 'log-empty-clear',
+          actionLabel: 'Clear filters',
+        });
+        document.getElementById('log-empty-clear').addEventListener('click', () => clearBtn.click());
         return;
       }
 

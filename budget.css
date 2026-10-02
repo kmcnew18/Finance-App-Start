@@ -359,6 +359,28 @@
   padding: 0 20px;
   font-size: 0.78rem;
   color: var(--silver-dim);
+  flex-direction: column;
+  gap: 12px;
+  line-height: 1.5;
+}
+/* A brass badge above each chart's "not enough data yet" note — drawn
+   in CSS so the scripts that toggle these (display none/flex) don't
+   need to know about it. The glyph matches the chart it stands in for. */
+.chart-empty-note::before {
+  content: '';
+  width: 42px; height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background:
+    var(--empty-glyph) center / 18px 18px no-repeat,
+    rgba(184,147,74,0.1);
+  box-shadow: 0 0 0 1px rgba(184,147,74,0.3), 0 0 18px rgba(184,147,74,0.2);
+}
+#chart-breakdown-empty {
+  --empty-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D8BC7A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.21 15.89A10 10 0 1 1 8 2.83'/%3E%3Cpath d='M22 12A10 10 0 0 0 12 2v10z'/%3E%3C/svg%3E");
+}
+#chart-trend-empty {
+  --empty-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D8BC7A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='22 12 18 12 15 21 9 3 6 12 2 12'/%3E%3C/svg%3E");
 }
 
 @media (max-width: 760px) {
@@ -876,7 +898,16 @@
 }
 .history-item-status.active { color: var(--add-accent-hover); background: rgba(92,138,107,0.15); }
 .history-item-status.finalized { color: var(--brass-bright); background: rgba(184,147,74,0.15); }
-.history-empty { padding: 30px 20px; text-align: center; color: var(--silver-dim); font-size: 0.85rem; }
+.history-empty {
+  padding: 30px 20px;
+  text-align: center;
+  color: var(--silver-dim);
+  font-size: 0.85rem;
+  border: 1px dashed rgba(184,147,74,0.22);
+  border-radius: 12px;
+  margin: 6px 0;
+  background: rgba(184,147,74,0.03);
+}
 
 /* ---------- "+ From log" overlay ---------- */
 .logmirror-panel { max-width: min(94vw, 980px); width: 980px; }
