@@ -22,8 +22,7 @@
 //
 // Requires: npm install plaid @supabase/supabase-js
 
-const { plaidClient, supabaseAdmin, mapAccountType, processItemUpdate } = require('../lib/plaid-helpers');
-const { decryptToken } = require('../lib/crypto-helpers');
+const { supabaseAdmin, mapAccountType, processItemUpdate, fetchCachedAccounts, refreshCachedBalancesForItem } = require('../lib/plaid-helpers');
 const { handleTrustDevice, handleUntrustDevice } = require('../lib/device-trust');
 const { requireUser, requireMfa } = require('../lib/auth-guard');
 
@@ -96,15 +95,9 @@ async function handleConfirmReconnect(req, res) {
 
     // Refresh balances immediately so the reconnect feels like it actually
     // did something, rather than the user waiting for the next sync.
+    // Free cached balances — see refreshCachedBalancesForItem.
     try {
-      const balancesRes = await plaidClient.accountsBalanceGet({ access_token: decryptToken(itemRow.access_token) });
-      for (const a of balancesRes.data.accounts || []) {
-        await supabaseAdmin
-          .from('linked_accounts')
-          .update({ balance: Math.abs(a.balances.current ?? a.balances.available ?? 0), updated_at: new Date().toISOString() })
-          .eq('user_id', userId)
-          .eq('plaid_account_id', a.account_id);
-      }
+      await refreshCachedBalancesForItem(itemRow);
     } catch (balanceErr) {
       console.error('Post-reconnect balance refresh failed (non-fatal):', balanceErr?.response?.data || balanceErr);
     }
@@ -170,8 +163,7 @@ async function handleAddNewAccounts(req, res) {
       .eq('plaid_item_id', itemId);
     const existingIds = new Set((existingAccounts || []).map(a => a.plaid_account_id));
 
-    const balancesRes = await plaidClient.accountsBalanceGet({ access_token: decryptToken(itemRow.access_token) });
-    const plaidAccounts = balancesRes.data.accounts || [];
+    const plaidAccounts = await fetchCachedAccounts(itemRow); // free — see lib/plaid-helpers.js
 
     const newRows = plaidAccounts
       .filter(a => !existingIds.has(a.account_id))

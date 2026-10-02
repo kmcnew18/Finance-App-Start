@@ -79,7 +79,11 @@ module.exports = async (req, res) => {
     });
 
     // Pull balances immediately so the new accounts show up right away.
-    const balancesRes = await plaidClient.accountsBalanceGet({ access_token: accessToken });
+    // /accounts/get (free) rather than /accounts/balance/get (billed per
+    // call): right after Link, Plaid's cached balances are the ones it
+    // just fetched while connecting, so the paid real-time call added
+    // nothing here.
+    const balancesRes = await plaidClient.accountsGet({ access_token: accessToken });
     let plaidAccounts = balancesRes.data.accounts || [];
 
     // If the person checked specific accounts in Arko's own picker

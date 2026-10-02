@@ -5,11 +5,11 @@
 // "Sync all accounts" button in Settings, and by the background
 // refresh on Connections page load.
 //
-// Each item is only actually re-fetched from Plaid once every 24 hours
-// (see isSyncDue in lib/plaid-helpers.js) — this is a shared budget
-// with transaction/subscription syncing, so if either of those already
-// ran for this item today, this skips it too rather than calling Plaid
-// again.
+// Balances come from Plaid's free /accounts/get (cached, refreshed by
+// Plaid about daily) — see refreshCachedBalancesForItem in
+// lib/plaid-helpers.js — so this no longer touches the once-a-day
+// budget that guards billed calls. Investment holdings are fetched only
+// for connections with an investment account, at most twice a day.
 //
 // Requires: npm install plaid @supabase/supabase-js
 // Same environment variables as plaid-exchange-token.js.
@@ -17,7 +17,7 @@
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 const { createClient } = require('@supabase/supabase-js');
 const { decryptToken } = require('../lib/crypto-helpers');
-const { isSyncDue, nextSyncAt, markItemSynced } = require('../lib/plaid-helpers');
+const { refreshCachedBalancesForItem } = require('../lib/plaid-helpers');
 const { requireUser } = require('../lib/auth-guard');
 
 const plaidClient = new PlaidApi(new Configuration({
@@ -88,6 +88,20 @@ async function syncHoldingsForItem(item, userId) {
   }
 }
 
+const BALANCE_THROTTLE_MS = 5 * 60 * 1000;
+const HOLDINGS_REFRESH_MS = 12 * 60 * 60 * 1000;
+
+async function holdingsAreStale(linkedAccountIds) {
+  const { data } = await supabaseAdmin
+    .from('investment_holdings')
+    .select('updated_at')
+    .in('linked_account_id', linkedAccountIds)
+    .order('updated_at', { ascending: false })
+    .limit(1);
+  const newest = data && data[0] && data[0].updated_at ? Date.parse(data[0].updated_at) : 0;
+  return Date.now() - newest >= HOLDINGS_REFRESH_MS;
+}
+
 async function recordPortfolioSnapshot(userId) {
   const { data: holdings } = await supabaseAdmin.from('investment_holdings').select('institution_value').eq('user_id', userId);
   if (!holdings || !holdings.length) return;
@@ -121,7 +135,7 @@ module.exports = async (req, res) => {
 
     const { data: linkedAccounts } = await supabaseAdmin
       .from('linked_accounts')
-      .select('plaid_item_id')
+      .select('id, plaid_item_id, account_type, updated_at')
       .eq('user_id', userId);
     const activeItemIds = new Set((linkedAccounts || []).map(a => a.plaid_item_id).filter(Boolean));
 
@@ -151,34 +165,23 @@ module.exports = async (req, res) => {
         continue;
       }
 
-      // Shared once-a-day budget with transaction/subscription syncing
-      // (see isSyncDue in lib/plaid-helpers.js) — if this item already
-      // had a live Plaid call today via any path, skip it here too
-      // rather than calling Plaid again just for balances.
-      if (!isSyncDue(item)) {
+      // Balances come from Plaid's free cached endpoint (see
+      // refreshCachedBalancesForItem in lib/plaid-helpers.js), so this no
+      // longer spends — or waits on — the once-a-day sync budget that
+      // guards the billed calls. Only a very short throttle remains, so
+      // Dashboard + Connections loading back to back (or a few quick
+      // clicks of "Sync all accounts") don't re-ask Plaid for the same
+      // cached numbers seconds apart.
+      const itemAccounts = (linkedAccounts || []).filter(a => a.plaid_item_id === item.item_id);
+      const newestUpdate = itemAccounts.reduce((m, a) => Math.max(m, a.updated_at ? Date.parse(a.updated_at) : 0), 0);
+      if (Date.now() - newestUpdate < BALANCE_THROTTLE_MS) {
         skippedCount++;
-        const itemNextSync = nextSyncAt(item);
-        if (itemNextSync && (!earliestNextSyncAt || itemNextSync < earliestNextSyncAt)) earliestNextSyncAt = itemNextSync;
         continue;
       }
 
       try {
-        const balancesRes = await plaidClient.accountsBalanceGet({ access_token: decryptToken(item.access_token) });
-        await markItemSynced(item.item_id);
-        const plaidAccounts = balancesRes.data.accounts || [];
-
-        for (const a of plaidAccounts) {
-          const { error: updateError } = await supabaseAdmin
-            .from('linked_accounts')
-            .update({
-              balance: Math.abs(a.balances.current ?? a.balances.available ?? 0),
-              updated_at: new Date().toISOString(),
-              last_synced_at: new Date().toISOString(),
-            })
-            .eq('user_id', userId)
-            .eq('plaid_account_id', a.account_id);
-          if (!updateError) updatedCount++;
-        }
+        const { updated } = await refreshCachedBalancesForItem(item);
+        updatedCount += updated;
 
         // A successful sync means this Item is healthy — clear any
         // stale reconnect flag from a previous failure.
@@ -186,7 +189,14 @@ module.exports = async (req, res) => {
           await supabaseAdmin.from('plaid_items').update({ needs_reconnect: false, reconnect_reason: null }).eq('item_id', item.item_id);
         }
 
-        holdingsCount += await syncHoldingsForItem(item, userId);
+        // Holdings: only for connections that actually have an investment
+        // account (asking the rest just returned PRODUCTS_NOT_SUPPORTED),
+        // and at most twice a day — Plaid itself only updates holdings
+        // about daily, so more often fetches nothing new.
+        const investmentAccountIds = itemAccounts.filter(a => a.account_type === 'investment').map(a => a.id);
+        if (investmentAccountIds.length && await holdingsAreStale(investmentAccountIds)) {
+          holdingsCount += await syncHoldingsForItem(item, userId);
+        }
       } catch (perItemErr) {
         // One bad/expired item (e.g. user changed their bank password and
         // needs to re-link) shouldn't block syncing everything else — but

@@ -30,7 +30,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const jwkToPem = require('jwk-to-pem');
-const { plaidClient, supabaseAdmin, processItemUpdate } = require('../lib/plaid-helpers');
+const { plaidClient, supabaseAdmin, processItemUpdate, refreshCachedBalancesForItem } = require('../lib/plaid-helpers');
 
 async function verifyWebhook(req) {
   const signedJwt = req.headers['plaid-verification'];
@@ -102,6 +102,15 @@ module.exports = async (req, res) => {
         console.log(`Webhook for item ${item_id} arrived, but this item synced too recently (within the last 15 minutes) — skipped (next eligible: ${result.nextSyncAt || 'n/a'})`);
       } else {
         console.log(`Processed webhook for item ${item_id}:`, result);
+      }
+
+      // New data at the bank means Plaid has just refreshed this Item, so
+      // its cached balances are fresh too — pick them up now. Free
+      // (/accounts/get), so no budget or floor applies.
+      try {
+        await refreshCachedBalancesForItem(itemRow);
+      } catch (balanceErr) {
+        console.error('Webhook balance refresh failed (non-fatal):', item_id, balanceErr?.response?.data || balanceErr);
       }
     } else if (
       webhook_type === 'ITEM' &&

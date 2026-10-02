@@ -2330,6 +2330,10 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .log-empty-action:hover { background: rgba(110,143,163,0.18); border-color: var(--vintage-blue-light); box-shadow: 0 0 18px rgba(110,143,163,0.3); }
 .log-empty-action:focus-visible { outline: 2px solid var(--vintage-blue-light); outline-offset: 3px; }
+@media (max-width: 560px) {
+  .log-empty { padding: 22px 16px 20px; }
+  .log-empty-icon { width: 36px; height: 36px; margin-bottom: 2px; }
+}
 
 .log-note-display:empty::after {
   content: 'Add a note';

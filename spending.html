@@ -666,8 +666,10 @@
     // banks (api/plaid-sync-recurring, mode 'backfill-month'). Months a
     // bank had nothing for are remembered on the account
     // (user_metadata.spend_retrieved_months) so revisiting them doesn't
-    // quietly trigger another billed Plaid call — the button switches to
-    // a deliberate "Check again" instead.
+    // keep re-asking the banks for history they don't have — the button
+    // switches to a deliberate "Check again" instead. (/transactions/get
+    // is covered by Plaid's per-Item Transactions subscription, so this
+    // isn't a per-click charge.)
     const retrieveState = {}; // monthKey -> 'loading' | 'error' | 'partial'
     let linkedBankCount = null;
 
