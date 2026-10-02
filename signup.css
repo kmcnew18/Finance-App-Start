@@ -1,23 +1,43 @@
+/* Shared by login, signup, forgot/reset password, and the legal pages.
+   Same palette, page background, wordmark, buttons and inputs as the app
+   itself (dashboard.css) — these pages used to run on their own warm
+   grey/brown palette, so signing in felt like landing on a different
+   site. Brown isn't part of the brand guide (silver / vintage blue /
+   vintage cream / dark vintage); vintage blue + the wordmark's neon
+   blue are what the rest of the product uses for accents. */
 :root {
+  --page-bg: #0D1117;
   --blue: #2E5472;
   --blue-deep: #1B2330;
   --blue-light: #6E8FA3;
+  --neon: #4FC3E8;
+  --silver: #B3B6B9;
   --tan: #E8E1D3;
   --tan-hover: #F0EBE0;
-  --brown: #6b4a38;
-  --brown-hover: #7d5745;
   --ink: #20262B;
-  --slate: #5B6268;
   --line: #C9CBCC;
-  --grey: #313032;
+
+  /* Semantic tokens the pages' own inline styles use. */
+  --accent: #2E5472;          /* buttons, filled controls */
+  --accent-light: #6E8FA3;    /* eyebrows, numbers, links, focus */
+  --surface: #12181F;         /* panels behind content */
+  --line-dark: #26313F;       /* hairline dividers / borders */
+  --text-body: #D8D2C4;       /* long-form reading text (cream, slightly dimmed) */
+  --text-muted: #96A0A7;      /* secondary text — readable on the dark page, unlike the old brown */
+  --text-faint: #76808A;      /* tertiary hints */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: 'Public Sans', -apple-system, sans-serif;
-  background: var(--blue-deep);
-  color: var(--ink);
+  background-color: var(--page-bg);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'%3E%3C/feTurbulence%3E%3CfeColorMatrix type='saturate' values='0'%3E%3C/feColorMatrix%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'%3E%3C/rect%3E%3C/svg%3E"),
+    radial-gradient(ellipse at top, rgba(46,84,114,0.16), transparent 60%);
+  background-blend-mode: overlay, normal;
+  background-attachment: fixed;
+  color: var(--tan);
   line-height: 1.55;
 }
 
@@ -27,42 +47,20 @@ h1, h2, h3, h4 {
   letter-spacing: -0.01em;
 }
 
-/* ---------- SIGNUP HERO ---------- */
+/* ---------- HERO (page shell) ---------- */
+/* Transparent so the page background and the ambient lighting layer
+   show through, same as the app pages. */
 .hero {
-  background: var(--grey);
+  background: transparent;
   color: var(--tan);
   padding: 32px 24px 96px;
   position: relative;
-  overflow: hidden;
   min-height: 100vh;
-}
-
-.hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 60% 50% at 15% 20%, rgba(255,255,255,0.05), transparent 60%),
-    radial-gradient(ellipse 50% 60% at 85% 15%, rgba(0,0,0,0.25), transparent 65%),
-    radial-gradient(ellipse 70% 50% at 30% 80%, rgba(0,0,0,0.2), transparent 60%),
-    radial-gradient(ellipse 55% 45% at 75% 75%, rgba(255,255,255,0.04), transparent 60%),
-    radial-gradient(ellipse 40% 40% at 55% 45%, rgba(0,0,0,0.15), transparent 55%);
-  pointer-events: none;
-}
-
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  opacity: 0.04;
-  mix-blend-mode: overlay;
-  pointer-events: none;
 }
 
 .nav {
   max-width: 960px;
-  margin: 0 auto 80px;
+  margin: 0 auto 72px;
   position: relative;
   z-index: 1;
   display: flex;
@@ -78,40 +76,48 @@ h1, h2, h3, h4 {
 
 .nav-auth button {
   padding: 9px 18px;
-  border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: 'Public Sans', sans-serif;
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
+/* Primary — vintage blue with the crisp-ring-at-rest / bloom-on-hover
+   glow used across the product. */
 .btn-signup {
-  background: var(--brown);
+  border: none;
+  background: var(--accent);
   color: var(--tan);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--neon) 22%, transparent),
+    0 4px 14px rgba(0,0,0,0.3);
 }
-
 .btn-signup:hover {
-  background: var(--brown-hover);
+  background: var(--accent-light);
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--neon) 45%, transparent),
+    0 0 22px color-mix(in srgb, var(--neon) 28%, transparent),
+    0 6px 16px rgba(0,0,0,0.3);
 }
 
 .btn-login {
+  border: none;
   background: var(--tan);
   color: var(--blue-deep);
 }
-
-.btn-login:hover {
-  background: var(--tan-hover);
-}
+.btn-login:hover { background: var(--tan-hover); }
 
 .wordmark {
   font-family: 'Fraunces', serif;
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--brown);
+  color: var(--silver);
+  text-shadow: 0 0 6px rgba(79,195,232,0.85), 0 0 18px rgba(79,195,232,0.5), 0 0 34px rgba(79,195,232,0.25);
 }
 
 .wordmark-brand {
@@ -120,27 +126,36 @@ h1, h2, h3, h4 {
   color: var(--tan);
 }
 
-/* ---------- SIGNUP CARD ---------- */
+/* ---------- AUTH CARD ---------- */
 .auth-content {
-  max-width: 400px;
+  max-width: 420px;
   margin: 0 auto;
   text-align: center;
   position: relative;
   z-index: 1;
+  padding: 36px 32px 30px;
+  border-radius: 16px;
+  border: 1px solid rgba(110,143,163,0.22);
+  background: linear-gradient(160deg, rgba(110,143,163,0.08), rgba(255,255,255,0.015));
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--neon) 10%, transparent),
+    0 0 40px color-mix(in srgb, var(--neon) 8%, transparent),
+    0 22px 50px rgba(0,0,0,0.4);
 }
 
 .auth-content h1 {
-  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-size: clamp(1.8rem, 4vw, 2.3rem);
   line-height: 1.15;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: var(--tan);
 }
 
 .auth-subhead {
-  font-size: 1rem;
-  color: var(--brown);
-  opacity: 0.9;
-  margin-bottom: 40px;
+  font-size: 0.98rem;
+  color: var(--text-muted);
+  margin-bottom: 30px;
 }
 
 .auth-form {
@@ -151,31 +166,37 @@ h1, h2, h3, h4 {
 }
 
 .auth-form label {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: var(--tan);
+  color: var(--silver);
   margin-bottom: -8px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
 }
 
 .auth-form input {
-  padding: 14px 16px;
-  border-radius: 6px;
-  border: 1px solid #0F1620;
-  background: #12181F;
+  padding: 13px 15px;
+  border-radius: 8px;
+  border: 1px solid var(--line-dark);
+  background: #0F151C;
   color: var(--tan);
   font-size: 0.95rem;
   width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .auth-form input::placeholder {
-  color: #9A9184;
+  color: var(--text-faint);
 }
 
-.auth-form input:focus,
+.auth-form input:focus {
+  outline: none;
+  border-color: var(--accent-light);
+  box-shadow: 0 0 0 3px rgba(110,143,163,0.18), 0 0 14px color-mix(in srgb, var(--neon) 14%, transparent);
+}
+
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid var(--brown);
+  outline: 2px solid var(--accent-light);
   outline-offset: 2px;
 }
 
@@ -183,23 +204,35 @@ a:focus-visible {
   margin-top: 10px;
   padding: 14px 22px;
   border: none;
-  border-radius: 6px;
-  background: var(--brown);
+  border-radius: 8px;
+  background: var(--accent);
   color: var(--tan);
   font-weight: 600;
   font-size: 0.95rem;
+  letter-spacing: 0.02em;
   cursor: pointer;
   white-space: nowrap;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--neon) 22%, transparent),
+    0 4px 14px rgba(0,0,0,0.3);
+  transition: background 0.15s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 .auth-form button:hover {
-  background: var(--brown-hover);
+  background: var(--accent-light);
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--neon) 45%, transparent),
+    0 0 24px color-mix(in srgb, var(--neon) 28%, transparent),
+    0 6px 16px rgba(0,0,0,0.3);
 }
+.auth-form button:active { transform: translateY(0); }
+.auth-form button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .auth-switch {
   font-size: 0.85rem;
-  color: #A8A29A;
-  margin-top: 24px;
+  color: var(--text-muted);
+  margin-top: 22px;
 }
 
 .auth-message {
@@ -224,24 +257,27 @@ a:focus-visible {
 
 .auth-switch a:hover {
   text-decoration: underline;
+  text-decoration-color: var(--accent-light);
 }
 
 /* ---------- RESEND BUTTON ---------- */
 .btn-resend {
   margin-top: 8px;
   padding: 10px 18px;
-  border: 1px solid var(--brown);
-  border-radius: 6px;
+  border: 1px solid rgba(110,143,163,0.4);
+  border-radius: 8px;
   background: transparent;
   color: var(--tan);
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
   width: 100%;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .btn-resend:hover {
-  background: rgba(107, 74, 56, 0.2);
+  background: rgba(46, 84, 114, 0.2);
+  border-color: var(--accent-light);
 }
 
 .btn-resend:disabled {
@@ -255,4 +291,5 @@ a:focus-visible {
     align-items: flex-start;
     gap: 12px;
   }
+  .auth-content { padding: 28px 20px 24px; }
 }

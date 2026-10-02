@@ -53,7 +53,7 @@
       font-size: 0.72rem;
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: var(--brown-hover);
+      color: var(--accent-light);
       margin-bottom: 10px;
     }
     .policy-header h1 {
@@ -65,13 +65,13 @@
     .policy-updated {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 0.76rem;
-      color: #9A9184;
+      color: var(--text-muted);
     }
 
     .policy-summary {
       max-width: 640px;
-      background: rgba(107, 74, 56, 0.12);
-      border: 1px solid rgba(107, 74, 56, 0.5);
+      background: rgba(46, 84, 114, 0.12);
+      border: 1px solid rgba(46, 84, 114, 0.5);
       border-radius: 10px;
       padding: 22px 24px;
       margin-bottom: 56px;
@@ -84,12 +84,12 @@
     }
     .policy-summary ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
     .policy-summary li {
-      font-size: 0.88rem; line-height: 1.5; color: #D8D2C4;
+      font-size: 0.88rem; line-height: 1.5; color: var(--text-body);
       padding-left: 20px; position: relative;
     }
     .policy-summary li::before {
       content: "—";
-      position: absolute; left: 0; color: var(--brown-hover);
+      position: absolute; left: 0; color: var(--accent-light);
     }
 
     .policy-layout {
@@ -109,7 +109,7 @@
     }
     .policy-rail a {
       font-size: 0.8rem;
-      color: #9A9184;
+      color: var(--text-muted);
       text-decoration: none;
       padding: 7px 0;
       border-left: 2px solid transparent;
@@ -117,23 +117,23 @@
       transition: color 0.15s ease, border-color 0.15s ease;
     }
     .policy-rail a:hover,
-    .policy-rail a:focus-visible { color: var(--tan); border-color: var(--brown-hover); }
+    .policy-rail a:focus-visible { color: var(--tan); border-color: var(--accent-light); }
 
     .policy-clause {
       position: relative;
       padding-left: 26px;
       margin-bottom: 48px;
-      border-left: 2px solid #3a3430;
+      border-left: 2px solid var(--line-dark);
       scroll-margin-top: 32px;
     }
     .policy-clause-num {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 0.72rem;
-      color: var(--brown-hover);
+      color: var(--accent-light);
       position: absolute;
       left: -1px;
       top: 2px;
-      background: var(--grey);
+      background: var(--surface);
       padding-right: 10px;
       transform: translateX(-50%);
     }
@@ -143,7 +143,7 @@
       margin-bottom: 12px;
     }
     .policy-clause p, .policy-clause li {
-      font-size: 0.92rem; line-height: 1.7; color: #D8D2C4;
+      font-size: 0.92rem; line-height: 1.7; color: var(--text-body);
     }
     .policy-clause ul { margin: 10px 0 4px 20px; }
     .policy-clause li { margin-bottom: 8px; }
@@ -160,7 +160,7 @@
     .policy-table th, .policy-table td {
       text-align: left;
       padding: 10px 12px;
-      border-bottom: 1px solid #3a3430;
+      border-bottom: 1px solid var(--line-dark);
       vertical-align: top;
     }
     .policy-table th {
@@ -170,15 +170,15 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
-    .policy-table td { color: #D8D2C4; }
+    .policy-table td { color: var(--text-body); }
 
     .policy-footer {
       max-width: 640px;
       margin-left: 226px;
       padding-bottom: 60px;
       font-size: 0.82rem;
-      color: #9A9184;
-      border-top: 1px solid #3a3430;
+      color: var(--text-muted);
+      border-top: 1px solid var(--line-dark);
       padding-top: 24px;
     }
 
@@ -190,7 +190,7 @@
         flex-wrap: wrap;
         gap: 4px 16px;
         padding-bottom: 8px;
-        border-bottom: 1px solid #3a3430;
+        border-bottom: 1px solid var(--line-dark);
         margin-bottom: 12px;
       }
       .policy-rail a { padding: 4px 0; border-left: none; }
@@ -242,7 +242,7 @@
         </nav>
 
         <div class="policy-content">
-          <p style="font-size:0.94rem; line-height:1.7; color:#D8D2C4; margin-bottom: 40px;">These Terms of Service ("Terms") govern your use of Arko ("we," "us," "the service"), a personal budgeting and net worth tracking application. By creating an account or using Arko, you agree to these Terms. If you don't agree, don't use the service.</p>
+          <p style="font-size:0.94rem; line-height:1.7; color:var(--text-body); margin-bottom: 40px;">These Terms of Service ("Terms") govern your use of Arko ("we," "us," "the service"), a personal budgeting and net worth tracking application. By creating an account or using Arko, you agree to these Terms. If you don't agree, don't use the service.</p>
 
           <section class="policy-clause" id="acceptance">
             <span class="policy-clause-num">01</span>
