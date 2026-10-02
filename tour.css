@@ -1,0 +1,270 @@
+/* ============= GUIDED TOUR =============
+   tour.js builds this: a centered glass card with a looping animated
+   scene (an SVG "mini video" of the screen being explained) above a
+   short description. Each step tints the card with that section's own
+   accent — --tour-accent is set per step. Crisp ring + soft bloom glow,
+   same recipe as the rest of the app. */
+
+.arko-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 290; /* below the idle sign-out warning (300) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(5, 7, 10, 0.74);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.arko-tour.open { opacity: 1; }
+
+.arko-tour-card {
+  --tour-accent: #4FC3E8;
+  position: relative;
+  width: min(580px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  border-radius: 20px;
+  background: linear-gradient(165deg, rgba(24, 32, 42, 0.97), rgba(12, 16, 22, 0.98));
+  border: 1px solid color-mix(in srgb, var(--tour-accent) 30%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--tour-accent) 10%, transparent),
+    0 0 44px color-mix(in srgb, var(--tour-accent) 16%, transparent),
+    0 30px 80px rgba(0, 0, 0, 0.55);
+  transform: translateY(12px) scale(0.97);
+  transition: transform 0.45s cubic-bezier(.2,.8,.2,1), border-color 0.5s ease, box-shadow 0.5s ease;
+  scrollbar-width: thin;
+}
+.arko-tour.open .arko-tour-card { transform: none; }
+
+/* ---- progress: one segment per step, each a jump target ---- */
+.arko-tour-progress {
+  display: flex;
+  gap: 5px;
+  padding: 16px 58px 0 20px;
+}
+.arko-tour-seg {
+  flex: 1;
+  height: 16px;
+  padding: 6px 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.arko-tour-seg::before {
+  content: '';
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.09);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+.arko-tour-seg.done::before { background: color-mix(in srgb, var(--tour-accent) 45%, transparent); }
+.arko-tour-seg.current::before {
+  background: var(--tour-accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--tour-accent) 70%, transparent);
+}
+.arko-tour-seg:hover::before { background: color-mix(in srgb, var(--tour-accent) 65%, transparent); }
+.arko-tour-seg:focus-visible { outline: none; }
+.arko-tour-seg:focus-visible::before { outline: 2px solid var(--tour-accent); outline-offset: 2px; }
+
+.arko-tour-close {
+  position: absolute;
+  top: 10px; right: 12px;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--silver-dim, #7C8489);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.arko-tour-close:hover { color: var(--tan, #E8E1D3); background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); }
+
+/* ---- the scene ---- */
+.arko-tour-stage {
+  position: relative;
+  margin: 12px 16px 0;
+  aspect-ratio: 460 / 240;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #1D2733;
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 0%, color-mix(in srgb, var(--tour-accent) 13%, transparent), transparent 72%),
+    radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1.2px) 0 0 / 18px 18px,
+    #0A0F15;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  touch-action: pan-y;
+}
+.arko-tour-stage svg { display: block; width: 100%; height: 100%; }
+
+/* ---- text ---- */
+.arko-tour-body { padding: 18px 26px 4px; }
+.arko-tour-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tour-accent);
+}
+.arko-tour-eyebrow svg { width: 15px; height: 15px; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--tour-accent) 60%, transparent)); }
+.arko-tour-tier {
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: var(--silver, #B3B6B9);
+  background: rgba(255,255,255,0.05);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.1);
+}
+.arko-tour-title {
+  margin: 8px 0 6px;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--tan, #E8E1D3);
+}
+.arko-tour-text { font-size: 0.9rem; line-height: 1.6; color: var(--silver, #B3B6B9); margin: 0; }
+.arko-tour-points { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.arko-tour-points li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.84rem; line-height: 1.5; color: #C7CCD0; }
+.arko-tour-points li svg {
+  flex-shrink: 0;
+  width: 18px; height: 18px;
+  margin-top: 1px;
+  padding: 3px;
+  border-radius: 50%;
+  color: var(--tour-accent);
+  background: color-mix(in srgb, var(--tour-accent) 13%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tour-accent) 30%, transparent);
+}
+
+/* ---- footer ---- */
+.arko-tour-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 26px 22px;
+}
+.arko-tour-skip {
+  background: none;
+  border: none;
+  padding: 6px 2px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--silver-dim, #7C8489);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.arko-tour-skip:hover { color: var(--tan, #E8E1D3); }
+.arko-tour-count { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 0.74rem; color: var(--silver-dim, #7C8489); }
+.arko-tour-nav { display: flex; gap: 8px; }
+.arko-tour-back, .arko-tour-next {
+  padding: 10px 18px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.arko-tour-back {
+  background: transparent;
+  color: var(--silver, #B3B6B9);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.arko-tour-back:hover { color: var(--tan, #E8E1D3); border-color: rgba(255,255,255,0.24); }
+.arko-tour-back[hidden] { display: none; }
+.arko-tour-next {
+  border: 1px solid color-mix(in srgb, var(--tour-accent) 70%, transparent);
+  background: linear-gradient(135deg, var(--tour-accent), color-mix(in srgb, var(--tour-accent) 70%, #0D1117));
+  color: #0B1117;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tour-accent) 22%, transparent), 0 0 18px color-mix(in srgb, var(--tour-accent) 28%, transparent);
+}
+.arko-tour-next:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px color-mix(in srgb, var(--tour-accent) 40%, transparent), 0 0 28px color-mix(in srgb, var(--tour-accent) 45%, transparent); }
+.arko-tour-back:focus-visible, .arko-tour-next:focus-visible, .arko-tour-skip:focus-visible, .arko-tour-close:focus-visible {
+  outline: 2px solid var(--tour-accent);
+  outline-offset: 3px;
+}
+
+/* ---- step change ---- */
+.arko-tour-card.swap-next .arko-tour-stage svg, .arko-tour-card.swap-next .arko-tour-body { animation: arkoTourInNext 0.42s cubic-bezier(.2,.8,.2,1); }
+.arko-tour-card.swap-prev .arko-tour-stage svg, .arko-tour-card.swap-prev .arko-tour-body { animation: arkoTourInPrev 0.42s cubic-bezier(.2,.8,.2,1); }
+@keyframes arkoTourInNext { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes arkoTourInPrev { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+
+/* ============= SCENES =============
+   Timeline-driven by tour.js: elements carry data-at (appear),
+   data-off (disappear), data-tap, data-move, data-count, data-dash,
+   data-scale, data-type. Only opacity/transform/dash animate. */
+.ts text { font-family: 'Public Sans', system-ui, sans-serif; }
+.ts .ts-serif { font-family: 'Fraunces', Georgia, serif; }
+.ts .ts-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+.ts .ts-italic { font-style: italic; }
+.ts .ts-caps { letter-spacing: 0.1em; }
+
+.ts { transition: opacity 0.4s ease; }
+.ts.ts-fadeout { opacity: 0; }
+
+.ts [data-at] { opacity: 0; transition: opacity 0.45s ease, transform 0.6s cubic-bezier(.2,.8,.2,1); }
+.ts [data-at].on { opacity: 1; }
+.ts [data-fx] { transform-box: fill-box; transform-origin: center; }
+.ts [data-fx].on { transform: none; }
+.ts [data-fx="up"]:not(.on) { transform: translateY(10px); }
+.ts [data-fx="left"]:not(.on) { transform: translateX(-14px); }
+.ts [data-fx="pop"]:not(.on) { transform: scale(0.8); }
+.ts [data-off] { transition: opacity 0.35s ease, transform 0.6s cubic-bezier(.2,.8,.2,1); }
+.ts .gone { opacity: 0 !important; }
+
+.ts [data-dash] { transition: stroke-dasharray 1s cubic-bezier(.3,.7,.3,1), opacity 0.3s ease; }
+.ts [data-scale] { transform-box: fill-box; transform-origin: left center; transition: transform 1.3s cubic-bezier(.2,.8,.2,1), opacity 0.3s ease; }
+.ts .ts-slow[data-scale], .ts .ts-slow[data-dash] { transition-duration: 2.2s; }
+.ts [data-move] { transition: transform 0.75s cubic-bezier(.45,.05,.25,1); }
+.ts [data-tap]:not(.ts-cursor) { transform-box: fill-box; transform-origin: center; transition: transform 0.18s ease, filter 0.18s ease; }
+.ts [data-tap].tap:not(.ts-cursor) { transform: scale(0.94); filter: brightness(1.3); }
+
+.ts-cursor-inner { transition: transform 0.15s ease; }
+.ts-cursor.tap .ts-cursor-inner { transform: scale(0.85); }
+.ts-ripple { opacity: 0; }
+.ts-cursor.tap .ts-ripple { animation: tsRipple 0.55s ease-out; }
+@keyframes tsRipple { from { opacity: 0.7; r: 3; } to { opacity: 0; r: 16; } }
+
+.ts-orbit { transform-box: view-box; transform-origin: 230px 120px; animation: tsSpin 34s linear infinite; }
+.ts-breathe { transform-box: fill-box; transform-origin: center; animation: tsBreathe 3.4s ease-in-out infinite; }
+.ts-spin-slow { transform-box: fill-box; transform-origin: center; animation: tsSpin 12s linear infinite; }
+.ts-twinkle { animation: tsTwinkle 2.6s ease-in-out infinite; }
+@keyframes tsSpin { to { transform: rotate(360deg); } }
+@keyframes tsBreathe { 0%, 100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+@keyframes tsTwinkle { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.8; } }
+
+/* ---- phones ---- */
+@media (max-width: 560px) {
+  .arko-tour { padding: 10px; align-items: flex-end; }
+  .arko-tour-card { border-radius: 18px; max-height: calc(100dvh - 20px); }
+  .arko-tour-progress { padding: 14px 52px 0 16px; gap: 4px; }
+  .arko-tour-stage { margin: 10px 12px 0; }
+  .arko-tour-body { padding: 14px 18px 2px; }
+  .arko-tour-title { font-size: 1.18rem; }
+  .arko-tour-text { font-size: 0.85rem; }
+  .arko-tour-points li { font-size: 0.8rem; }
+  .arko-tour-foot { padding: 16px 18px 18px; }
+  .arko-tour-count { display: none; }
+  .arko-tour-nav { margin-left: auto; }
+  .arko-tour-back, .arko-tour-next { padding: 10px 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arko-tour, .arko-tour-card { transition: none; }
+  .arko-tour-card.swap-next .arko-tour-stage svg, .arko-tour-card.swap-next .arko-tour-body,
+  .arko-tour-card.swap-prev .arko-tour-stage svg, .arko-tour-card.swap-prev .arko-tour-body { animation: none; }
+  .ts-orbit, .ts-breathe, .ts-spin-slow, .ts-twinkle { animation: none; }
+}

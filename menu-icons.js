@@ -25,6 +25,7 @@
     unlink: '<path d="M9 17H7a5 5 0 0 1 0-10h2"></path><path d="M15 7h2a5 5 0 0 1 4 8"></path><path d="M8 12h3"></path><path d="M3 3l18 18"></path>',
     pencil: '<path d="M4 20h4L19 9l-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path>',
     history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l3 3"></path>',
+    compass: '<circle cx="12" cy="12" r="9"></circle><path d="M15.5 8.5l-2 5-5 2 2-5 5-2z"></path>',
   };
 
   var BY_ID = {
@@ -32,6 +33,7 @@
     'manage-sub-btn': 'card',
     'legal-policies-btn': 'scale',
     'help-faq-btn': 'help',
+    'tour-open-btn': 'compass',
     'low-balance-btn': 'bell',
     'view-skipped-btn': 'archive',
     'find-missing-logs-btn': 'search',
