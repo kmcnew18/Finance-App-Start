@@ -226,6 +226,32 @@ h1, h2, h3 {
 .dropdown-item:hover { background: rgba(255,255,255,0.06); padding-left: 15px; }
 .dropdown-item.danger { color: var(--error); }
 
+/* Line icons added by menu-icons.js — same treatment as the Ambient
+   lighting switch's sun: neon-blue stroke with a soft halo, a touch
+   quieter at rest so a dozen of them don't compete, brighter on hover.
+   Destructive items keep their icon in the item's own red. */
+.dropdown-item.has-menu-icon { display: flex; align-items: center; gap: 10px; }
+.menu-icon-label { display: inline-flex; align-items: center; gap: 10px; }
+.menu-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: #4FC3E8;
+  opacity: 0.8;
+  filter: drop-shadow(0 0 3px rgba(79,195,232,0.45));
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+.dropdown-item:hover .menu-icon,
+.dropdown-toggle-row:hover .menu-icon {
+  opacity: 1;
+  filter: drop-shadow(0 0 5px rgba(79,195,232,0.75));
+}
+.dropdown-item.danger .menu-icon {
+  color: var(--error);
+  filter: drop-shadow(0 0 3px rgba(224,139,125,0.45));
+}
+.dropdown-item.danger:hover .menu-icon { filter: drop-shadow(0 0 5px rgba(224,139,125,0.7)); }
+
 .dash-main { max-width: 960px; margin: 0 auto; padding: 36px 24px 100px; }
 
 .loading-message { text-align: center; padding: 60px 24px; color: var(--silver-dim); }

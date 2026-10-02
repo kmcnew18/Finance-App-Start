@@ -155,5 +155,5 @@ html.arko-ambient-on .overview-section-title::after {
 
 /* Settings dropdown toggle row icon — the switch itself reuses the
    page's existing .dropdown-toggle-row / .switch styles. */
-.arko-ambient-toggle-label { display: inline-flex; align-items: center; gap: 8px; }
-.arko-ambient-toggle-label svg { width: 14px; height: 14px; color: var(--amb-neon, #4FC3E8); filter: drop-shadow(0 0 4px rgba(79,195,232,0.6)); }
+.arko-ambient-toggle-label { display: inline-flex; align-items: center; gap: 10px; }
+.arko-ambient-toggle-label svg { width: 15px; height: 15px; flex-shrink: 0; color: #4FC3E8; filter: drop-shadow(0 0 4px rgba(79,195,232,0.6)); }
