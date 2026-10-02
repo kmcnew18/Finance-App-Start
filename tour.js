@@ -434,7 +434,7 @@
       points: ['Drag cards to reorder; rename, recolor, or group them from ⋯', 'Add, Subtract, and Transfer for anything not connected', 'Side tabs hold your recent activity and quick notes'] },
     { key: 'log', page: 'log', accent: C.blue, icon: 'list', eyebrow: 'Full Log',
       title: 'Every entry, in one ledger',
-      text: 'Everything you confirm or enter on the Dashboard lands in the Full Log with its date, amount, and categories.',
+      text: 'Everything you confirm or enter on the Dashboard lands in the Full Log with its date, amount, and categories — open it with View Log at the top of the Dashboard.',
       points: ['Search notes and filter by month or type', 'Click any note to edit it in place', 'Export to CSV, or select entries to delete'] },
     { key: 'budget', page: 'budget', accent: C.brass, icon: 'ledger', eyebrow: 'Budget Planner',
       title: 'Plan each period',
