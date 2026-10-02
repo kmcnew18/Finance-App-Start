@@ -131,6 +131,17 @@
       <span class="spend-total-value" id="spend-total-value">$0.00</span>
     </section>
 
+    <section class="spend-retrieve" id="spend-retrieve" style="display:none;" aria-live="polite">
+      <span class="spend-retrieve-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><path d="M5 21h14"></path></svg>
+      </span>
+      <div class="spend-retrieve-text">
+        <span class="spend-retrieve-title" id="spend-retrieve-title"></span>
+        <span class="spend-retrieve-sub" id="spend-retrieve-sub"></span>
+      </div>
+      <button type="button" class="spend-retrieve-btn" id="spend-retrieve-btn">Retrieve month</button>
+    </section>
+
     <section class="spend-section spend-chart-section">
       <div class="spend-section-head-row">
         <h2 class="spend-section-title">By category</h2>
@@ -142,8 +153,8 @@
       <div id="spend-category-list" class="spend-category-list"></div>
       <div class="spend-empty-state" id="spend-category-empty" style="display:none;">
         <span class="spend-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9"></path><path d="M21 3v9h-9"></path></svg></span>
-        <span class="spend-empty-title">No spending yet this month</span>
-        <span class="spend-empty-sub">Purchases from your connected accounts will show up here, sorted by category, as they post.</span>
+        <span class="spend-empty-title" id="spend-category-empty-title">No spending yet this month</span>
+        <span class="spend-empty-sub" id="spend-category-empty-sub">Purchases from your connected accounts will show up here, sorted by category, as they post.</span>
       </div>
     </section>
 
@@ -643,7 +654,159 @@
       renderCategoryBreakdown(spends, total);
       currentSpendTxns = spends;
       renderTransactionList();
+      await updateRetrieveCard((txns || []).length, isAtCurrentMonth);
       await loadSubscriptions();
+    }
+
+    // ---- Retrieve a past month ----
+    // Regular syncing only stores transactions from the month before an
+    // account was connected onward, so older months come up completely
+    // empty. For those, offer to pull that one month straight from the
+    // banks (api/plaid-sync-recurring, mode 'backfill-month'). Months a
+    // bank had nothing for are remembered on the account
+    // (user_metadata.spend_retrieved_months) so revisiting them doesn't
+    // quietly trigger another billed Plaid call — the button switches to
+    // a deliberate "Check again" instead.
+    const retrieveState = {}; // monthKey -> 'loading' | 'error' | 'partial'
+    let linkedBankCount = null;
+
+    function viewMonthKey() {
+      return `${viewMonth.getFullYear()}-${String(viewMonth.getMonth() + 1).padStart(2, '0')}`;
+    }
+    function viewMonthName() {
+      return viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    async function getLinkedBankCount() {
+      if (linkedBankCount !== null) return linkedBankCount;
+      const { count, error } = await supabaseClient
+        .from('linked_accounts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', currentUserId);
+      if (error) { console.error(error); return 1; } // don't hide the option over a lookup hiccup
+      linkedBankCount = count || 0;
+      return linkedBankCount;
+    }
+
+    async function getCheckedEmptyMonths() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const saved = session?.user?.user_metadata?.spend_retrieved_months;
+      return Array.isArray(saved) ? saved : [];
+    }
+
+    async function rememberCheckedEmptyMonth(key) {
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) return;
+        const meta = user.user_metadata || {};
+        const months = Array.isArray(meta.spend_retrieved_months) ? meta.spend_retrieved_months : [];
+        if (months.includes(key)) return;
+        await supabaseClient.auth.updateUser({ data: { ...meta, spend_retrieved_months: [...months, key].slice(-36) } });
+      } catch (err) {
+        console.error('Could not save retrieved month:', err);
+      }
+    }
+
+    function setCategoryEmptyCopy(title, sub) {
+      document.getElementById('spend-category-empty-title').textContent = title;
+      document.getElementById('spend-category-empty-sub').textContent = sub;
+    }
+
+    async function updateRetrieveCard(storedCount, isAtCurrentMonth) {
+      const card = document.getElementById('spend-retrieve');
+      const titleEl = document.getElementById('spend-retrieve-title');
+      const subEl = document.getElementById('spend-retrieve-sub');
+      const btn = document.getElementById('spend-retrieve-btn');
+      const key = viewMonthKey();
+      const name = viewMonthName();
+
+      if (isAtCurrentMonth || storedCount > 0) {
+        card.style.display = 'none';
+        setCategoryEmptyCopy(
+          isAtCurrentMonth ? 'No spending yet this month' : 'No spending this month',
+          isAtCurrentMonth
+            ? 'Purchases from your connected accounts will show up here, sorted by category, as they post.'
+            : 'Nothing but transfers and deposits were recorded for this month.'
+        );
+        return;
+      }
+
+      const [bankCount, checkedMonths] = await Promise.all([getLinkedBankCount(), getCheckedEmptyMonths()]);
+      if (key !== viewMonthKey()) return; // user already moved to another month
+
+      const state = retrieveState[key];
+      card.classList.toggle('is-loading', state === 'loading');
+      subEl.classList.toggle('is-error', state === 'error' || state === 'partial');
+      btn.disabled = state === 'loading';
+      btn.classList.remove('is-ghost');
+      btn.onclick = () => retrieveMonth(key);
+
+      if (bankCount === 0) {
+        titleEl.textContent = `No transactions for ${name}`;
+        subEl.textContent = 'Connect a bank and Arko can pull in your past months.';
+        btn.textContent = 'Connect a bank';
+        btn.onclick = () => ArkoTransitions.go('connections.html');
+        setCategoryEmptyCopy('Nothing stored for this month', 'Connect a bank to see where your money went.');
+      } else if (state === 'loading') {
+        titleEl.textContent = `Retrieving ${name}…`;
+        subEl.textContent = 'Asking your banks for this month’s transactions. This usually takes a few seconds.';
+        btn.innerHTML = '<span class="spend-retrieve-spinner" aria-hidden="true"></span>Retrieving';
+        setCategoryEmptyCopy('Retrieving this month…', 'Your spending will appear here as soon as it arrives.');
+      } else if (state === 'error') {
+        titleEl.textContent = `Couldn’t retrieve ${name}`;
+        subEl.textContent = 'Your banks didn’t respond just now. Give it a moment and try again.';
+        btn.textContent = 'Try again';
+        setCategoryEmptyCopy('Nothing stored for this month', 'Use Retrieve above to pull it from your banks.');
+      } else if (checkedMonths.includes(key)) {
+        titleEl.textContent = `No history available for ${name}`;
+        subEl.textContent = 'Your banks didn’t have transactions for this month. Most share about 6 months of history from when an account was first connected.';
+        btn.textContent = 'Check again';
+        btn.classList.add('is-ghost');
+        setCategoryEmptyCopy('No history for this month', 'Your banks didn’t have anything from this far back.');
+      } else {
+        titleEl.textContent = `Nothing stored for ${name}`;
+        subEl.textContent = state === 'partial'
+          ? 'Some of your banks couldn’t be reached. Try again to fill in the rest.'
+          : 'This month is from before Arko started syncing your accounts. Pull it in from your banks — it only takes a moment.';
+        btn.textContent = state === 'partial' ? 'Try again' : 'Retrieve month';
+        setCategoryEmptyCopy('Nothing stored for this month', 'Use Retrieve above to pull it from your banks.');
+      }
+
+      card.style.display = 'flex';
+    }
+
+    async function retrieveMonth(key) {
+      if (retrieveState[key] === 'loading') return;
+      retrieveState[key] = 'loading';
+      await updateRetrieveCard(0, false);
+
+      let result = null;
+      try {
+        const resp = await fetch('/api/plaid-sync-recurring', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+          body: JSON.stringify({ userId: currentUserId, mode: 'backfill-month', month: key }),
+        });
+        result = await resp.json().catch(() => null);
+        if (!resp.ok || !result || !result.success) throw new Error(result?.error || `HTTP ${resp.status}`);
+      } catch (err) {
+        console.error('Month retrieve failed:', err);
+        retrieveState[key] = 'error';
+        if (key === viewMonthKey()) await updateRetrieveCard(0, false);
+        return;
+      }
+
+      if (result.itemsConsidered === 0) linkedBankCount = 0;
+      if (result.failedItems > 0 && result.failedItems >= result.itemsConsidered) {
+        retrieveState[key] = 'error';
+      } else if (result.failedItems > 0) {
+        retrieveState[key] = 'partial';
+      } else {
+        delete retrieveState[key];
+        if (result.storedCount === 0 && result.itemsConsidered > 0) await rememberCheckedEmptyMonth(key);
+      }
+
+      if (key === viewMonthKey()) await loadSpendingData();
     }
 
     let currentSpendTxns = [];

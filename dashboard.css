@@ -3586,6 +3586,10 @@ textarea:focus-visible,
     top: auto;
     bottom: calc(18px + env(safe-area-inset-bottom));
     transform: none;
+    /* Below the sticky header (z 30) so an open Settings/ledger menu,
+       which drops down from it, isn't covered by these. Still above
+       page content. */
+    z-index: 25;
     width: 46px;
     height: 46px;
     border-radius: 50%;

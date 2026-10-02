@@ -25,7 +25,7 @@
 //
 // Requires: npm install plaid @supabase/supabase-js
 
-const { supabaseAdmin, processItemUpdate, refreshTransactionsForItem, refreshSubscriptionsForItem, backfillDashboardReviews, dedupeDashboardReviews, reclassifyPendingReviews, reclassifyStoredTransactions } = require('../lib/plaid-helpers');
+const { supabaseAdmin, processItemUpdate, refreshTransactionsForItem, refreshSubscriptionsForItem, backfillMonthForItem, backfillDashboardReviews, dedupeDashboardReviews, reclassifyPendingReviews, reclassifyStoredTransactions } = require('../lib/plaid-helpers');
 const { decryptToken } = require('../lib/crypto-helpers');
 const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
 
@@ -46,10 +46,21 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { userId, mode } = req.body || {};
+    const { userId, mode, month } = req.body || {};
     if (!userId) {
       res.status(400).json({ error: 'Missing userId' });
       return;
+    }
+    // 'backfill-month' — Spendings' "Retrieve month" button: fetch one
+    // specific past month the regular sync never stored (see
+    // backfillMonthForItem in lib/plaid-helpers.js). Validated up front
+    // since it's interpolated into Plaid date ranges.
+    if (mode === 'backfill-month') {
+      const currentKey = new Date().toISOString().slice(0, 7);
+      if (typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || month > currentKey) {
+        res.status(400).json({ error: 'Invalid month' });
+        return;
+      }
     }
 
     // Verify the caller is actually authenticated as this user before
@@ -88,6 +99,8 @@ module.exports = async (req, res) => {
     let itemsConsidered = 0;
     let itemsSkipped = 0;
     let earliestNextSyncAt = null;
+    let backfillStored = 0;
+    let backfillFailedItems = 0;
 
     for (const item of items || []) {
       // A plaid_items row with no linked_accounts pointing at it is a
@@ -114,6 +127,17 @@ module.exports = async (req, res) => {
       }
 
       itemsConsidered++;
+
+      if (mode === 'backfill-month') {
+        try {
+          const r = await backfillMonthForItem(item, month);
+          backfillStored += r.storedCount;
+        } catch (backfillErr) {
+          backfillFailedItems++;
+          console.error('Month backfill failed for item', item.item_id, month, backfillErr?.response?.data || backfillErr);
+        }
+        continue;
+      }
 
       try {
         let result;
@@ -193,6 +217,12 @@ module.exports = async (req, res) => {
     // gate — lets the client show a friendly "already synced today"
     // message instead of treating this like a no-op error.
     const alreadySyncedToday = itemsConsidered > 0 && itemsSkipped === itemsConsidered;
+
+    if (mode === 'backfill-month') {
+      console.log('plaid-sync-recurring backfill-month result:', { userId, month, itemsConsidered, backfillStored, backfillFailedItems, orphansCleaned });
+      res.status(200).json({ success: true, month, itemsConsidered, storedCount: backfillStored, failedItems: backfillFailedItems });
+      return;
+    }
 
     console.log('plaid-sync-recurring result:', { userId, mode: mode || 'combined', totalAdded, totalQueued, orphansCleaned, itemsConsidered, itemsSkipped, reclassifiedCount, txnReclassifiedCount, backfilledCount, dedupedCount });
     res.status(200).json({ success: true, totalAdded, totalQueued, orphansCleaned, alreadySyncedToday, nextSyncAt: earliestNextSyncAt, reclassifiedCount, txnReclassifiedCount, backfilledCount, dedupedCount });
