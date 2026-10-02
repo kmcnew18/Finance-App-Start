@@ -73,6 +73,37 @@
 
     let lastLoginEmail = '';
 
+    // Where to go after signing in: back to the app page that sent you
+    // here (idle sign-out, an expired session, Log out) rather than
+    // always the Dashboard. Taken from ?next= or the referring page, and
+    // only ever one of Arko's own app pages on this origin — anything
+    // else falls back to the Dashboard, so this can't be used as an
+    // open redirect.
+    const APP_PAGE_RE = /^\/(dashboard|connections|budget|log|spending|investments|savings)(\.html)?$/;
+    function safeReturnPath(raw) {
+      if (!raw) return null;
+      try {
+        const u = new URL(raw, location.origin);
+        if (u.origin !== location.origin || !APP_PAGE_RE.test(u.pathname)) return null;
+        return u.pathname + u.search;
+      } catch (e) { return null; }
+    }
+    const returnTo = (() => {
+      const fromParam = safeReturnPath(new URLSearchParams(location.search).get('next'));
+      const fromReferrer = safeReturnPath(document.referrer);
+      const remembered = (() => { try { return safeReturnPath(sessionStorage.getItem('arko_return_to')); } catch (e) { return null; } })();
+      const chosen = fromParam || fromReferrer || remembered;
+      try { if (chosen) sessionStorage.setItem('arko_return_to', chosen); } catch (e) {}
+      return chosen;
+    })();
+    function goAfterLogin() {
+      try { sessionStorage.removeItem('arko_return_to'); } catch (e) {}
+      ArkoTransitions.go(returnTo || 'dashboard.html');
+    }
+
+    // Already signed in (e.g. opened Login from a bookmark)? Skip the form.
+    supabaseClient.auth.getUser().then(({ data }) => { if (data && data.user) goAfterLogin(); }).catch(() => {});
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       message.textContent = '';
@@ -155,7 +186,7 @@
           return;
         }
 
-        ArkoTransitions.go('dashboard.html');
+        goAfterLogin();
 
       } catch (err) {
         console.error('Unexpected error:', err);
