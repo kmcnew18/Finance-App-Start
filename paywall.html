@@ -58,6 +58,18 @@
       cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
     }
     .paywall-logout-btn:hover { background: rgba(239,230,208,0.1); border-color: rgba(239,230,208,0.55); transform: translateY(-1px); }
+    .paywall-nav { gap: 12px; }
+    .wordmark, .paywall-logout-btn { white-space: nowrap; }
+    .wordmark { flex-shrink: 0; }
+    .paywall-nav-actions { display: flex; gap: 10px; align-items: center; }
+    @media (max-width: 520px) {
+      .paywall-header { padding: 14px 16px; }
+      .wordmark { font-size: 1.05rem; gap: 6px; }
+      .wordmark-mark { height: 24px; }
+      .paywall-nav-actions { gap: 8px; }
+      .paywall-logout-btn { padding: 7px 12px; font-size: 0.78rem; }
+      .paywall-back-long { display: none; }
+    }
 
     .paywall-main { max-width: 1080px; margin: 0 auto; padding: 48px 24px 80px; }
     .paywall-intro { text-align: center; margin-bottom: 8px; }
@@ -204,8 +216,8 @@
   <header class="paywall-header">
     <nav class="paywall-nav">
       <span class="wordmark"><img src="favicon-192.png" alt="" class="wordmark-mark" width="28" height="28" /><span class="wordmark-brand">Arko</span> | Finance</span>
-      <div style="display:flex; gap:10px; align-items:center;">
-        <button type="button" id="paywall-back-button" class="paywall-logout-btn">← Back to Dashboard</button>
+      <div class="paywall-nav-actions">
+        <button type="button" id="paywall-back-button" class="paywall-logout-btn" aria-label="Back to Dashboard">← <span class="paywall-back-long">Back to </span>Dashboard</button>
         <button type="button" id="paywall-logout-button" class="paywall-logout-btn">Log out</button>
       </div>
     </nav>
