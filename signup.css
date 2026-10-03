@@ -290,11 +290,35 @@ a:focus-visible {
   cursor: not-allowed;
 }
 
+/* Show/hide password (password-toggle.js) */
+.pw-wrap { position: relative; display: block; }
+.auth-form .pw-wrap input { padding-right: 48px; }
+.pw-toggle {
+  position: absolute;
+  top: 50%; right: 6px;
+  transform: translateY(-50%);
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.pw-toggle:hover { color: var(--text-body); background: rgba(255,255,255,0.05); }
+.pw-toggle:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 0; }
+.pw-toggle svg { width: 18px; height: 18px; }
+.pw-toggle .pw-eye-off { display: none; }
+.pw-toggle[aria-pressed="true"] { color: var(--neon); }
+.pw-toggle[aria-pressed="true"] .pw-eye { display: none; }
+.pw-toggle[aria-pressed="true"] .pw-eye-off { display: block; }
+
 @media (max-width: 480px) {
-  .nav {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
+  /* Logo and the Log in / Sign up button stay on one row. */
+  .nav { gap: 10px; margin-bottom: 44px; }
+  .nav .wordmark { font-size: 1.05rem; gap: 6px; white-space: nowrap; }
+  .nav .wordmark-mark { height: 24px; }
+  .nav-auth button { padding: 8px 14px; font-size: 0.8rem; }
   .auth-content { padding: 28px 20px 24px; }
 }
