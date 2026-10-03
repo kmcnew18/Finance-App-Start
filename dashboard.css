@@ -2763,6 +2763,18 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 }
 
+/* Same fix for any touchscreen, not just narrow ones — a tablet (iPad,
+   etc.) is wider than the phone breakpoint above but still can't hover,
+   so these controls were invisible there. The drag handle is hidden
+   outright on touch: reordering there is press-and-hold on the card
+   (setupTouchCardReorder in dashboard.html). */
+@media (hover: none) {
+  .card-color-btn,
+  .card-menu-btn { opacity: 1 !important; pointer-events: auto !important; }
+  .sync-hint { opacity: 1 !important; pointer-events: auto !important; position: static; margin-top: 2px; }
+  .card-drag-handle { display: none; }
+}
+
 /* ==========================================================================
    PREMIUM FEATURE MENU — brass "ledger" trigger + tool list.
    This is the single entry point for every premium tool (Dashboard, Budget

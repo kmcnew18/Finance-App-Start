@@ -470,6 +470,13 @@
   }
 }
 
+/* Any touchscreen (tablets too, not only narrow phones): no hover, so
+   the row actions must always be visible. */
+@media (hover: none) {
+  .spend-txn-map-btn,
+  .spend-txn-edit-btn { opacity: 1; }
+}
+
 /* Within Spendings, keyboard focus reads in coral rather than the
    dashboard's vintage-blue, matching the room's own accent (same
    pattern budget.css uses for its brass focus ring). */
