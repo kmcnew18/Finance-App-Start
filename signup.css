@@ -293,24 +293,31 @@ a:focus-visible {
 /* Show/hide password (password-toggle.js) */
 .pw-wrap { position: relative; display: block; }
 .auth-form .pw-wrap input { padding-right: 48px; }
-.pw-toggle {
+/* Scoped under .auth-form so it outranks the form's big blue button
+   style (fill, padding, margin, hover lift) rather than inheriting it. */
+.auth-form .pw-toggle,
+.auth-form .pw-toggle:hover,
+.auth-form .pw-toggle:active {
   position: absolute;
   top: 50%; right: 6px;
   transform: translateY(-50%);
   width: 36px; height: 36px;
+  margin: 0;
+  padding: 0;
   display: flex; align-items: center; justify-content: center;
   border: none;
   border-radius: 7px;
   background: transparent;
+  box-shadow: none;
   color: var(--text-faint);
   cursor: pointer;
   transition: color 0.15s ease, background 0.15s ease;
 }
-.pw-toggle:hover { color: var(--text-body); background: rgba(255,255,255,0.05); }
-.pw-toggle:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 0; }
+.auth-form .pw-toggle:hover { color: var(--text-body); background: rgba(255,255,255,0.05); }
+.auth-form .pw-toggle:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 0; }
 .pw-toggle svg { width: 18px; height: 18px; }
 .pw-toggle .pw-eye-off { display: none; }
-.pw-toggle[aria-pressed="true"] { color: var(--neon); }
+.auth-form .pw-toggle[aria-pressed="true"] { color: var(--neon); }
 .pw-toggle[aria-pressed="true"] .pw-eye { display: none; }
 .pw-toggle[aria-pressed="true"] .pw-eye-off { display: block; }
 
