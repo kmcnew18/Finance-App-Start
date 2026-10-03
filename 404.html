@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Page not found · Arko</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Public+Sans:wght@400;600;700&display=swap" />
+  <style>
+    /* Shown by Vercel for any path that doesn't exist. Self-contained
+       (no app scripts) so it always renders, signed in or not. */
+    :root { --bg: #0D1117; --tan: #E8E1D3; --silver: #B3B6B9; --dim: #7C8489; --neon: #4FC3E8; --accent: #2E5472; --accent-light: #6E8FA3; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 32px 20px;
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 30%, rgba(79,195,232,0.08), transparent 70%),
+        radial-gradient(ellipse 60% 40% at 50% 100%, rgba(46,84,114,0.18), transparent 70%),
+        var(--bg);
+      color: var(--tan);
+      font-family: 'Public Sans', system-ui, sans-serif;
+      text-align: center;
+    }
+    .orbit-wrap { position: relative; width: 190px; height: 190px; margin-bottom: 26px; }
+    .ring { position: absolute; inset: 0; border-radius: 50%; border: 1px dashed rgba(79,195,232,0.22); }
+    .ring.inner { inset: 42px; border: 1px solid rgba(79,195,232,0.3); animation: breathe 3.6s ease-in-out infinite; }
+    .orbit { position: absolute; inset: 0; animation: spin 30s linear infinite; }
+    .dot { position: absolute; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+    .dot.lost { width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; opacity: 0.55; animation: drift 6s ease-in-out infinite; }
+    .mark { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; filter: drop-shadow(0 0 10px rgba(79,195,232,0.4)); }
+    .code { font: 600 0.78rem 'Public Sans', sans-serif; letter-spacing: 0.22em; color: var(--neon); text-transform: uppercase; margin: 0 0 10px; }
+    h1 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: clamp(1.7rem, 6vw, 2.3rem); margin: 0 0 10px; letter-spacing: -0.01em; }
+    p.sub { color: var(--silver); font-size: 0.98rem; line-height: 1.6; max-width: 420px; margin: 0 auto 28px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 999px; font: 700 0.88rem 'Public Sans', sans-serif; text-decoration: none; transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.15s ease, color 0.15s ease; }
+    .btn-primary { color: #0B1117; background: linear-gradient(135deg, var(--neon), #3A9CC0); border: 1px solid rgba(79,195,232,0.7); box-shadow: 0 0 0 1px rgba(79,195,232,0.2), 0 0 18px rgba(79,195,232,0.3); }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px rgba(79,195,232,0.4), 0 0 28px rgba(79,195,232,0.45); }
+    .btn-ghost { color: var(--silver); border: 1px solid rgba(255,255,255,0.15); }
+    .btn-ghost:hover { color: var(--tan); border-color: rgba(255,255,255,0.3); }
+    .btn:focus-visible { outline: 2px solid var(--neon); outline-offset: 3px; }
+    .foot { margin-top: 36px; font-size: 0.78rem; color: var(--dim); }
+    .foot a { color: var(--accent-light); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes breathe { 0%, 100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+    @keyframes drift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(14px, -10px); } }
+    @media (prefers-reduced-motion: reduce) { .orbit, .ring.inner, .dot.lost { animation: none; } }
+  </style>
+</head>
+<body>
+  <div class="orbit-wrap" aria-hidden="true">
+    <div class="ring"></div>
+    <div class="ring inner"></div>
+    <div class="orbit">
+      <span class="dot" style="left:50%;top:0;color:#6E8FA3;background:#6E8FA3"></span>
+      <span class="dot" style="left:93.3%;top:25%;color:#63D9AA;background:#63D9AA"></span>
+      <span class="dot" style="left:93.3%;top:75%;color:#E0B96E;background:#E0B96E"></span>
+      <span class="dot" style="left:50%;top:100%;color:#E0806A;background:#E0806A"></span>
+      <span class="dot" style="left:6.7%;top:75%;color:#A88FD8;background:#A88FD8"></span>
+    </div>
+    <!-- the one that wandered off -->
+    <span class="dot lost" style="left:2%;top:12%;color:#6EC4B8;background:#6EC4B8"></span>
+    <img class="mark" src="/favicon-192.png" alt="" />
+  </div>
+  <p class="code">404 · Page not found</p>
+  <h1>This page wandered off</h1>
+  <p class="sub">The link may be old or mistyped. Everything else is right where you left it.</p>
+  <div class="actions">
+    <a class="btn btn-primary" href="/dashboard">Go to your Dashboard
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+    </a>
+    <a class="btn btn-ghost" href="/">Arko home</a>
+  </div>
+  <p class="foot">Something should be here? <a href="mailto:contact@arkofinance.com">Let us know</a>.</p>
+</body>
+</html>
