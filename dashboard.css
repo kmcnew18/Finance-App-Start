@@ -916,6 +916,17 @@ h1, h2, h3 {
 .color-picker-swatch:hover { transform: scale(1.08); border-color: rgba(255,255,255,0.4); }
 
 .card[data-cat-key].dragging { opacity: 0.4; cursor: grabbing; }
+/* Touch reordering (press-and-hold, then drag — setupTouchCardReorder):
+   the held card lifts and follows the finger instead of fading. */
+.card[data-cat-key].touch-lift {
+  opacity: 0.96;
+  z-index: 20;
+  transition: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #4FC3E8 45%, transparent), 0 0 26px color-mix(in srgb, #4FC3E8 30%, transparent), 0 18px 40px rgba(0,0,0,0.55);
+}
+@media (hover: none) {
+  .overview-cards .card[data-cat-key] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+}
 .card[data-cat-key].drag-over {
   box-shadow: inset 0 0 0 2px var(--vintage-blue-light), 0 6px 22px rgba(0,0,0,0.3);
   transform: scale(1.015);

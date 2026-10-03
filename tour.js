@@ -431,7 +431,7 @@
     { key: 'dashboard', page: 'dashboard', accent: C.blue, icon: 'grid', eyebrow: 'Dashboard',
       title: 'Your money at a glance',
       text: 'Your Money shows each category’s total, kept in sync with Connections. New purchases and deposits appear under Detected activity — confirm to log them, or skip.',
-      points: ['Drag cards to reorder; ⋯ renames or groups them, the color dot recolors', 'Add, Subtract, and Transfer for anything not connected', 'Side tabs hold your recent activity and quick notes'] },
+      points: ['Drag cards to reorder (press and hold on a phone); ⋯ renames or groups them, the color dot recolors', 'Add, Subtract, and Transfer for anything not connected', 'Side tabs hold your recent activity and quick notes'] },
     { key: 'log', page: 'log', accent: C.blue, icon: 'list', eyebrow: 'Full Log',
       title: 'Every entry, in one ledger',
       text: 'Everything you confirm or enter on the Dashboard lands in the Full Log with its date, amount, and categories — open it with View Log at the top of the Dashboard.',

@@ -824,6 +824,66 @@
         container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
         dragSourceCatKey = null;
       });
+
+      setupTouchCardReorder(container);
+    }
+
+    // Phones and tablets never fire HTML5 drag events from touch, so the
+    // drag-to-reorder above simply didn't work there. Touch gets the
+    // standard mobile gesture instead: press and hold a card (~0.4s) until
+    // it lifts, then drag it onto another card. Moving before the hold
+    // completes is treated as a normal scroll, and the tap that ends a
+    // drag is swallowed so it doesn't also open the card.
+    function setupTouchCardReorder(container) {
+      let holdTimer = null, startX = 0, startY = 0, source = null, active = false, over = null, swallowClick = false;
+      const reset = () => {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+        if (source) { source.classList.remove('dragging', 'touch-lift'); source.style.transform = ''; source.style.pointerEvents = ''; }
+        if (over) over.classList.remove('drag-over');
+        source = null; over = null; active = false;
+      };
+      container.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        const card = e.target.closest('.card[data-cat-key]');
+        if (!card || e.target.closest('button, input, select, a, .card-menu-dropdown')) return;
+        const t = e.touches[0];
+        startX = t.clientX; startY = t.clientY; source = card;
+        holdTimer = setTimeout(() => {
+          active = true;
+          card.classList.add('touch-lift');
+          if (navigator.vibrate) navigator.vibrate(12);
+        }, 420);
+      }, { passive: true });
+      container.addEventListener('touchmove', (e) => {
+        if (!source) return;
+        const t = e.touches[0];
+        if (!active) {
+          if (Math.hypot(t.clientX - startX, t.clientY - startY) > 10) reset(); // it's a scroll
+          return;
+        }
+        e.preventDefault(); // holding a card: the page shouldn't scroll under the finger
+        source.style.pointerEvents = 'none';
+        source.style.transform = `translate(${t.clientX - startX}px, ${t.clientY - startY}px) scale(1.04)`;
+        const target = (document.elementFromPoint(t.clientX, t.clientY) || {}).closest?.('.card[data-cat-key]') || null;
+        if (over && over !== target) over.classList.remove('drag-over');
+        over = target && target !== source ? target : null;
+        if (over) over.classList.add('drag-over');
+        if (t.clientY < 70) window.scrollBy(0, -10);
+        else if (t.clientY > window.innerHeight - 70) window.scrollBy(0, 10);
+      }, { passive: false });
+      const finish = async () => {
+        if (!active) { reset(); return; }
+        const src = source && source.dataset.catKey, tgt = over && over.dataset.catKey;
+        swallowClick = true;
+        setTimeout(() => { swallowClick = false; }, 350);
+        reset();
+        if (src && tgt && src !== tgt) await reorderCategories(src, tgt);
+      };
+      container.addEventListener('touchend', finish);
+      container.addEventListener('touchcancel', reset);
+      container.addEventListener('click', (e) => { if (swallowClick) { e.preventDefault(); e.stopPropagation(); } }, true);
+      container.addEventListener('contextmenu', (e) => { if (active || holdTimer) e.preventDefault(); });
     }
 
     async function reorderCategories(sourceCatKey, targetCatKey) {
